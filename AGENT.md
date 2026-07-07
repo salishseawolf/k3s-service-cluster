@@ -47,8 +47,8 @@ wiring:
 umask 177
 cat > /tmp/.secrets.env.agent <<'EOF'
 # Agent personal/deployment secrets — op:// references only, resolved by `op run`.
-HCLOUD_TOKEN=*** Agent/K3s Service Cluster Hermes Hetzner/token
-TF_VAR_cloudflare_api_token=*** Agent/K3s Service Cluster Cloudflare DNS Challenge/add more/token
+HCLOUD_TOKEN=op://Hermes Agent/K3s Service Cluster Hermes Hetzner/token
+TF_VAR_cloudflare_api_token=op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token
 EOF
 chmod 600 /tmp/.secrets.env.agent
 ```
@@ -58,7 +58,7 @@ not print values):
 
 ```bash
 op read "op://Hermes Agent/K3s Service Cluster Hermes Hetzner/token" > /dev/null
-op read "op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/add more/token" > /dev/null
+op read "op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token" > /dev/null
 op read "op://K3s Service Cluster/Admin Allow List/IPV4" > /dev/null
 op read "op://K3s Service Cluster/Redis Password/password" > /dev/null
 op read "op://K3s Service Cluster/Cloudflare DNS Challenge/domain" > /dev/null

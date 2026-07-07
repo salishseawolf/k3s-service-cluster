@@ -170,7 +170,7 @@
         name: "{{ paperless_secrets_secret_name }}-db"
         namespace: "{{ paperless_namespace }}"
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/Paperless DB Password"
+        itemPath: "vaults/K3s Service Cluster/items/Paperless Secrets"
 
 - name: Create OnePasswordItem for Paperless SMTP password
   kubernetes.core.k8s:

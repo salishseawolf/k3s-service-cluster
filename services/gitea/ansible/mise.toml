@@ -1,6 +1,6 @@
 [env]
 ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
-GITEA_DB_PASSWORD = "op://K3s Service Cluster/Gitea Secrets/add more/db_password"
+GITEA_DB_PASSWORD = "op://K3s Service Cluster/Gitea Secrets/db_password"
 TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
 GITEA_SMTP_HOST = "op://K3s Service Cluster/Resend.com SMTP/host"
 GITEA_SMTP_PORT = "op://K3s Service Cluster/Resend.com SMTP/port number"

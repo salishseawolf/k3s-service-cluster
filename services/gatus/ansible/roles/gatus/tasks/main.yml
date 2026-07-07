@@ -142,7 +142,7 @@
           app.kubernetes.io/name: gatus
           app.kubernetes.io/component: monitoring
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/Gatus DB Password"
+        itemPath: "vaults/K3s Service Cluster/items/Gatus Secrets"
 
 - name: Create OnePasswordItem for Gatus Teams webhook
   kubernetes.core.k8s:

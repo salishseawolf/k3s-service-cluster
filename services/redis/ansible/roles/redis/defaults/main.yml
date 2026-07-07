@@ -12,4 +12,4 @@ redis_memory_limit: 256Mi
 # Use an alphanumeric password (no URL-reserved characters): consumers embed
 # it in redis:// URLs.
 redis_credentials_secret_name: redis-credentials
-redis_credentials_ref: "vaults/K3s Service Cluster/items/Redis"
+redis_credentials_ref: "vaults/K3s Service Cluster/items/Redis Password"

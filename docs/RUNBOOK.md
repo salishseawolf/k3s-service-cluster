@@ -9,8 +9,8 @@ this is the ordered checklist for landing it. Companion docs: PLAN.md
 
 | Item (vault: K3s Service Cluster) | Fields | Consumed by |
 |---|---|---|
-| `Admin Access` | `cidr` (e.g. `203.0.113.7/32`) | tofu firewall (no default anymore) |
-| `Redis` | `password` — **alphanumeric only** (embedded in redis:// URLs) | redis + all consumers |
+| `Admin Allow List` | `IPV4` (e.g. `203.0.113.7/32`) | tofu firewall (no default anymore) |
+| `Redis Password` | `password` — **alphanumeric only** (embedded in redis:// URLs) | redis + all consumers |
 | `ArgoCD Repo Credentials` | `username`, `password` (Gitea token, read_repository scope) | Argo CD repo access — created later, step 6 |
 
 ## 1. Verify NetworkPolicy enforcement (H1.2) — before anything else

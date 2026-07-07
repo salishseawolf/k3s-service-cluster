@@ -98,7 +98,7 @@
         name: seaweedfs-root-creds
         namespace: "{{ sw_namespace }}"
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/SeaweedFS Root Creds"
+        itemPath: "vaults/K3s Service Cluster/items/SeaweedFS Secrets"
 
 - name: Create OnePasswordItem for SeaweedFS DB password
   kubernetes.core.k8s:
@@ -110,7 +110,7 @@
         name: seaweedfs-db-password
         namespace: "{{ sw_namespace }}"
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/SeaweedFS DB Password"
+        itemPath: "vaults/K3s Service Cluster/items/SeaweedFS Secrets"
 
 - name: Create OnePasswordItem for SeaweedFS backup credentials
   kubernetes.core.k8s:
@@ -122,7 +122,7 @@
         name: seaweedfs-backup-creds
         namespace: "{{ sw_namespace }}"
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/SeaweedFS Backup Bucket Cron Job"
+        itemPath: "vaults/K3s Service Cluster/items/SeaweedFS Secrets"
 
 - name: Create OnePasswordItem for Gitea S3 credentials
   kubernetes.core.k8s:
@@ -371,7 +371,7 @@
                     ROOT_PASS=$(cat /secrets/root-creds/password)
                     GITEA_S3_KEY=$(cat /secrets/gitea-s3-creds/access_key)
                     GITEA_S3_SECRET=$(cat /secrets/gitea-s3-creds/secret_key)
-                    DB_PASS=$(cat /secrets/db-password/password)
+                    DB_PASS=$(cat /secrets/db-password/db_password)
                     cat > /shared/s3.json << EOF
                     {
                       "identities": [
@@ -496,12 +496,12 @@
                     valueFrom:
                       secretKeyRef:
                         name: seaweedfs-backup-creds
-                        key: access_key
+                        key: backup_access_key
                   - name: AWS_SECRET_ACCESS_KEY
                     valueFrom:
                       secretKeyRef:
                         name: seaweedfs-backup-creds
-                        key: secret_key
+                        key: backup_secret_key
                   - name: AWS_DEFAULT_REGION
                     value: hel1
                 volumeMounts:
@@ -866,12 +866,12 @@
                         valueFrom:
                           secretKeyRef:
                             name: seaweedfs-backup-creds
-                            key: access_key
+                            key: backup_access_key
                       - name: AWS_SECRET_ACCESS_KEY
                         valueFrom:
                           secretKeyRef:
                             name: seaweedfs-backup-creds
-                            key: secret_key
+                            key: backup_secret_key
                       - name: AWS_DEFAULT_REGION
                         value: hel1
 

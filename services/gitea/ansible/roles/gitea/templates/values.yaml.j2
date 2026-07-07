@@ -180,7 +180,7 @@ gitea:
     - name: GITEA__database__PASSWD
       valueFrom:
         secretKeyRef:
-          key: password
+          key: db_password
           name: gitea-secrets
     - name: GITEA__security__INTERNAL_TOKEN
       valueFrom:

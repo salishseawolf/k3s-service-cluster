@@ -1,7 +1,7 @@
 [env]
 ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
-PAPERLESS_DB_PASSWORD = "op://K3s Service Cluster/Paperless Secrets/add more/db_password"
-PAPERLESS_SECRET_KEY = "op://K3s Service Cluster/Paperless Secrets/add more/secret_key"
+PAPERLESS_DB_PASSWORD = "op://K3s Service Cluster/Paperless Secrets/db_password"
+PAPERLESS_SECRET_KEY = "op://K3s Service Cluster/Paperless Secrets/secret_key"
 PAPERLESS_ADMIN_PASSWORD = "op://K3s Service Cluster/Paperless Secrets/password"
 TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
 

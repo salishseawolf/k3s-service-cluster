@@ -28,7 +28,7 @@ secrets:
   # them here; the chart only ever commits the op:// pointers.
   db:
     name: gatus-db
-    itemPath: "vaults/K3s Service Cluster/items/Gatus DB Password"
+    itemPath: "vaults/K3s Service Cluster/items/Gatus Secrets"
   teamsWebhook:
     name: gatus-teams-webhook
     itemPath: "vaults/K3s Service Cluster/items/Microsoft Teams Infrastructure Channel Webhook"

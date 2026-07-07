@@ -2,11 +2,11 @@
 # SeaweedFS root credentials (shared vault)
 SEAWEEDFS_ROOT_USER = "op://K3s Service Cluster/SeaweedFS Secrets/username"
 SEAWEEDFS_ROOT_PASSWORD = "op://K3s Service Cluster/SeaweedFS Secrets/password"
-SEAWEEDFS_DB_PASSWORD = "op://K3s Service Cluster/SeaweedFS Secrets/add more/db_password"
+SEAWEEDFS_DB_PASSWORD = "op://K3s Service Cluster/SeaweedFS Secrets/db_password"
 # Backup bucket cron job (shared vault)
-SEAWEEDFS_BACKUP_HOSTNAME = "op://K3s Service Cluster/SeaweedFS Secrets/add more/backup_hostname"
-SEAWEEDFS_BACKUP_ACCESS_KEY = "op://K3s Service Cluster/SeaweedFS Secrets/add more/backup_access_key"
-SEAWEEDFS_BACKUP_SECRET_KEY = "op://K3s Service Cluster/SeaweedFS Secrets/add more/backup_secret_key"
+SEAWEEDFS_BACKUP_HOSTNAME = "op://K3s Service Cluster/SeaweedFS Secrets/backup_hostname"
+SEAWEEDFS_BACKUP_ACCESS_KEY = "op://K3s Service Cluster/SeaweedFS Secrets/backup_access_key"
+SEAWEEDFS_BACKUP_SECRET_KEY = "op://K3s Service Cluster/SeaweedFS Secrets/backup_secret_key"
 
 [tasks.deploy]
 description = "Deploy SeaweedFS storage service"
