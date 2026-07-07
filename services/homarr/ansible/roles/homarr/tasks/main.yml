@@ -495,6 +495,9 @@
           - match: "Host(`{{ homarr_domain }}`)"
             kind: Rule
             priority: 100
+            middlewares:
+              - name: authentik-forward-auth
+                namespace: identity
             services:
               - name: homarr
                 port: "{{ homarr_port }}"

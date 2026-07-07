@@ -285,6 +285,9 @@
         routes:
           - kind: Rule
             match: "Host(`{{ gatus_domain }}`)"
+            middlewares:
+              - name: authentik-forward-auth
+                namespace: identity
             services:
               - kind: Service
                 name: gatus

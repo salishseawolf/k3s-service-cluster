@@ -57,6 +57,7 @@ server:
     ingressClassName: "traefik"
     annotations:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.middlewares: identity-authentik-rate-limit@kubernetescrd
     hosts:
       - "auth.{{ lookup('env', 'TF_VAR_domain') }}"
     paths:

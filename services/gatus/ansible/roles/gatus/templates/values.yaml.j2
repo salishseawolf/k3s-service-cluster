@@ -218,7 +218,9 @@ config:
       success: 2
     - name: Gatus (self)
       group: internal
-      url: "https://{{ gatus_domain }}/health"
+      # Internal endpoint: the public URL now sits behind forward-auth and
+      # would 302 to Authentik, failing the check.
+      url: "http://gatus.gatus.svc.cluster.local:8080/health"
       interval: 60s
       conditions:
         - "[STATUS] == 200"
