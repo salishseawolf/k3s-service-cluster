@@ -1,0 +1,29 @@
+name: validate-platform
+on:
+  pull_request:
+    paths:
+      - "platform/**"
+  push:
+    branches: [main]
+    paths:
+      - "platform/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: yamllint
+        run: |
+          pip install --quiet yamllint
+          yamllint -c .yamllint.yaml platform/
+
+      - name: ansible-lint
+        run: |
+          pip install --quiet "ansible-lint" "ansible-core"
+          for d in platform/ansible platform/argocd/ansible platform/charts/velero/ansible; do
+            [ -d "$d" ] || continue
+            echo "==> $d"
+            ansible-lint "$d" || exit 1
+          done

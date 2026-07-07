@@ -1,0 +1,27 @@
+name: validate-infrastructure
+on:
+  pull_request:
+    paths:
+      - "infrastructure/**"
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/**"
+
+jobs:
+  tofu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenTofu
+        run: |
+          curl -sSL https://get.opentofu.org/install-opentofu.sh -o install.sh
+          chmod +x install.sh && ./install.sh --install-method standalone --skip-verify
+
+      - name: fmt + validate
+        working-directory: infrastructure/tofu
+        run: |
+          tofu fmt -check -recursive
+          tofu init -backend=false -input=false
+          tofu validate
