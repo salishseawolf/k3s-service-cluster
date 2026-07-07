@@ -1,0 +1,3 @@
+[tasks.deploy]
+description = "Deploy developer tooling service"
+run = "mise run //services/developer-tooling/ansible:deploy"

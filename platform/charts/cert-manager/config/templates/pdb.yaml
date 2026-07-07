@@ -1,0 +1,18 @@
+---
+# PodDisruptionBudget for cert-manager controller
+# Prevents voluntary disruption of the cert-manager deployment
+# during node drains, upgrades, or maintenance
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: cert-manager
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+      app.kubernetes.io/instance: cert-manager

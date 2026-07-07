@@ -1,0 +1,16 @@
+[env]
+ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
+
+[tasks.init]
+description = "Install Ansible Galaxy collections"
+sources = ["requirements.yml"]
+run = "ansible-galaxy collection install -r requirements.yml"
+
+[tasks.deploy]
+description = "Deploy Authentik identity provider"
+depends = ["init"]
+run = "op run -- ansible-playbook playbooks/deploy.yml"
+
+[tasks.lint]
+description = "Lint Ansible playbooks"
+run = "ansible-lint"

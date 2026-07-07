@@ -1,0 +1,29 @@
+---
+# config/values.yaml
+namespace: step-ca
+
+# Labels and annotations
+common:
+  labels:
+    app.kubernetes.io/name: step-ca
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: step-ca
+  annotations: {}
+
+# Secrets - populated via op run at deploy time
+# DO NOT commit actual values here
+secrets:
+  # CA password (decrypts intermediate CA key)
+  caPassword: ""
+  # Provisioner password (JWK provisioner auth)
+  provisionerPassword: ""
+  # Public certificates
+  rootCaCrt: ""
+  intermediateCaCrt: ""
+  # Configuration
+  caJson: ""
+  defaultsJson: ""
+  # Private keys (encrypted with caPassword)
+  intermediateCaKey: ""
+  sshHostCaKey: ""
+  sshUserCaKey: ""

@@ -1,0 +1,21 @@
+---
+# Test playbook to verify Ansible connectivity and inventory
+
+- name: Ping all hosts
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Ping hosts
+      ansible.builtin.ping:
+
+    - name: Display host information
+      ansible.builtin.debug:
+        msg: |
+          Hostname: {{ inventory_hostname }}
+          Public IP: {{ ansible_host }}
+          Private IP: {{ hcloud_private_networks[0].ip | default('N/A') }}
+          Server Type: {{ hcloud_type }}
+          Node Index: {{ hcloud_labels.node_index }}
+          Location: {{ hcloud_location }}
+          OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          Python: {{ ansible_facts['python_version'] }}

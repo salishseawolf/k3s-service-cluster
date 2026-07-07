@@ -1,0 +1,31 @@
+---
+# K3s server arguments (CIS hardened)
+
+# yamllint disable rule:line-length
+k3s_common_args: >-
+  --tls-san={{ k3s_control_plane_endpoint }}
+  --tls-san={{ hcloud_private_networks[0]['ip'] }}
+  --tls-san={{ ansible_host }}
+  --disable=servicelb
+  --disable-cloud-controller
+  --kubelet-arg=cloud-provider=external
+  --write-kubeconfig-mode=0644
+  --protect-kernel-defaults=true
+  --flannel-backend=wireguard-native
+  --flannel-iface=enp7s0
+  --kube-apiserver-arg=audit-log-path={{ k3s_logs_dir }}/audit.log
+  --kube-apiserver-arg=audit-policy-file={{ k3s_config_dir }}/audit.yaml
+  --kube-apiserver-arg=audit-log-maxage=30
+  --kube-apiserver-arg=audit-log-maxbackup=5
+  --kube-apiserver-arg=audit-log-maxsize=50
+  --kube-apiserver-arg=enable-admission-plugins=NodeRestriction,EventRateLimit
+  --kube-apiserver-arg=admission-control-config-file={{ k3s_config_dir }}/psa.yaml
+  --kube-apiserver-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+  --kube-apiserver-arg=service-account-extend-token-expiration=false
+  --kube-controller-manager-arg=terminated-pod-gc-threshold=100
+  --kubelet-arg=streaming-connection-idle-timeout=5m
+  --kubelet-arg=make-iptables-util-chains=true
+  --kubelet-arg=event-qps=0
+  --kubelet-arg=pod-max-pids=1024
+  --kubelet-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+# yamllint enable rule:line-length

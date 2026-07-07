@@ -1,0 +1,437 @@
+---
+# Copyparty file server deployment tasks
+
+# ──────────────────────────────────────────────────────────────────
+# Preflight: Check SeaweedFS is available for CSI PVC
+# ──────────────────────────────────────────────────────────────────
+- name: Check SeaweedFS CSI StorageClass exists
+  kubernetes.core.k8s_info:
+    kind: StorageClass
+    name: "{{ copyparty_storage_class }}"
+  register: copyparty_sc_check
+
+- name: Fail if StorageClass not found
+  ansible.builtin.fail:
+    msg: "SeaweedFS CSI StorageClass '{{ copyparty_storage_class }}' not found. Deploy seaweedfs-csi first."
+  when: copyparty_sc_check.resources | length == 0
+
+# ──────────────────────────────────────────────────────────────────
+# Namespace
+# ──────────────────────────────────────────────────────────────────
+- name: Create Copyparty namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ copyparty_namespace }}"
+        labels:
+          pod-security.kubernetes.io/enforce: baseline
+
+# ──────────────────────────────────────────────────────────────────
+# PVC (SeaweedFS CSI)
+# ──────────────────────────────────────────────────────────────────
+- name: Create Copyparty data PVC
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ copyparty_pvc_name }}"
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{ copyparty_storage }}"
+        storageClassName: "{{ copyparty_storage_class }}"
+
+# ──────────────────────────────────────────────────────────────────
+# ServiceAccount (for outpost)
+# ──────────────────────────────────────────────────────────────────
+- name: Create outpost ServiceAccount
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: copyparty-outpost
+        namespace: "{{ copyparty_namespace }}"
+
+# ──────────────────────────────────────────────────────────────────
+# ConfigMap
+# ──────────────────────────────────────────────────────────────────
+- name: Deploy Copyparty ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: copyparty-config
+        namespace: "{{ copyparty_namespace }}"
+      data:
+        copyparty.conf: |
+          [global]
+            p: {{ copyparty_port }}
+            hist: /w/.copyparty-db
+            e2dsa
+            rproxy: 1
+            idp-h-usr: x-authentik-username
+            idp-h-grp: x-authentik-groups
+            idp-store: 3
+            xff-src: 10.42.0.0/16,10.43.0.0/16,192.168.0.0/16
+            ihead: *
+            shr: /shr
+            shr-who: a
+            vc-url: https://api.copyparty.eu/advisories
+            s-tbody: 0
+
+          [accounts]
+            # No local accounts — auth handled by Authentik via IdP headers
+
+          [/]
+            /w
+            accs:
+              r: @infrastructure
+              A: @infrastructure
+            flags:
+              fk: 4
+  notify: config changed
+
+# ──────────────────────────────────────────────────────────────────
+# Deployment
+# ──────────────────────────────────────────────────────────────────
+- name: Deploy Copyparty
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: copyparty
+        namespace: "{{ copyparty_namespace }}"
+        labels:
+          app.kubernetes.io/name: copyparty
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: copyparty
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: copyparty
+          spec:
+            securityContext:
+              runAsUser: 0
+              fsGroup: 1000
+            containers:
+              - name: copyparty
+                image: "{{ copyparty_image }}"
+                ports:
+                  - containerPort: "{{ copyparty_port }}"
+                    name: http
+                env:
+                  - name: PYTHONUNBUFFERED
+                    value: "1"
+                volumeMounts:
+                  - name: config
+                    mountPath: /cfg
+                  - name: data
+                    mountPath: /w
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 1000m
+                    memory: 1Gi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                      - ALL
+            volumes:
+              - name: config
+                configMap:
+                  name: copyparty-config
+              - name: data
+                persistentVolumeClaim:
+                  claimName: "{{ copyparty_pvc_name }}"
+
+# ──────────────────────────────────────────────────────────────────
+# Service
+# ──────────────────────────────────────────────────────────────────
+- name: Create Copyparty Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: copyparty
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        ports:
+          - port: "{{ copyparty_port }}"
+            targetPort: "{{ copyparty_port }}"
+            name: http
+        selector:
+          app.kubernetes.io/name: copyparty
+
+# ──────────────────────────────────────────────────────────────────
+# Authentik Blueprint
+# ──────────────────────────────────────────────────────────────────
+- name: Append copyparty blueprint to authentik-blueprints
+  kubernetes.core.k8s:
+    state: patched
+    kind: ConfigMap
+    name: authentik-blueprints
+    namespace: identity
+    definition:
+      data:
+        blueprint-copyparty.yaml: |
+          {{ lookup('ansible.builtin.template', 'blueprint-copyparty.yaml.j2') | indent(10) }}
+
+- name: Wait for ConfigMap propagation and apply blueprint
+  ansible.builtin.shell:
+    cmd: |
+      for i in $(seq 1 12); do
+        kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" -n identity exec deploy/authentik-server -- sh -c "test -f /blueprints/custom/blueprint-copyparty.yaml" 2>/dev/null && break
+        sleep 10
+      done && kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" -n identity exec deploy/authentik-server -- ak apply_blueprint /blueprints/custom/blueprint-copyparty.yaml 2>&1
+  register: copyparty_blueprint_result
+  changed_when: "'created' in copyparty_blueprint_result.stdout or 'patched' in copyparty_blueprint_result.stdout"
+
+- name: Fetch Authentik auto-generated outpost token
+  ansible.builtin.shell:
+    cmd: |
+      for i in 1 2 3 4 5; do
+        TOKEN=$(kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" -n identity exec deploy/authentik-server -- python3 -c "
+      import django, os
+      os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'authentik.root.settings')
+      django.setup()
+      from authentik.outposts.models import Outpost
+      from authentik.core.models import Token
+      o = Outpost.objects.filter(name='Copyparty Filer Outpost').first()
+      if o and o.token:
+          t = Token.objects.filter(identifier=o.token).first()
+          if t and t.key:
+              print(t.key)
+              exit(0)
+      exit(1)
+      " 2>/dev/null)
+        if [ -n "$TOKEN" ]; then
+          echo "$TOKEN"
+          exit 0
+        fi
+        sleep 10
+      done
+      exit 1
+  register: copyparty_outpost_token_result
+  changed_when: copyparty_outpost_token_result.stdout | length > 10
+  failed_when: copyparty_outpost_token_result.stdout | length == 0
+
+- name: Create outpost token Secret from auto-generated token
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: copyparty-outpost-token
+        namespace: "{{ copyparty_namespace }}"
+      stringData:
+        token: "{{ copyparty_outpost_token_result.stdout }}"
+
+# ──────────────────────────────────────────────────────────────────
+# Outpost Deployment
+# ──────────────────────────────────────────────────────────────────
+- name: Deploy outpost Deployment
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: copyparty-outpost
+        namespace: "{{ copyparty_namespace }}"
+        labels:
+          app.kubernetes.io/name: copyparty-outpost
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: copyparty-outpost
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: copyparty-outpost
+          spec:
+            serviceAccountName: copyparty-outpost
+            containers:
+              - name: proxy
+                image: ghcr.io/goauthentik/proxy:2026.5.3
+                ports:
+                  - containerPort: 9000
+                    name: http
+                env:
+                  - name: AUTHENTIK_HOST
+                    value: "{{ copyparty_authentik_host }}"
+                  - name: AUTHENTIK_HOST_BROWSER
+                    value: "{{ copyparty_authentik_host_browser }}"
+                  - name: AUTHENTIK_TOKEN
+                    valueFrom:
+                      secretKeyRef:
+                        name: copyparty-outpost-token
+                        key: token
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 200m
+                    memory: 256Mi
+
+# ──────────────────────────────────────────────────────────────────
+# Outpost Service
+# ──────────────────────────────────────────────────────────────────
+- name: Create outpost Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: copyparty-outpost
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        ports:
+          - port: 80
+            targetPort: 9000
+            name: http
+        selector:
+          app.kubernetes.io/name: copyparty-outpost
+
+# ──────────────────────────────────────────────────────────────────
+# ForwardAuth Middleware
+# ──────────────────────────────────────────────────────────────────
+- name: Deploy ForwardAuth Middleware
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: Middleware
+      metadata:
+        name: copyparty-auth
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        forwardAuth:
+          address: "http://copyparty-outpost.{{ copyparty_namespace }}.svc.cluster.local/outpost.goauthentik.io/auth/traefik"
+          trustForwardHeader: true
+          authResponseHeaders:
+            - X-authentik-username
+            - X-authentik-groups
+
+# ──────────────────────────────────────────────────────────────────
+# IngressRoutes (dual-router)
+# ──────────────────────────────────────────────────────────────────
+- name: Deploy Copyparty Auth IngressRoute
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: copyparty-auth
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        entryPoints:
+          - websecure
+        routes:
+          - kind: Rule
+            match: "Host(`files.{{ copyparty_domain }}`)"
+            priority: 100
+            middlewares:
+              - name: copyparty-auth
+            services:
+              - name: copyparty
+                port: "{{ copyparty_port }}"
+        tls:
+          secretName: wildcard-{{ lookup('env', 'TF_VAR_domain') | replace('.', '-') }}-tls
+
+- name: Deploy Copyparty Share IngressRoute (bypass auth for share links)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: copyparty-share
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        entryPoints:
+          - websecure
+        routes:
+          - kind: Rule
+            match: "Host(`files.{{ copyparty_domain }}`) && Query(`h`, `.{0,}`)"
+            priority: 150
+            services:
+              - name: copyparty
+                port: "{{ copyparty_port }}"
+        tls:
+          secretName: wildcard-{{ lookup('env', 'TF_VAR_domain') | replace('.', '-') }}-tls
+
+- name: Deploy Copyparty Outpost Direct IngressRoute
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: copyparty-outpost-direct
+        namespace: "{{ copyparty_namespace }}"
+      spec:
+        entryPoints:
+          - websecure
+        routes:
+          - kind: Rule
+            match: "Host(`files.{{ copyparty_domain }}`) && PathPrefix(`/outpost.goauthentik.io/`)"
+            priority: 150
+            services:
+              - name: copyparty-outpost
+                port: 80
+        tls:
+          secretName: wildcard-{{ lookup('env', 'TF_VAR_domain') | replace('.', '-') }}-tls
+
+# ──────────────────────────────────────────────────────────────────
+# Wait for ready
+# ──────────────────────────────────────────────────────────────────
+- name: Wait for Copyparty deployment to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: copyparty
+    namespace: "{{ copyparty_namespace }}"
+    wait: true
+    wait_sleep: 10
+    wait_timeout: 180
+    wait_condition:
+      type: Available
+      status: "True"
+
+- name: Wait for outpost deployment to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: copyparty-outpost
+    namespace: "{{ copyparty_namespace }}"
+    wait: true
+    wait_sleep: 10
+    wait_timeout: 180
+    wait_condition:
+      type: Available
+      status: "True"

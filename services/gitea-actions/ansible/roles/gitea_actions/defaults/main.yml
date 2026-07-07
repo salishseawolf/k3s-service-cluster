@@ -1,0 +1,13 @@
+---
+# Gitea Actions runner default variables
+gitea_actions_namespace: gitea-actions
+gitea_actions_image: gitea/runner
+gitea_actions_image_tag: latest-dind
+gitea_actions_runner_name: gitea-runner-01
+gitea_actions_storage_size: 5Gi
+gitea_actions_storage_class: seaweedfs-storage
+gitea_actions_pvc_name: gitea-runner-data
+gitea_actions_token_secret_name: gitea-runner-token
+
+# Internal Gitea URL for the runner to connect to
+gitea_actions_instance_url: "http://gitea-http.{{ lookup('env', 'GITEA_NAMESPACE', default='gitea') }}:3000"

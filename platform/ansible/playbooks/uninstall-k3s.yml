@@ -1,0 +1,43 @@
+---
+# Uninstall K3s from all nodes
+# Run with: mise run //platform/ansible:uninstall
+
+- name: Uninstall K3s from all nodes
+  hosts: k3s_nodes
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check if K3s uninstall script exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s-uninstall.sh
+      register: k3s_uninstall_script
+
+    - name: Check if K3s agent uninstall script exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s-agent-uninstall.sh
+      register: k3s_agent_uninstall_script
+
+    - name: Uninstall K3s server
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      when: k3s_uninstall_script.stat.exists
+      register: uninstall_result
+      changed_when: uninstall_result.rc == 0
+
+    - name: Uninstall K3s agent (if server uninstall didn't exist)
+      ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+      when:
+        - not k3s_uninstall_script.stat.exists
+        - k3s_agent_uninstall_script.stat.exists
+      register: agent_uninstall_result
+      changed_when: agent_uninstall_result.rc == 0
+
+    - name: Display uninstall status
+      ansible.builtin.debug:
+        msg: "K3s uninstalled from {{ inventory_hostname }}"
+      when: k3s_uninstall_script.stat.exists or k3s_agent_uninstall_script.stat.exists
+
+    - name: Display skip message
+      ansible.builtin.debug:
+        msg: "K3s was not installed on {{ inventory_hostname }}"
+      when: not k3s_uninstall_script.stat.exists and not k3s_agent_uninstall_script.stat.exists

@@ -1,0 +1,18 @@
+[env]
+ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
+PAPERLESS_DB_PASSWORD = "op://K3s Service Cluster/Paperless DB Password/password"
+PAPERLESS_SECRET_KEY = "op://K3s Service Cluster/Paperless Secrets/secret_key"
+PAPERLESS_ADMIN_PASSWORD = "op://K3s Service Cluster/Paperless Secrets/password"
+TF_VAR_domain = "op://K3s Service Cluster/Cloudflare Config/domain"
+
+[tasks.init]
+description = "Install Ansible collection dependencies"
+run = "ansible-galaxy collection install -r requirements.yml"
+
+[tasks.deploy]
+description = "Deploy via Ansible"
+run = "mise run init && op run -- ansible-playbook playbooks/deploy.yml"
+
+[tasks.lint]
+description = "Run ansible-lint on Paperless playbook"
+run = "ansible-lint playbooks/deploy.yml"

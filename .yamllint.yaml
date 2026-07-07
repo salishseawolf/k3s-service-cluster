@@ -1,0 +1,16 @@
+extends: default
+
+ignore:
+  # Helm templates use Go templating syntax which yamllint doesn't understand
+  - "platform/charts/**/templates/*.yaml"
+  - "infrastructure/tofu/*.yaml"
+
+rules:
+  line-length:
+    max: 120
+  comments:
+    min-spaces-from-content: 1
+  document-start:
+    present: true
+  empty-lines:
+    max: 1

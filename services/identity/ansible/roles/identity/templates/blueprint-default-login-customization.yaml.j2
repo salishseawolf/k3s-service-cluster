@@ -1,0 +1,62 @@
+# Customizes Authentik's built-in default login identification stage to show
+# the "Forgot password?" link on the user/email prompt instead of the password prompt.
+#
+# Depends on: recovery-email blueprint (for default-recovery-flow)
+version: 1
+metadata:
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+  name: Default login customization
+entries:
+  # --- Passwordless Flow ---
+  - identifiers:
+      slug: default-passwordless-flow
+    id: default-passwordless-flow
+    model: authentik_flows.flow
+    attrs:
+      name: Default passwordless flow
+      title: Welcome back!
+      designation: authentication
+      authentication: require_unauthenticated
+
+  # --- WebAuthn Validation Stage ---
+  - identifiers:
+      name: default-passwordless-webauthn-validation
+    id: default-passwordless-webauthn-validation
+    model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    attrs:
+      device_classes:
+        - webauthn
+      not_configured_action: deny
+
+  # --- User Login Stage ---
+  - identifiers:
+      name: default-passwordless-user-login
+    id: default-passwordless-user-login
+    model: authentik_stages_user_login.userloginstage
+
+  # --- Flow Stage Bindings ---
+  - identifiers:
+      target: !KeyOf default-passwordless-flow
+      stage: !KeyOf default-passwordless-webauthn-validation
+      order: 10
+    model: authentik_flows.flowstagebinding
+
+  - identifiers:
+      target: !KeyOf default-passwordless-flow
+      stage: !KeyOf default-passwordless-user-login
+      order: 20
+    model: authentik_flows.flowstagebinding
+
+  # --- Customize Default Identification Stage ---
+  - identifiers:
+      name: default-authentication-identification
+    model: authentik_stages_identification.identificationstage
+    attrs:
+      user_fields:
+        - email
+        - username
+      recovery_flow: !Find [authentik_flows.flow, [slug, default-recovery-flow]]
+      passwordless_flow: !KeyOf default-passwordless-flow
+      pretend_user_exists: true
+      enable_remember_me: true

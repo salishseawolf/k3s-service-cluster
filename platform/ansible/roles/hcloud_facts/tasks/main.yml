@@ -1,0 +1,58 @@
+---
+# Fetch dynamic infrastructure facts from Hetzner Cloud API
+# Sets: k3s_control_plane_endpoint, hcloud_network_name
+
+- name: Verify K3S_TOKEN is set
+  ansible.builtin.assert:
+    that:
+      - lookup('env', 'K3S_TOKEN') | length > 0
+    fail_msg: "K3S_TOKEN environment variable must be set"
+
+- name: Verify K3S_ETCD_SECRET is set
+  ansible.builtin.assert:
+    that:
+      - lookup('env', 'K3S_ETCD_SECRET') | length > 0
+    fail_msg: "K3S_ETCD_SECRET environment variable must be set"
+
+- name: Fetch Load Balancer from Hetzner Cloud
+  hetzner.hcloud.load_balancer_info:
+    label_selector: "project=k3s-service-cluster,role=k3s-control-plane"
+  register: hcloud_load_balancers
+  no_log: true
+
+- name: Verify Load Balancer found
+  ansible.builtin.assert:
+    that:
+      - hcloud_load_balancers.hcloud_load_balancer_info | length == 1
+    fail_msg: >-
+      Expected 1 Load Balancer with project=k3s-service-cluster,role=k3s-control-plane
+
+- name: Set Load Balancer IP fact
+  ansible.builtin.set_fact:
+    k3s_control_plane_endpoint: >-
+      {{ hcloud_load_balancers.hcloud_load_balancer_info[0].ipv4_address }}
+    cacheable: true
+
+- name: Fetch Hetzner Cloud Network
+  hetzner.hcloud.network_info:
+    label_selector: "project=k3s-service-cluster"
+  register: hcloud_networks
+  no_log: true
+
+- name: Verify network found
+  ansible.builtin.assert:
+    that:
+      - hcloud_networks.hcloud_network_info | length == 1
+    fail_msg: "Expected 1 network with project=k3s-service-cluster"
+
+- name: Set network fact
+  ansible.builtin.set_fact:
+    hcloud_network_name: >-
+      {{ hcloud_networks.hcloud_network_info[0].name }}
+    cacheable: true
+
+- name: Display configuration
+  ansible.builtin.debug:
+    msg: >-
+      Control Plane: {{ k3s_control_plane_endpoint }} |
+      Network: {{ hcloud_network_name }}

@@ -1,0 +1,348 @@
+---
+- name: Ensure Identity namespace exists
+  kubernetes.core.k8s:
+    name: "{{ authentik_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Deploy Identity ResourceQuota
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'resourcequota.yaml.j2') }}"
+
+- name: Deploy Identity LimitRange
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'limitrange.yaml.j2') }}"
+
+# --- WAIT FOR DATABASE CLUSTER ---
+- name: Wait for CloudNativePG cluster to be healthy
+  kubernetes.core.k8s_info:
+    api_version: postgresql.cnpg.io/v1
+    kind: Cluster
+    name: main-db
+    namespace: database
+  register: cnpg_cluster
+  until: >
+    cnpg_cluster.resources | length > 0 and
+    cnpg_cluster.resources[0].status is defined and
+    cnpg_cluster.resources[0].status.phase is defined and
+    cnpg_cluster.resources[0].status.phase == "Cluster in healthy state"
+  retries: 30
+  delay: 10
+
+# --- DYNAMIC LEADER RESOLUTION ---
+- name: Get Postgres Read-Write Endpoints
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Endpoints
+    name: "main-db-rw"
+    namespace: "database"
+  register: db_rw_endpoints
+
+- name: Fail if Read-Write Endpoint is empty
+  ansible.builtin.fail:
+    msg: "The main-db-rw service has no active endpoints."
+  when: >
+    db_rw_endpoints.resources | length == 0 or
+    db_rw_endpoints.resources[0].subsets is not defined or
+    db_rw_endpoints.resources[0].subsets | length == 0
+
+- name: Set Fact for Postgres Leader Pod
+  ansible.builtin.set_fact:
+    authentik_db_admin_pod: "{{ db_rw_endpoints.resources[0].subsets[0].addresses[0].targetRef.name }}"
+
+# --- DATABASE PROVISIONING (Refactored for Idempotency) ---
+
+- name: Check if Authentik User Exists
+  kubernetes.core.k8s_exec:
+    namespace: "database"
+    pod: "{{ authentik_db_admin_pod }}"
+    command: psql -U postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='{{ authentik_db_user }}'"
+  register: user_check
+  changed_when: false
+
+- name: Create Authentik User
+  kubernetes.core.k8s_exec:
+    namespace: "database"
+    pod: "{{ authentik_db_admin_pod }}"
+    command: >-
+      psql -U postgres -c
+      "CREATE ROLE {{ authentik_db_user }} WITH LOGIN PASSWORD '{{ authentik_db_password | string }}';"
+  when: (user_check.stdout | trim) != '1'
+
+- name: Check if Authentik Database Exists
+  kubernetes.core.k8s_exec:
+    namespace: "database"
+    pod: "{{ authentik_db_admin_pod }}"
+    command: psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='{{ authentik_db_name }}'"
+  register: db_check
+  changed_when: false
+
+- name: Create Authentik Database
+  kubernetes.core.k8s_exec:
+    namespace: "database"
+    pod: "{{ authentik_db_admin_pod }}"
+    command: psql -U postgres -c "CREATE DATABASE {{ authentik_db_name }} OWNER {{ authentik_db_user }};"
+  when: (db_check.stdout | trim) != '1'
+
+# --- BLUEPRINTS ---
+- name: Deploy Authentik Blueprints
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: authentik-blueprints
+        namespace: "{{ authentik_namespace }}"
+        labels:
+          app.kubernetes.io/name: authentik
+      data:
+        enrollment-invitation.yaml: "{{ lookup('template', 'blueprint-enrollment-invitation.yaml.j2') }}"
+        recovery-email.yaml: "{{ lookup('template', 'blueprint-recovery-email.yaml.j2') }}"
+        password-policy.yaml: "{{ lookup('template', 'blueprint-password-policy.yaml.j2') }}"
+        enforce-mfa-authenticator.yaml: "{{ lookup('template', 'blueprint-enforce-mfa-authenticator.yaml.j2') }}"
+        default-login-customization.yaml: "{{ lookup('template', 'blueprint-default-login-customization.yaml.j2') }}"
+        forward-auth-apps.yaml: "{{ lookup('template', 'blueprint-forward-auth-apps.yaml.j2') }}"
+        infrastructure-group.yaml: "{{ lookup('template', 'blueprint-infrastructure-group.yaml.j2') }}"
+
+# --- HELM DEPLOYMENT ---
+- name: Add Authentik Helm Repo
+  kubernetes.core.helm_repository:
+    name: authentik
+    repo_url: "{{ authentik_chart_repo }}"
+
+- name: Deploy Authentik
+  kubernetes.core.helm:
+    name: authentik
+    chart_ref: authentik/authentik
+    release_namespace: "{{ authentik_namespace }}"
+    chart_version: "{{ authentik_chart_version }}"
+    values: "{{ lookup('template', 'values.yaml.j2') | from_yaml }}"
+    wait: true
+    wait_timeout: "15m"
+
+# --- POD DISRUPTION BUDGETS ---
+- name: Deploy Authentik Server PDB
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: authentik-server
+        namespace: "{{ authentik_namespace }}"
+        labels:
+          app.kubernetes.io/name: authentik
+          app.kubernetes.io/instance: authentik
+          app.kubernetes.io/component: server
+      spec:
+        maxUnavailable: 0
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: authentik
+            app.kubernetes.io/instance: authentik
+            app.kubernetes.io/component: server
+
+- name: Deploy Authentik Worker PDB
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: authentik-worker
+        namespace: "{{ authentik_namespace }}"
+        labels:
+          app.kubernetes.io/name: authentik
+          app.kubernetes.io/instance: authentik
+          app.kubernetes.io/component: worker
+      spec:
+        maxUnavailable: 0
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: authentik
+            app.kubernetes.io/instance: authentik
+            app.kubernetes.io/component: worker
+
+# --- TRAEFIK FORWARD-AUTH MIDDLEWARE ---
+- name: Deploy Authentik forward-auth Middleware for Traefik
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: Middleware
+      metadata:
+        name: authentik-forward-auth
+        namespace: "{{ authentik_namespace }}"
+      spec:
+        forwardAuth:
+          address: "http://authentik-server.{{ authentik_namespace }}\
+            .svc.cluster.local/outpost.goauthentik.io/auth/traefik"
+          trustForwardHeader: true
+          authResponseHeaders:
+            - X-authentik-username
+            - Authorization
+            - X-authentik-groups
+            - X-authentik-entitlements
+            - X-authentik-email
+            - X-authentik-name
+            - X-authentik-uid
+            - X-authentik-jwt
+            - X-authentik-meta-jwks
+            - X-authentik-meta-outpost
+            - X-authentik-meta-provider
+            - X-authentik-meta-app
+            - X-authentik-meta-version
+
+- name: Deploy Authentik outpost callback IngressRoute
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: authentik-outpost-callback
+        namespace: "{{ authentik_namespace }}"
+      spec:
+        entryPoints:
+          - websecure
+        routes:
+          - kind: Rule
+            match: "Host(`{{ lookup('env', 'TF_VAR_domain') }}`) && PathPrefix(`/outpost.goauthentik.io/`)"
+            services:
+              - kind: Service
+                name: authentik-server
+                namespace: "{{ authentik_namespace }}"
+                port: 80
+        tls:
+          secretName: "wildcard-{{ lookup('env', 'TF_VAR_domain') | replace('.', '-') }}-tls"
+
+
+- name: Wait for Authentik server deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: authentik-server
+    namespace: "{{ authentik_namespace }}"
+  register: authentik_deploy
+  until: >
+    authentik_deploy.resources | length > 0 and
+    authentik_deploy.resources[0].status.readyReplicas is defined and
+    authentik_deploy.resources[0].status.readyReplicas == authentik_deploy.resources[0].spec.replicas
+  retries: 30
+  delay: 10
+
+
+# --- LDAP OUTPOST ---
+- name: Read wildcard certificate data
+  ansible.builtin.shell:
+    cmd: |
+      kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" get secret -n kube-system wildcard-blackviolet-bid-tls -o json
+  register: wildcard_secret_raw
+  changed_when: false
+
+- name: Decode certificate data
+  set_fact:
+    wildcard_tls_crt: "{{ (wildcard_secret_raw.stdout | from_json).data['tls.crt'] | b64decode }}"
+    wildcard_tls_key: "{{ (wildcard_secret_raw.stdout | from_json).data['tls.key'] | b64decode }}"
+
+- name: Patch authentik-blueprints ConfigMap with LDAP blueprint
+  kubernetes.core.k8s:
+    state: patched
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: authentik-blueprints
+        namespace: "{{ authentik_namespace }}"
+      data:
+        blueprint-ldap.yaml: "{{ lookup('template', 'blueprint-ldap.yaml.j2') }}"
+
+- name: Wait for ConfigMap propagation and apply LDAP blueprint
+  ansible.builtin.shell:
+    cmd: |
+      for i in $(seq 1 12); do
+        kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" -n {{ authentik_namespace }} exec deploy/authentik-server -- sh -c "test -f /blueprints/custom/blueprint-ldap.yaml" 2>/dev/null && break
+        sleep 10
+      done && kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" -n {{ authentik_namespace }} exec deploy/authentik-server -- ak apply_blueprint /blueprints/custom/blueprint-ldap.yaml 2>&1
+  register: ldap_blueprint_result
+  changed_when: "'created' in ldap_blueprint_result.stdout or 'patched' in ldap_blueprint_result.stdout"
+
+# --- OUTPOST CONTROLLER RBAC ---
+- name: Create outpost controller ClusterRole
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: authentik-outpost-controller
+      rules:
+        - apiGroups: ["apps"]
+          resources: ["deployments"]
+          verbs: ["create", "get", "list", "patch", "update", "watch", "delete"]
+        - apiGroups: [""]
+          resources: ["services", "configmaps", "secrets"]
+          verbs: ["create", "get", "list", "patch", "update", "watch", "delete"]
+        - apiGroups: [""]
+          resources: ["pods", "events"]
+          verbs: ["get", "list", "watch"]
+
+- name: Bind outpost controller ClusterRole to Authentik SA
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: authentik-outpost-controller
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: authentik-outpost-controller
+      subjects:
+        - kind: ServiceAccount
+          name: authentik
+          namespace: "{{ authentik_namespace }}"
+
+
+# --- COREDNS REWRITE ---
+- name: Check if CoreDNS rewrite exists
+  ansible.builtin.shell:
+    cmd: |
+      kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" get cm -n kube-system coredns -o jsonpath='{.data.Corefile}'
+  register: coredns_corefile
+  changed_when: false
+
+- name: Add CoreDNS rewrite for LDAP outpost
+  when: "'rewrite name ldap.blackviolet.bid' not in coredns_corefile.stdout"
+  ansible.builtin.shell:
+    cmd: |
+      kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" get cm -n kube-system coredns -o json | python3 -c "
+      import sys, json
+      cm = json.load(sys.stdin)
+      cm['data']['Corefile'] = cm['data']['Corefile'].replace(
+        '.:53 {', '.:53 {\\n    rewrite name ldap.blackviolet.bid ak-outpost-ldap.identity.svc.cluster.local', 1
+      )
+      print(json.dumps(cm))
+      " | kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" apply -f -
+  register: coredns_patch
+
+- name: Restart CoreDNS to pick up rewrite rules
+  when: coredns_patch.changed
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: coredns
+        namespace: kube-system
+      spec:
+        template:
+          metadata:
+            annotations:
+              force-restart: "{{ ansible_date_time.epoch }}"

@@ -1,0 +1,38 @@
+---
+# Update SSH known_hosts with current server fingerprints
+# Run this after mise run //infrastructure/tofu:apply or :replace-nodes
+
+- name: Update SSH known_hosts
+  hosts: localhost
+  gather_facts: false
+  vars:
+    known_hosts_file: "{{ lookup('env', 'HOME') }}/.ssh/known_hosts"
+  tasks:
+    - name: Get list of all managed hosts
+      ansible.builtin.set_fact:
+        managed_hosts: "{{ groups['all'] }}"
+
+    - name: Display hosts to update
+      ansible.builtin.debug:
+        msg: "Updating SSH known_hosts for: {{ managed_hosts | join(', ') }}"
+
+    - name: Remove old host keys from known_hosts
+      ansible.builtin.known_hosts:
+        name: "{{ hostvars[item].ansible_host }}"
+        state: absent
+        path: "{{ known_hosts_file }}"
+      loop: "{{ managed_hosts }}"
+      loop_control:
+        label: "{{ hostvars[item].ansible_host }}"
+
+    - name: Scan and add new SSH host keys
+      ansible.builtin.shell: |
+        ssh-keyscan -H {{ hostvars[item].ansible_host }} >> {{ known_hosts_file }}
+      loop: "{{ managed_hosts }}"
+      loop_control:
+        label: "{{ hostvars[item].ansible_host }}"
+      changed_when: true
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: "SSH known_hosts updated for {{ managed_hosts | length }} host(s)"

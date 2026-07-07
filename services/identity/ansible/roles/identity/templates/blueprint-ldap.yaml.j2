@@ -1,0 +1,116 @@
+---
+version: 1
+metadata:
+  name: Internal Services LDAP
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  # ─── Wildcard Certificate Import ────────────────────────────────────────────
+  - model: authentik_crypto.certificatekeypair
+    id: cert-wildcard
+    state: present
+    identifiers:
+      name: Wildcard blackviolet.bid
+    attrs:
+      certificate_data: |
+{{ wildcard_tls_crt | indent(8, true) }}
+      key_data: |
+{{ wildcard_tls_key | indent(8, true) }}
+
+  # ─── Kubernetes Service Connection ─────────────────────────────────────────
+  - model: authentik_outposts.kubernetesserviceconnection
+    id: k8s-service-connection
+    state: present
+    identifiers:
+      name: Local Kubernetes Cluster
+    attrs:
+      local: true
+
+  # ─── Password-Only Bind Flow ────────────────────────────────────────────────
+  - identifiers:
+      slug: ldap-bind-flow
+    model: authentik_flows.flow
+    id: flow-ldap-bind
+    state: present
+    attrs:
+      name: LDAP Bind Flow
+      title: LDAP Authentication
+      designation: authentication
+      authentication: require_unauthenticated
+
+  # ─── Flow Stage Bindings ────────────────────────────────────────────
+  - identifiers:
+      target: !KeyOf flow-ldap-bind
+      stage: !Find [authentik_stages_identification.identificationstage, [name, default-authentication-identification]]
+      order: 10
+    model: authentik_flows.flowstagebinding
+    state: present
+
+  - identifiers:
+      target: !KeyOf flow-ldap-bind
+      stage: !Find [authentik_stages_password.passwordstage, [name, default-authentication-password]]
+      order: 20
+    model: authentik_flows.flowstagebinding
+    state: present
+
+  # ─── LDAP Provider ──────────────────────────────────────────────────────────
+  - model: authentik_providers_ldap.ldapprovider
+    id: provider-internal-ldap
+    state: present
+    identifiers:
+      name: Internal Services LDAP
+    attrs:
+      authorization_flow: !Find [authentik_flows.flow, [slug, ldap-bind-flow]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      base_dn: dc=ldap,dc=goauthentik,dc=io
+      search_mode: cached
+      certificate: !Find [authentik_crypto.certificatekeypair, [name, Wildcard blackviolet.bid]]
+      tls_server_name: ldap.blackviolet.bid
+
+  # ─── Application ────────────────────────────────────────────────────────────
+  - model: authentik_core.application
+    id: app-internal-ldap
+    state: present
+    identifiers:
+      name: Internal Services LDAP
+      slug: internal-services-ldap
+    attrs:
+      provider: !Find [authentik_providers_ldap.ldapprovider, [name, Internal Services LDAP]]
+
+  # ─── LDAP Outpost ──────────────────────────────────────────────────────────
+  - model: authentik_outposts.outpost
+    id: outpost-ldap
+    state: present
+    persistent: true
+    identifiers:
+      name: LDAP
+    attrs:
+      type: ldap
+      service_connection: !KeyOf k8s-service-connection
+      providers:
+        - !Find [authentik_providers_ldap.ldapprovider, [name, Internal Services LDAP]]
+      config:
+        authentik_host: http://authentik-server.identity.svc.cluster.local
+        log_level: info
+
+  # ─── LDAP Read-Only Group ──────────────────────────────────────────────────
+  - model: authentik_core.group
+    id: group-ldap-ro
+    state: present
+    identifiers:
+      name: ldap-ro-service-accounts
+    attrs:
+      users:
+        - !Find [authentik_core.user, [username, sssd-ldap-user]]
+
+  # ─── Service Account Users ──────────────────────────────────────────────────
+  - model: authentik_core.user
+    id: user-sssd
+    state: present
+    identifiers:
+      username: sssd-ldap-user
+    attrs:
+      name: SSSD LDAP Service Account
+      type: service_account
+      is_active: true
+      password: !File /blueprints/secrets/sssd-password

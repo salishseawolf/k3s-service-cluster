@@ -1,0 +1,10 @@
+[env]
+# No runtime secrets needed for CSI driver
+
+[tasks.deploy]
+description = "Deploy SeaweedFS CSI driver"
+run = "mise run //services/seaweedfs-csi/ansible:deploy"
+
+[tasks.check]
+description = "Check CSI driver status"
+run = "kubectl get all -n seaweedfs-csi"

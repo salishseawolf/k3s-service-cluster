@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: step-ca-config
+description: step-ca namespace and secrets (prerequisites for CRD chart)
+type: application
+version: 0.1.0
+appVersion: "0.29.0"

@@ -1,0 +1,16 @@
+---
+# cert-manager configuration values
+# These are typically overridden via --set or environment variables
+
+# Email for Let's Encrypt registration
+email: ""
+
+# Domain for wildcard certificate
+domain: ""
+
+# Cloudflare API token for DNS-01 challenge
+cloudflareApiToken: ""
+
+# Which Let's Encrypt issuer to use: "production" or "staging"
+# Staging has higher rate limits but produces untrusted certificates
+issuer: production

@@ -1,0 +1,16 @@
+---
+# Deploy Copyparty file sharing service
+- name: Deploy Copyparty
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  module_defaults:
+    kubernetes.core.k8s:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.k8s_info:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+
+  roles:
+    - role: copyparty

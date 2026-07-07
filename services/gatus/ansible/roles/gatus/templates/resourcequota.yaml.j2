@@ -1,0 +1,19 @@
+---
+# ResourceQuota for gatus namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gatus-quota
+  namespace: {{ gatus_namespace }}
+  labels:
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/component: monitoring
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "512Mi"
+    limits.cpu: "1000m"
+    limits.memory: "1Gi"
+    configmaps: "10"
+    secrets: "20"
+    services: "5"

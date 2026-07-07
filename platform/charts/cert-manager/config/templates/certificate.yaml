@@ -1,0 +1,17 @@
+---
+# Wildcard certificate for the domain
+# Stored as a secret that Traefik can reference
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-{{ .Values.domain | replace "." "-" }}
+  namespace: kube-system
+spec:
+  secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls
+  issuerRef:
+    name: letsencrypt-{{ .Values.issuer }}
+    kind: ClusterIssuer
+  commonName: {{ .Values.domain | quote }}
+  dnsNames:
+    - {{ .Values.domain | quote }}
+    - "*.{{ .Values.domain }}"

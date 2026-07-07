@@ -1,0 +1,51 @@
+---
+# Join K3s cluster (additional nodes)
+
+- name: Wait for first node API
+  vars:
+    init_node_ip: >-
+      {{ hostvars[k3s_cluster_init_node]['hcloud_private_networks'][0]['ip'] }}
+  ansible.builtin.wait_for:
+    host: "{{ init_node_ip }}"
+    port: 6443
+    timeout: 300
+
+- name: Check if node is already in cluster
+  ansible.builtin.command: k3s kubectl get node {{ inventory_hostname }}
+  register: node_in_cluster
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ k3s_cluster_init_node }}"
+
+# yamllint disable rule:line-length
+- name: Join as server node
+  vars:
+    init_node_ip: >-
+      {{ hostvars[k3s_cluster_init_node]['hcloud_private_networks'][0]['ip'] }}
+  ansible.builtin.command:
+    cmd: >
+      {{ k3s_install_script_path }} server
+      --server https://{{ init_node_ip }}:6443
+      --node-ip={{ hcloud_private_networks[0]['ip'] }}
+      --tls-san={{ k3s_control_plane_endpoint }}
+      --tls-san={{ ansible_host }}
+      --kube-apiserver-arg=encryption-provider-config={{ k3s_encryption_config.dest }}
+      {{ k3s_common_args }}
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ lookup('env', 'K3S_TOKEN') }}"
+  when: node_in_cluster.rc != 0
+  no_log: true
+  changed_when: true
+# yamllint enable rule:line-length
+
+- name: Wait for node to be ready
+  ansible.builtin.command: >-
+    k3s kubectl wait --for=condition=Ready
+    node/{{ inventory_hostname }} --timeout=120s
+  changed_when: false
+  retries: 5
+  delay: 10
+  register: node_ready
+  until: node_ready is success
+  delegate_to: "{{ k3s_cluster_init_node }}"

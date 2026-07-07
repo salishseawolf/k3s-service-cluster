@@ -1,0 +1,22 @@
+---
+# Deploy CloudNativePG PostgreSQL cluster
+# Run with: mise run //services/database:deploy
+
+- name: Deploy Database
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  module_defaults:
+    kubernetes.core.helm:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.k8s:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.helm_repository:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.k8s_info:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+
+  roles:
+    - role: database
+      tags: ['database']

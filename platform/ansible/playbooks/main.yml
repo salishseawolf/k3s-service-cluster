@@ -1,0 +1,56 @@
+---
+# Deploy complete K3s infrastructure
+# Run with: mise run //platform/ansible:deploy
+#
+# This orchestrator deploys:
+#   1. K3s HA cluster with embedded etcd
+#   2. Hetzner CCM + CSI (via K3s auto-deploy manifests)
+#   3. 1Password Connect and Operator
+
+- name: Deploy K3s cluster
+  ansible.builtin.import_playbook: k3s-cluster.yml
+
+- name: Install 1Password Connect and Operator
+  hosts: localhost
+  run_once: true
+  gather_facts: false
+  module_defaults:
+    kubernetes.core.helm:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+  tags: ['1password', 'secrets', 'credentials']
+  tasks:
+    - name: Deploy 1Password Connect Server
+      kubernetes.core.helm:
+        chart_ref: connect
+        release_namespace: 1password
+        release_name: onepassword-connect
+        create_namespace: true
+        chart_repo_url: https://1password.github.io/connect-helm-charts/
+        wait: true
+        values:
+          connect:
+            credentials_base64: "{{ lookup('env', 'OP_CONNECT_JWT') | b64encode }}"
+          operator:
+            create: true
+            token:
+              value: "{{ lookup('env', 'OP_OPERATOR_TOKEN') | string }}"
+
+- name: Post-deployment summary
+  hosts: localhost
+  gather_facts: false
+  vars:
+    k3s_control_plane_endpoint: >-
+      {{ hostvars['localhost']['k3s_control_plane_endpoint'] }}
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          K3s cluster deployed successfully
+
+          Kubeconfig: ./kubeconfig
+          API Endpoint: {{ k3s_control_plane_endpoint }}:6443
+
+          Next steps:
+          1. export KUBECONFIG=./kubeconfig
+          2. kubectl get nodes
+          3. mise run //platform/charts/cert-manager:apply

@@ -1,0 +1,22 @@
+---
+# ResourceQuota for cert-manager namespace
+# Limits total resource consumption for cert-manager workloads
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: cert-manager-quota
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: cert-manager-config
+spec:
+  hard:
+    requests.cpu: "2000m"
+    requests.memory: "4Gi"
+    limits.cpu: "4000m"
+    limits.memory: "8Gi"
+    persistentvolumeclaims: "5"
+    configmaps: "20"
+    secrets: "20"
+    services: "10"

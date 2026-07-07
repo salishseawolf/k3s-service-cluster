@@ -1,0 +1,14 @@
+[env]
+GITEA_RUNNER_NAME = "gitea-runner-01"
+
+[tasks.deploy]
+description = "Deploy Gitea Actions runner"
+run = "mise run //services/gitea-actions/ansible:deploy"
+
+[tasks.check]
+description = "Check Gitea Actions runner status"
+run = "kubectl get all -n gitea-actions"
+
+[tasks.logs]
+description = "View runner logs"
+run = "kubectl -n gitea-actions logs deploy/gitea-runner"

@@ -1,0 +1,7 @@
+[tasks.deploy]
+description = "Deploy Homarr dashboard"
+run = "mise run //services/homarr/ansible:deploy"
+
+[tasks.check]
+description = "Check Homarr status"
+run = "kubectl get all -n homarr"

@@ -1,0 +1,3 @@
+[tasks.deploy]
+description = "Deploy database service"
+run = "mise run //services/database/ansible:deploy"

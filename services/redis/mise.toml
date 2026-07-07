@@ -1,0 +1,7 @@
+[tasks.deploy]
+description = "Deploy Redis"
+run = "mise run //services/redis/ansible:deploy"
+
+[tasks.check]
+description = "Check Redis status"
+run = "kubectl get all -n redis"

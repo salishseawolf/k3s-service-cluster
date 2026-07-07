@@ -1,0 +1,41 @@
+---
+version: 1
+metadata:
+  name: SeaweedFS Filer
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_providers_proxy.proxyprovider
+    state: present
+    id: provider-seaweedfs-filer
+    identifiers:
+      name: SeaweedFS Filer
+    attrs:
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      mode: forward_single
+      external_host: "https://filer-{{ sw_domain }}"
+
+  - model: authentik_core.application
+    state: present
+    id: app-seaweedfs-filer
+    identifiers:
+      slug: filer-application
+    attrs:
+      name: SeaweedFS Filer
+      provider: !KeyOf provider-seaweedfs-filer
+      meta_launch_url: "https://filer-{{ sw_domain }}/"
+      policy_engine_mode: any
+
+  - model: authentik_outposts.outpost
+    state: present
+    id: outpost-seaweedfs-filer
+    identifiers:
+      name: SeaweedFS Filer Outpost
+    attrs:
+      type: proxy
+      providers:
+        - !KeyOf provider-seaweedfs-filer
+      config:
+        authentik_host: http://authentik-server.identity.svc.cluster.local
+        authentik_host_browser: "https://auth.{{ lookup('env', 'TF_VAR_domain') }}"

@@ -1,0 +1,173 @@
+[env]
+STEP_CA_VAULT = "K3s Service Cluster"
+STEP_CA_ITEM = "StepCA Secrets"
+
+[tasks."apply:config"]
+depends = [":check:config"]
+description = "Deploy step-ca config (namespace + secrets)"
+run = '''
+#!/bin/bash
+set -e
+
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+echo "==> Reading secrets from 1Password..."
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/root_ca_crt" > "$TEMP_DIR/root_ca.crt"
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/intermediate_ca_crt" > "$TEMP_DIR/intermediate_ca.crt"
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/intermediate_ca_key" > "$TEMP_DIR/intermediate_ca.key"
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/ca_json" > "$TEMP_DIR/ca.json"
+
+# Optional: defaults.json (may not exist)
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/defaults_json" > "$TEMP_DIR/defaults.json" 2>/dev/null || echo '{}' > "$TEMP_DIR/defaults.json"
+
+# Optional: SSH keys (may not exist for X.509-only CA)
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/ssh_host_ca_key" > "$TEMP_DIR/ssh_host_ca.key" 2>/dev/null || echo '' > "$TEMP_DIR/ssh_host_ca.key"
+op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/ssh_user_ca_key" > "$TEMP_DIR/ssh_user_ca.key" 2>/dev/null || echo '' > "$TEMP_DIR/ssh_user_ca.key"
+
+CA_PASSWORD="$(op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/ca_password")"
+PROVISIONER_PASSWORD="$(op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/provisioner_password")"
+
+echo "==> Installing step-ca config chart..."
+helm upgrade --install step-ca ./config --wait \
+  --set secrets.caPassword="$CA_PASSWORD" \
+  --set secrets.provisionerPassword="$PROVISIONER_PASSWORD" \
+  --set-file secrets.rootCaCrt="$TEMP_DIR/root_ca.crt" \
+  --set-file secrets.intermediateCaCrt="$TEMP_DIR/intermediate_ca.crt" \
+  --set-file secrets.intermediateCaKey="$TEMP_DIR/intermediate_ca.key" \
+  --set-file secrets.caJson="$TEMP_DIR/ca.json" \
+  --set-file secrets.defaultsJson="$TEMP_DIR/defaults.json" \
+  --set-file secrets.sshHostCaKey="$TEMP_DIR/ssh_host_ca.key" \
+  --set-file secrets.sshUserCaKey="$TEMP_DIR/ssh_user_ca.key"
+
+echo "==> step-ca config deployed!"
+'''
+
+[tasks."apply:crd"]
+depends = [":check:crd", ":apply:config"]
+alias = "apply"
+description = "Deploy step-ca CRD (HelmChart CR)"
+run = "helm upgrade --install step-ca-crd ./crd --wait"
+
+[tasks.status]
+description = "Check step-ca status"
+run = '''
+#!/bin/bash
+echo "==> step-ca pods:"
+kubectl get pods -n step-ca
+echo ""
+echo "==> step-ca secrets:"
+kubectl get secrets -n step-ca
+echo ""
+echo "==> HelmChart CR:"
+kubectl get helmchart step-ca -n kube-system
+'''
+
+[tasks."uninstall:config"]
+description = "Uninstall step-ca config chart (secrets + namespace)"
+run = '''
+#!/bin/bash
+set -e
+echo "==> Uninstalling step-ca config chart..."
+helm uninstall step-ca --ignore-not-found || true
+
+echo "==> Removing namespace..."
+kubectl delete namespace step-ca --ignore-not-found || true
+
+echo "==> step-ca config uninstalled."
+'''
+
+[tasks."uninstall:crd"]
+alias = "uninstall"
+depends = [":uninstall:config"]
+description = "Uninstall step-ca CRD chart and all resources"
+run = '''
+#!/bin/bash
+set -e
+echo "==> Uninstalling step-ca CRD chart..."
+helm uninstall step-ca-crd --ignore-not-found || true
+
+echo "==> Removing HelmChart CR..."
+kubectl delete helmchart step-ca -n kube-system --ignore-not-found || true
+
+echo "==> Waiting for helm controller to clean up..."
+sleep 5
+
+echo "==> Removing PVCs..."
+kubectl delete pvc -n step-ca --all --ignore-not-found || true
+
+echo "==> step-ca fully uninstalled."
+'''
+
+[tasks.'check:config']
+description = "Lint and validate config chart"
+sources = ["./config/**"]
+run = "helm lint ./config"
+
+[tasks.'check:crd']
+description = "Lint and validate CRD chart"
+sources = ["./crd/**"]
+run = "helm lint ./crd"
+
+[tasks.check]
+description = "Lint and validate all charts"
+depends = [":check:config", ":check:crd"]
+
+[tasks."kube-linter"]
+description = "Run kube-linter on chart templates"
+run = "kube-linter lint ./crd ./config"
+
+[tasks."ca-certs:init"]
+description = "Initialize step-ca PKI using step CLI in container"
+run = '''
+#!/bin/bash
+set -e
+TEMP_DIR="$(mktemp -d)"
+chmod 777 "$TEMP_DIR"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+CA_PASS="$(op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/ca_password")"
+PROV_PASS="$(op read "op://${STEP_CA_VAULT}/${STEP_CA_ITEM}/provisioner_password")"
+
+# Write passwords to temp files for container access
+echo -n "$CA_PASS" > "$TEMP_DIR/ca_pass"
+echo -n "$PROV_PASS" > "$TEMP_DIR/prov_pass"
+chmod 666 "$TEMP_DIR/ca_pass" "$TEMP_DIR/prov_pass"
+
+echo "==> Generating step-ca PKI in container..."
+podman run --rm \
+  --entrypoint "" \
+  -v "$TEMP_DIR:/output:Z" \
+  docker.io/smallstep/step-cli:latest \
+  sh -c '
+    step ca init --helm \
+      --name="K3s Service Cluster CA" \
+      --dns="step-ca.step-ca.svc.cluster.local" \
+      --address=":9000" \
+      --provisioner="admin" \
+      --password-file=/output/ca_pass \
+      --provisioner-password-file=/output/prov_pass \
+      > /output/values.yaml
+  '
+
+echo "==> Extracting PKI components..."
+cd "$TEMP_DIR"
+
+# Extract values using yq - certificates are under .inject.certificates
+yq -r '.inject.certificates.root_ca' values.yaml > root_ca.crt
+yq -r '.inject.certificates.intermediate_ca' values.yaml > intermediate_ca.crt
+yq -r '.inject.secrets.x509.intermediate_ca_key' values.yaml > intermediate_ca.key
+# Config files are YAML format in the helm output, convert to JSON
+yq '.inject.config.files."ca.json"' values.yaml | yq -o=json > ca.json
+yq '.inject.config.files."defaults.json"' values.yaml | yq -o=json > defaults.json
+
+echo "==> Storing PKI in 1Password..."
+op item edit "${STEP_CA_ITEM}" --vault "${STEP_CA_VAULT}" \
+  "root_ca_crt=$(cat root_ca.crt)" \
+  "intermediate_ca_crt=$(cat intermediate_ca.crt)" \
+  "intermediate_ca_key=$(cat intermediate_ca.key)" \
+  "ca_json=$(cat ca.json)" \
+  "defaults_json=$(cat defaults.json)"
+
+echo "==> step-ca PKI initialized and stored in 1Password!"
+'''

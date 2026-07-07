@@ -1,0 +1,26 @@
+[env]
+# SeaweedFS root credentials (shared vault)
+SEAWEEDFS_ROOT_USER = "op://K3s Service Cluster/SeaweedFS Root Creds/username"
+SEAWEEDFS_ROOT_PASSWORD = "op://K3s Service Cluster/SeaweedFS Root Creds/password"
+SEAWEEDFS_DB_PASSWORD = "op://K3s Service Cluster/SeaweedFS DB Password/password"
+# Backup bucket cron job (shared vault)
+SEAWEEDFS_BACKUP_HOSTNAME = "op://K3s Service Cluster/SeaweedFS Backup Bucket Cron Job/hostname"
+SEAWEEDFS_BACKUP_ACCESS_KEY = "op://K3s Service Cluster/SeaweedFS Backup Bucket Cron Job/access_key"
+SEAWEEDFS_BACKUP_SECRET_KEY = "op://K3s Service Cluster/SeaweedFS Backup Bucket Cron Job/secret_key"
+
+[tasks.deploy]
+description = "Deploy SeaweedFS storage service"
+run = "mise run //services/seaweedfs/ansible:deploy"
+
+[tasks.uninstall]
+description = "Uninstall SeaweedFS service"
+run = "kubectl delete ns seaweedfs"
+
+[tasks.check]
+description = "Check SeaweedFS deployment status"
+run = "kubectl get all -n seaweedfs"
+
+[tasks.backup]
+description = "Manually trigger SeaweedFS backup job"
+run = "kubectl -n seaweedfs create job --from=cronjob/seaweedfs-backup seaweedfs-backup-manual-$(date +%s)"
+

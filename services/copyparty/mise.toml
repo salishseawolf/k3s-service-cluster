@@ -1,0 +1,10 @@
+[env]
+# No runtime secrets needed for Copyparty
+
+[tasks.deploy]
+description = "Deploy Copyparty file server"
+run = "mise run //services/copyparty/ansible:deploy"
+
+[tasks.check]
+description = "Check Copyparty status"
+run = "kubectl get all -n copyparty"

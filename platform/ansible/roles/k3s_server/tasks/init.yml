@@ -1,0 +1,37 @@
+---
+# Initialize K3s cluster (first node only)
+
+# yamllint disable rule:line-length
+- name: Install K3s server (cluster init)
+  ansible.builtin.command:
+    cmd: >
+      {{ k3s_install_script_path }} server
+      --cluster-init
+      --node-ip={{ hcloud_private_networks[0]['ip'] }}
+      --tls-san={{ k3s_control_plane_endpoint }}
+      --tls-san={{ hcloud_private_networks[0]['ip'] }}
+      --tls-san={{ ansible_host }}
+      --kube-apiserver-arg=encryption-provider-config={{ k3s_encryption_config.dest }}
+      {{ k3s_common_args }}
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ lookup('env', 'K3S_TOKEN') }}"
+  when: not k3s_binary.stat.exists
+  no_log: true
+  changed_when: true
+# yamllint enable rule:line-length
+
+- name: Wait for K3s to be ready
+  ansible.builtin.wait_for:
+    path: /etc/rancher/k3s/k3s.yaml
+    timeout: 120
+
+- name: Wait for node to be ready
+  ansible.builtin.command: >-
+    k3s kubectl wait --for=condition=Ready
+    node/{{ inventory_hostname }} --timeout=120s
+  changed_when: false
+  retries: 5
+  delay: 10
+  register: node_ready
+  until: node_ready is success

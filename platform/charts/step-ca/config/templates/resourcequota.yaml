@@ -1,0 +1,20 @@
+---
+# ResourceQuota for step-ca namespace
+# Limits total resource consumption for step-ca workloads
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: step-ca-quota
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "common.labels" . | nindent 4 }}
+spec:
+  hard:
+    requests.cpu: "2000m"
+    requests.memory: "4Gi"
+    limits.cpu: "4000m"
+    limits.memory: "8Gi"
+    persistentvolumeclaims: "5"
+    configmaps: "20"
+    secrets: "20"
+    services: "10"

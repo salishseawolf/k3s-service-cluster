@@ -1,0 +1,203 @@
+---
+# Gitea Actions Runner deployment tasks
+
+# ──────────────────────────────────────────────────────────────────
+# Preflight
+# ──────────────────────────────────────────────────────────────────
+
+- name: Check SeaweedFS CSI StorageClass exists
+  kubernetes.core.k8s_info:
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+    name: "{{ gitea_actions_storage_class }}"
+  register: gitea_actions_sc_check
+
+- name: Fail if StorageClass not found
+  ansible.builtin.fail:
+    msg: "SeaweedFS CSI StorageClass '{{ gitea_actions_storage_class }}' not found. Deploy seaweedfs-csi first."
+  when: gitea_actions_sc_check.resources | length == 0
+
+# ──────────────────────────────────────────────────────────────────
+# Namespace
+# ──────────────────────────────────────────────────────────────────
+
+- name: Create Gitea Actions namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ gitea_actions_namespace }}"
+        labels:
+          pod-security.kubernetes.io/enforce: privileged
+
+# ──────────────────────────────────────────────────────────────────
+# Runner registration token
+# ──────────────────────────────────────────────────────────────────
+
+- name: Check if runner registration token Secret already exists
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: "{{ gitea_actions_token_secret_name }}"
+    namespace: "{{ gitea_actions_namespace }}"
+  register: gitea_actions_runner_token_secret_check
+
+- name: Generate Gitea Actions runner registration token
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      for i in 1 2 3 4 5; do
+        TOKEN=$(kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" \
+          -n {{ lookup('env', 'GITEA_NAMESPACE', default='gitea') }} \
+          exec deploy/gitea -- gitea actions generate-runner-token 2>&1 | tail -1)
+        if [ -n "$TOKEN" ]; then
+          echo "$TOKEN"
+          exit 0
+        fi
+        sleep 5
+      done
+      exit 1
+  register: gitea_actions_runner_token_result
+  changed_when: false
+  when: gitea_actions_runner_token_secret_check.resources | length == 0
+
+- name: Create runner registration token Secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ gitea_actions_token_secret_name }}"
+        namespace: "{{ gitea_actions_namespace }}"
+      type: Opaque
+      stringData:
+        token: "{{ gitea_actions_runner_token_result.stdout | trim }}"
+  when: gitea_actions_runner_token_secret_check.resources | length == 0
+
+- name: Log that token already exists
+  ansible.builtin.debug:
+    msg: "Runner token secret already exists — skipping generation to preserve runner identity"
+  when: gitea_actions_runner_token_secret_check.resources | length > 0
+
+# ──────────────────────────────────────────────────────────────────
+# PVC
+# ──────────────────────────────────────────────────────────────────
+
+- name: Create runner data PVC
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ gitea_actions_pvc_name }}"
+        namespace: "{{ gitea_actions_namespace }}"
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{ gitea_actions_storage_size }}"
+        storageClassName: "{{ gitea_actions_storage_class }}"
+
+# ──────────────────────────────────────────────────────────────────
+# Runner config
+# ──────────────────────────────────────────────────────────────────
+
+- name: Create runner config ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: gitea-runner-config
+        namespace: "{{ gitea_actions_namespace }}"
+      data:
+        config.yaml: "{{ lookup('template', 'config.yaml.j2') }}"
+
+# ──────────────────────────────────────────────────────────────────
+# Runner deployment
+# ──────────────────────────────────────────────────────────────────
+
+- name: Deploy Gitea Actions runner
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: gitea-runner
+        namespace: "{{ gitea_actions_namespace }}"
+        labels:
+          app: gitea-runner
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: gitea-runner
+        template:
+          metadata:
+            labels:
+              app: gitea-runner
+          spec:
+            securityContext:
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: runner
+                image: "{{ gitea_actions_image }}:{{ gitea_actions_image_tag }}"
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                env:
+                  - name: GITEA_INSTANCE_URL
+                    value: "{{ gitea_actions_instance_url }}"
+                  - name: GITEA_RUNNER_REGISTRATION_TOKEN
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ gitea_actions_token_secret_name }}"
+                        key: token
+                  - name: GITEA_RUNNER_NAME
+                    value: "{{ gitea_actions_runner_name }}"
+                  - name: CONFIG_FILE
+                    value: /data/config.yaml
+                volumeMounts:
+                  - name: data
+                    mountPath: /data
+                  - name: config
+                    mountPath: /data/config.yaml
+                    subPath: config.yaml
+                resources:
+                  requests:
+                    cpu: "{{ gitea_actions_resources_requests_cpu | default('500m') }}"
+                    memory: "{{ gitea_actions_resources_requests_memory | default('512Mi') }}"
+                  limits:
+                    cpu: "{{ gitea_actions_resources_limits_cpu | default('2000m') }}"
+                    memory: "{{ gitea_actions_resources_limits_memory | default('2Gi') }}"
+            volumes:
+              - name: data
+                persistentVolumeClaim:
+                  claimName: "{{ gitea_actions_pvc_name }}"
+              - name: config
+                configMap:
+                  name: gitea-runner-config
+
+# ──────────────────────────────────────────────────────────────────
+# Wait for ready
+# ──────────────────────────────────────────────────────────────────
+
+- name: Wait for Gitea Actions runner deployment to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: gitea-runner
+    namespace: "{{ gitea_actions_namespace }}"
+  register: gitea_actions_runner_deploy_check
+  until:
+    - gitea_actions_runner_deploy_check.resources | length > 0
+    - gitea_actions_runner_deploy_check.resources[0].status.availableReplicas is defined
+    - gitea_actions_runner_deploy_check.resources[0].status.availableReplicas | int > 0
+  retries: 30
+  delay: 10

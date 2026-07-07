@@ -1,0 +1,91 @@
+---
+# Redis deployment tasks
+
+- name: Create Redis namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ redis_namespace }}"
+        labels:
+          pod-security.kubernetes.io/enforce: restricted
+
+- name: Deploy Redis
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis
+        namespace: "{{ redis_namespace }}"
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: redis
+        template:
+          metadata:
+            labels:
+              app: redis
+          spec:
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 999
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: redis
+                image: "{{ redis_image }}"
+                args:
+                  - redis-server
+                  - --maxmemory
+                  - "{{ redis_maxmemory }}"
+                  - --maxmemory-policy
+                  - allkeys-lru
+                  - --save
+                  - ""
+                ports:
+                  - containerPort: "{{ redis_port }}"
+                    name: redis
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                      - ALL
+                resources:
+                  requests:
+                    cpu: "{{ redis_cpu_request }}"
+                    memory: "{{ redis_memory_request }}"
+                  limits:
+                    cpu: "{{ redis_cpu_limit }}"
+                    memory: "{{ redis_memory_limit }}"
+                readinessProbe:
+                  tcpSocket:
+                    port: "{{ redis_port }}"
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                livenessProbe:
+                  tcpSocket:
+                    port: "{{ redis_port }}"
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+
+- name: Create Redis Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: redis
+        namespace: "{{ redis_namespace }}"
+      spec:
+        ports:
+          - port: "{{ redis_port }}"
+            targetPort: "{{ redis_port }}"
+            name: redis
+        selector:
+          app: redis

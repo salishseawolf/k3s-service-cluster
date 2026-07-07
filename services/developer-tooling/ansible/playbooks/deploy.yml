@@ -1,0 +1,443 @@
+---
+# developer_tooling.yml
+- name: Developer tooling for Debian (system + /etc/skel + retroactive root)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Debian packages (bat installs as batcat on Debian)
+    apt_packages:
+      - bat
+      - git
+      - curl
+      - ca-certificates
+      - unzip
+      - fontconfig
+      - xz-utils
+
+    # fzf
+    fzf_repo_url: "https://github.com/junegunn/fzf.git"
+    fzf_skel_dir: "/etc/skel/.fzf"
+    fzf_root_dir: "/root/.fzf"
+
+    # GitHub API endpoints (latest release)
+    delta_repo_api_latest: "https://api.github.com/repos/dandavison/delta/releases/latest"
+    helix_repo_api_latest: "https://api.github.com/repos/helix-editor/helix/releases/latest"
+
+    # Starship
+    starship_installer_url: "https://starship.rs/install.sh"
+    starship_bin_path: "/usr/local/bin/starship"
+
+    # Nerd Font (install for new users via /etc/skel and retroactively for root)
+    nerd_font_zip: "FiraCode.zip"
+    nerd_font_url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/FiraCode.zip"
+
+    nerd_font_skel_dir: "/etc/skel/.local/share/fonts"
+    nerd_font_skel_sentinel: "/etc/skel/.local/share/fonts/Fira Code Regular Nerd Font Complete.ttf"
+
+    nerd_font_root_dir: "/root/.local/share/fonts"
+    nerd_font_root_sentinel: "/root/.local/share/fonts/Fira Code Regular Nerd Font Complete.ttf"
+
+    # Clean up temporary downloads
+    cleanup_tmp_artifacts: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: "{{ apt_packages }}"
+        state: present
+
+    - name: Ensure /usr/local/bin exists
+      ansible.builtin.file:
+        path: /usr/local/bin
+        state: directory
+        mode: "0755"
+
+    - name: Ensure bat symlink exists (Debian uses batcat)
+      ansible.builtin.file:
+        src: /usr/bin/batcat
+        dest: /usr/local/bin/bat
+        state: link
+      when: ansible_facts.os_family == "Debian"
+
+    # -------------------------
+    # fzf: /etc/skel + /root
+    # -------------------------
+    - name: Ensure fzf install dirs exist (skel + root)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ fzf_skel_dir }}"
+        - "{{ fzf_root_dir }}"
+
+    - name: Clone/update fzf into /etc/skel
+      ansible.builtin.git:
+        repo: "{{ fzf_repo_url }}"
+        dest: "{{ fzf_skel_dir }}"
+        version: "master"
+        update: true
+
+    - name: Clone/update fzf into /root
+      ansible.builtin.git:
+        repo: "{{ fzf_repo_url }}"
+        dest: "{{ fzf_root_dir }}"
+        version: "master"
+        update: true
+
+    - name: Install fzf non-interactively into /etc/skel
+      ansible.builtin.command: "{{ fzf_skel_dir }}/install --all --no-update-rc"
+      environment:
+        HOME: "/etc/skel"
+      args:
+        chdir: "{{ fzf_skel_dir }}"
+        creates: "{{ fzf_skel_dir }}/bin/fzf"
+
+    - name: Install fzf non-interactively into /root
+      ansible.builtin.command: "{{ fzf_root_dir }}/install --all --no-update-rc"
+      environment:
+        HOME: "/root"
+      args:
+        chdir: "{{ fzf_root_dir }}"
+        creates: "{{ fzf_root_dir }}/bin/fzf"
+
+    - name: Enable fzf for new users via /etc/skel/.bashrc
+      ansible.builtin.blockinfile:
+        path: /etc/skel/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: fzf"
+        create: true
+        mode: "0644"
+        block: |
+          if [[ -e "${HOME:?}/.fzf/shell" ]]; then
+            export PATH="$HOME/.fzf/bin:$PATH"
+
+            # Auto-completion
+            # ---------------
+            source "${HOME:?}/.fzf/shell/completion.bash"
+
+            # Key bindings
+            # ------------
+            source "${HOME:?}/.fzf/shell/key-bindings.bash"
+          fi
+
+    - name: Enable fzf for root via /root/.bashrc
+      ansible.builtin.blockinfile:
+        path: /root/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: fzf"
+        create: true
+        mode: "0644"
+        block: |
+          if [[ -e "${HOME:?}/.fzf/shell" ]]; then
+            export PATH="$HOME/.fzf/bin:$PATH"
+
+            # Auto-completion
+            # ---------------
+            source "${HOME:?}/.fzf/shell/completion.bash"
+
+            # Key bindings
+            # ------------
+            source "${HOME:?}/.fzf/shell/key-bindings.bash"
+          fi
+
+    # -------------------------
+    # git-delta latest .deb
+    # -------------------------
+    - name: Map architecture for delta
+      vars:
+        arch_map:
+          'x86_64': 'amd64'
+          'amd64': 'amd64'
+          'aarch64': 'arm64'
+          'arm64': 'arm64'
+          'armv7l': 'armhf'
+      ansible.builtin.set_fact:
+        delta_arch_suffix: "{{ arch_map[ansible_facts.architecture] | default('unsupported') }}"
+
+    - name: Fail if architecture unsupported for delta
+      ansible.builtin.fail:
+        msg: "Unsupported architecture for git-delta: {{ ansible_facts.architecture }}"
+      when: delta_arch_suffix == "unsupported"
+
+    - name: Fetch latest delta release metadata
+      ansible.builtin.uri:
+        url: "{{ delta_repo_api_latest }}"
+        return_content: true
+        headers:
+          Accept: "application/vnd.github+json"
+      register: delta_release
+      retries: 5
+      delay: 3
+      until: delta_release.status == 200
+
+    - name: Select delta .deb asset for architecture
+      ansible.builtin.set_fact:
+        delta_deb_asset: >-
+          {{
+            delta_release.json.assets
+              | selectattr('name', 'match', '(git-)?delta.+(\.deb$)')
+              | selectattr('name', 'search', delta_arch_suffix)
+              | rejectattr('name', 'search', 'musl')
+              | first
+              | default({})
+          }}
+
+    - name: Fail if delta asset not found
+      ansible.builtin.fail:
+        msg: "Could not find a git-delta .deb asset for arch {{ delta_arch_suffix }}"
+      when: delta_deb_asset == {}
+
+    - name: Check if delta binary exists
+      ansible.builtin.stat:
+        path: /usr/bin/delta
+      register: delta_binary
+
+    - name: Download delta .deb
+      ansible.builtin.get_url:
+        url: "{{ delta_deb_asset.browser_download_url }}"
+        dest: "/tmp/{{ delta_deb_asset.name }}"
+        mode: "0644"
+      when: not delta_binary.stat.exists
+
+    - name: Install delta .deb (and resolve deps)
+      ansible.builtin.apt:
+        deb: "/tmp/{{ delta_deb_asset.name }}"
+        state: present
+      when: not delta_binary.stat.exists
+
+    - name: Configure delta as git pager for new users (/etc/skel/.gitconfig)
+      ansible.builtin.blockinfile:
+        path: /etc/skel/.gitconfig
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: delta"
+        create: true
+        mode: "0644"
+        block: |
+          [core]
+              pager = delta
+
+          [interactive]
+              diffFilter = delta --color-only
+
+          [delta]
+              navigate = true
+              line-numbers = true
+              side-by-side = true
+
+          [merge]
+              conflictstyle = diff3
+
+          [diff]
+              colorMoved = default
+
+    - name: Configure delta as git pager for root (/root/.gitconfig)
+      ansible.builtin.blockinfile:
+        path: /root/.gitconfig
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: delta"
+        create: true
+        mode: "0644"
+        block: |
+          [core]
+              pager = delta
+
+          [interactive]
+              diffFilter = delta --color-only
+
+          [delta]
+              navigate = true
+              line-numbers = true
+              side-by-side = true
+
+          [merge]
+              conflictstyle = diff3
+
+          [diff]
+              colorMoved = default
+
+    # -------------------------
+    # Helix latest .deb
+    # -------------------------
+    - name: Map architecture for helix
+      vars:
+        arch_map:
+          'x86_64': '_amd64\.deb$'
+          'amd64': '_amd64\.deb$'
+          'aarch64': '_arm64\.deb$'
+          'arm64': '_arm64\.deb$'
+      ansible.builtin.set_fact:
+        helix_deb_pattern: "{{ arch_map[ansible_facts.architecture] | default('unsupported') }}"
+
+    - name: Fail if architecture unsupported for helix
+      ansible.builtin.fail:
+        msg: "Unsupported architecture for helix: {{ ansible_facts.architecture }}"
+      when: helix_deb_pattern == "unsupported"
+
+    - name: Fetch latest helix release metadata
+      ansible.builtin.uri:
+        url: "{{ helix_repo_api_latest }}"
+        return_content: true
+        headers:
+          Accept: "application/vnd.github+json"
+      register: helix_release
+      retries: 5
+      delay: 3
+      until: helix_release.status == 200
+
+    - name: Select helix .deb asset for architecture
+      ansible.builtin.set_fact:
+        helix_deb_asset: >-
+          {{
+            (helix_release.json.assets
+              | selectattr('browser_download_url', 'search', helix_deb_pattern)
+              | list
+              | first) | default({})
+          }}
+
+    - name: Fail if helix asset not found
+      ansible.builtin.fail:
+        msg: "Could not find a helix .deb asset matching {{ helix_deb_pattern }}"
+      when: helix_deb_asset == {}
+
+    - name: Check if helix binary exists
+      ansible.builtin.stat:
+        path: /usr/bin/hx
+      register: helix_binary
+
+    - name: Download helix .deb
+      ansible.builtin.get_url:
+        url: "{{ helix_deb_asset.browser_download_url }}"
+        dest: "/tmp/{{ helix_deb_asset.name }}"
+        mode: "0644"
+      when: not helix_binary.stat.exists
+
+    - name: Install helix .deb (and resolve deps)
+      ansible.builtin.apt:
+        deb: "/tmp/{{ helix_deb_asset.name }}"
+        state: present
+      when: not helix_binary.stat.exists
+
+    # -------------------------
+    # Nerd Font into /etc/skel + /root
+    # -------------------------
+    - name: Ensure Nerd Font directories exist (skel + root)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ nerd_font_skel_dir }}"
+        - "{{ nerd_font_root_dir }}"
+
+    - name: Check whether Nerd Font sentinel exists (skel)
+      ansible.builtin.stat:
+        path: "{{ nerd_font_skel_sentinel }}"
+      register: nerd_font_skel_stat
+
+    - name: Check whether Nerd Font sentinel exists (root)
+      ansible.builtin.stat:
+        path: "{{ nerd_font_root_sentinel }}"
+      register: nerd_font_root_stat
+
+    - name: Download Nerd Font zip (only if needed for skel or root)
+      ansible.builtin.get_url:
+        url: "{{ nerd_font_url }}"
+        dest: "/tmp/{{ nerd_font_zip }}"
+        mode: "0644"
+      when: not (nerd_font_skel_stat.stat.exists and nerd_font_root_stat.stat.exists)
+
+    - name: Unzip Nerd Font into /etc/skel
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ nerd_font_zip }}"
+        dest: "{{ nerd_font_skel_dir }}"
+        remote_src: true
+      when: not nerd_font_skel_stat.stat.exists
+      register: nerd_font_skel_unarchive
+
+    - name: Unzip Nerd Font into /root
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ nerd_font_zip }}"
+        dest: "{{ nerd_font_root_dir }}"
+        remote_src: true
+      when: not nerd_font_root_stat.stat.exists
+      register: nerd_font_root_unarchive
+
+    - name: Refresh font cache (best-effort)
+      ansible.builtin.command: fc-cache -fv
+      changed_when: false
+      failed_when: false
+      when: (nerd_font_skel_unarchive is changed) or (nerd_font_root_unarchive is changed)
+
+    # -------------------------
+    # Starship
+    # -------------------------
+    - name: Check if starship binary exists
+      ansible.builtin.stat:
+        path: "{{ starship_bin_path }}"
+      register: starship_binary
+
+    - name: Download Starship installer
+      ansible.builtin.get_url:
+        url: "{{ starship_installer_url }}"
+        dest: /tmp/starship-install.sh
+        mode: "0755"
+      when: not starship_binary.stat.exists
+
+    - name: Install Starship to /usr/local/bin
+      ansible.builtin.command: "/tmp/starship-install.sh -y -b /usr/local/bin"
+      args:
+        creates: "{{ starship_bin_path }}"
+
+    - name: Enable Starship for new users via /etc/skel/.bashrc
+      ansible.builtin.blockinfile:
+        path: /etc/skel/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: starship"
+        create: true
+        mode: "0644"
+        block: |
+          # Enable the Starship prompt
+          eval "$(/usr/local/bin/starship init bash)"
+
+    - name: Enable Starship for root via /root/.bashrc
+      ansible.builtin.blockinfile:
+        path: /root/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: starship"
+        create: true
+        mode: "0644"
+        block: |
+          # Enable the Starship prompt
+          eval "$(/usr/local/bin/starship init bash)"
+
+    - name: Remove downloaded Nerd Font zip from /tmp
+      ansible.builtin.file:
+        path: "/tmp/{{ nerd_font_zip }}"
+        state: absent
+      when: cleanup_tmp_artifacts | bool
+
+    - name: Remove downloaded delta .deb from /tmp
+      ansible.builtin.file:
+        path: "/tmp/{{ delta_deb_asset.name }}"
+        state: absent
+      when:
+        - cleanup_tmp_artifacts | bool
+        - delta_deb_asset is defined
+        - delta_deb_asset != {}
+
+    - name: Remove downloaded helix .deb from /tmp
+      ansible.builtin.file:
+        path: "/tmp/{{ helix_deb_asset.name }}"
+        state: absent
+      when:
+        - cleanup_tmp_artifacts | bool
+        - helix_deb_asset is defined
+        - helix_deb_asset != {}
+
+    - name: Remove Starship installer from /tmp
+      ansible.builtin.file:
+        path: /tmp/starship-install.sh
+        state: absent
+      when: cleanup_tmp_artifacts | bool

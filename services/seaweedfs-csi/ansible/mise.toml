@@ -1,0 +1,7 @@
+[tasks.deploy]
+description = "Deploy SeaweedFS CSI driver via Ansible"
+run = "op run -- ansible-playbook playbooks/deploy.yml"
+
+[tasks.lint]
+description = "Lint Ansible roles"
+run = "ansible-lint"

@@ -1,0 +1,26 @@
+---
+# Ansible Galaxy requirements for K3s Service Cluster project
+# Install with: ansible-galaxy install -r requirements.yml
+
+collections:
+  # Hetzner Cloud dynamic inventory and modules
+  - name: hetzner.hcloud
+    version: ">=2.0.0"
+
+  # Community general utilities (terraform state reader, etc)
+  - name: community.general
+    version: ">=8.0.0"
+
+  # POSIX utilities
+  - name: ansible.posix
+    version: ">=1.5.0"
+
+  # Kuberenetes
+  - name: kubernetes.core
+    version: ">=6.2.0"
+
+# roles:
+#   # Add custom roles from Ansible Galaxy here
+#   # Example:
+#   # - name: geerlingguy.docker
+#   #   version: 7.0.0

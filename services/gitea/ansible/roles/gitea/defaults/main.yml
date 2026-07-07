@@ -1,0 +1,64 @@
+---
+gitea_namespace: gitea
+gitea_domain: "git.{{ lookup('env', 'TF_VAR_domain') }}"
+gitea_image:
+  registry: docker.gitea.com
+  repository: gitea
+  tag: ""
+  rootless: true
+gitea_port: 3000
+gitea_storage: 10Gi
+gitea_storage_class: seaweedfs-storage
+gitea_chart_repo: https://dl.gitea.com/charts/
+gitea_chart_name: gitea
+gitea_chart_version: ""
+
+# Database
+gitea_db_host: "main-db-rw.database.svc.cluster.local"
+gitea_db_name: giteadb
+gitea_db_user: gitea_user
+gitea_db_port: 5432
+
+# Authentik
+gitea_authentik_host: "https://auth.{{ lookup('env', 'TF_VAR_domain') }}"
+
+# Redis
+gitea_redis_url: "redis://redis.redis.svc.cluster.local:6379"
+
+# SeaweedFS S3
+# External endpoint (for external clients through Traefik IngressRoute)
+gitea_s3_endpoint: "s3.{{ lookup('env', 'TF_VAR_domain') }}"
+gitea_s3_bucket: gitea
+gitea_s3_use_ssl: true
+gitea_s3_location: hel1
+
+# Internal endpoint (direct cluster DNS, bypasses Traefik to avoid SigV4 breakage)
+# SeaweedFS S3 on port 8333 is plain HTTP — no TLS inside the cluster
+gitea_s3_internal_endpoint: "seaweedfs-s3.seaweedfs:8333"
+gitea_s3_internal_use_ssl: false
+
+# 1Password references
+gitea_secrets_ref: "vaults/K3s Service Cluster/items/Gitea Secrets"
+
+# Secret names
+gitea_secrets_secret_name: gitea-secrets
+gitea_oidc_creds_secret_name: gitea-oidc-creds
+
+# JWT secret (auto-generated)
+gitea_jwt_secret: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=64) }}"
+
+# Gitea SSH
+gitea_ssh_port: 2222
+gitea_ssh_service_port: 22
+
+# Resource limits
+gitea_resources_requests_cpu: 200m
+gitea_resources_requests_memory: 512Mi
+gitea_resources_limits_cpu: 1000m
+gitea_resources_limits_memory: 2Gi
+
+# Storage
+gitea_storage_size: 10Gi
+
+
+gitea_db_password: "{{ lookup('env', 'GITEA_DB_PASSWORD') }}"

@@ -1,0 +1,38 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ postgres_cluster_name }}
+  namespace: {{ postgres_namespace }}
+spec:
+  instances: 3
+
+  storage:
+    size: 20Gi
+    storageClass: hcloud-volumes
+
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+  bootstrap:
+    initdb:
+      database: default
+      owner: default
+
+  # Backup via Barman Cloud Plugin → Backblaze B2
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: "{{ postgres_cluster_name }}-store"
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+
+  monitoring:
+    enablePodMonitor: true

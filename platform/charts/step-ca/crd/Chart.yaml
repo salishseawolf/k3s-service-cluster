@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: step-ca-crd
+description: Deploy step-ca via K3s HelmChart CRD
+type: application
+version: 0.1.0
+appVersion: "0.29.0"

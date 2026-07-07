@@ -1,0 +1,87 @@
+---
+- name: Add CloudNativePG Helm Repo
+  kubernetes.core.helm_repository:
+    name: cnpg
+    repo_url: "https://cloudnative-pg.github.io/charts"
+
+- name: Install CloudNativePG Operator
+  kubernetes.core.helm:
+    name: cnpg
+    chart_ref: cnpg/cloudnative-pg
+    chart_version: "{{ cnpg_version }}"
+    release_namespace: "{{ cnpg_namespace }}"
+    create_namespace: true
+    wait: true
+    update_repo_cache: true
+
+- name: Ensure cert-manager is available
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: cert-manager
+  register: cm_check
+  failed_when: cm_check.resources | length == 0
+
+- name: Create Database Namespace
+  kubernetes.core.k8s:
+    name: "{{ postgres_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Deploy Database ResourceQuota
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'resourcequota.yaml.j2') }}"
+
+- name: Deploy Database LimitRange
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'limitrange.yaml.j2') }}"
+
+# ─── Barman Cloud Plugin ──────────────────────────────────────────────────────
+
+- name: Install Barman Cloud Plugin
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('url',
+      'https://github.com/cloudnative-pg/plugin-barman-cloud/releases/download/v0.13.0/manifest.yaml',
+      split_lines=False) }}"
+
+- name: Create OnePasswordItem for CNPG backup credentials
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: onepassword.com/v1
+      kind: OnePasswordItem
+      metadata:
+        name: "{{ postgres_backup_secret_name }}"
+        namespace: "{{ postgres_namespace }}"
+      spec:
+        itemPath: "vaults/K3s Service Cluster/items/CNPG B2 Bucket"
+
+- name: Wait for CNPG backup secret to sync
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ postgres_backup_secret_name }}"
+    namespace: "{{ postgres_namespace }}"
+  register: op_sync
+  retries: 30
+  delay: 2
+  until: op_sync.resources | length > 0
+
+- name: Create Barman Cloud ObjectStore
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'objectstore.yaml.j2') }}"
+
+- name: Deploy Postgres Cluster Manifest
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'cluster.yaml.j2') }}"
+
+- name: Deploy ScheduledBackup CR
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'scheduledbackup.yaml.j2') }}"

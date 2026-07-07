@@ -1,0 +1,18 @@
+---
+# PodDisruptionBudget for step-ca
+# Prevents voluntary disruption of the step-ca deployment
+# during node drains, upgrades, or maintenance
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: step-ca
+  namespace: step-ca
+  labels:
+    app.kubernetes.io/name: step-certificates
+    app.kubernetes.io/instance: step-ca
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: step-certificates
+      app.kubernetes.io/instance: step-ca

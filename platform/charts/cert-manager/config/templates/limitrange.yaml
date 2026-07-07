@@ -1,0 +1,27 @@
+---
+# LimitRange for cert-manager namespace
+# Sets default resource requests/limits for containers
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cert-manager-limits
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: cert-manager-config
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "256Mi"
+      min:
+        cpu: "10m"
+        memory: "64Mi"
+      max:
+        cpu: "2000m"
+        memory: "4Gi"

@@ -1,0 +1,42 @@
+---
+# cert-manager deployed via K3s Helm controller
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: cert-manager
+  namespace: kube-system
+spec:
+  repo: https://charts.jetstack.io
+  chart: cert-manager
+  version: {{ .Values.certManager.version | quote }}
+  targetNamespace: cert-manager
+  createNamespace: true
+  valuesContent: |-
+    crds:
+      enabled: true
+    replicaCount: {{ .Values.certManager.replicaCount }}
+    resources:
+      requests:
+        cpu: {{ .Values.certManager.resources.requests.cpu }}
+        memory: {{ .Values.certManager.resources.requests.memory }}
+      limits:
+        cpu: {{ .Values.certManager.resources.limits.cpu }}
+        memory: {{ .Values.certManager.resources.limits.memory }}
+    webhook:
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+    cainjector:
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi

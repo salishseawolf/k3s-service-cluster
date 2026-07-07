@@ -1,0 +1,147 @@
+experimental_monorepo_root = true
+
+[monorepo]
+config_roots = [
+    "infrastructure/*",
+    "platform/*",
+    "platform/charts/*",
+    "services/*",
+    "services/*/ansible",
+]
+
+[env]
+MISE_EXPERIMENTAL = 1
+_.file = [".secrets.env", "/tmp/.secrets.env.agent"]
+# Shared secrets - layer-specific secrets are in their respective mise.toml files
+KUBECONFIG = "{{ config_root }}/kubeconfig"
+TF_VAR_cloudflare_zone_id = "op://K3s Service Cluster/Cloudflare DNS Challenge/zone_id"
+TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
+TF_VAR_server_type = "cx33"
+DOMAIN = "{{ env.TF_VAR_domain }}"
+ANSIBLE_FORCE_COLOR = "1"
+
+[tools]
+"opentofu" = "latest"
+"pre-commit" = "3.8.0"
+"pipx" = "latest"
+"uv" = "latest"
+"pipx:ansible-core" = { version = "latest", uvx_args = "--with requests --with hcloud --with kubernetes" }
+"pipx:ansible-lint" = "latest"
+"kubectl" = "latest"
+"yamllint" = "latest"
+"hcloud" = "latest"
+"helm" = "3.14.4"
+"helm-diff" = "latest"
+"kubeconform" = "latest"
+"kube-linter" = "latest"
+"yq" = "latest"
+"mc" = "latest"
+
+[tasks.setup]
+description = "Setup project dependencies and initialize"
+run = [
+  "mise install",
+  "mise run //infrastructure/tofu:init",
+  "mise run //platform/ansible:init",
+]
+
+[tasks.check]
+description = "Run all validation checks across the project"
+run = [
+  "yamllint -c .yamllint.yaml infrastructure/ platform/ services/",
+  "mise run //infrastructure/tofu:check",
+  "mise run //platform/ansible:lint",
+  "mise run //platform/charts/cert-manager:check",
+  "mise run //platform/charts/step-ca:check",
+  "mise run //services/database/ansible:lint",
+  "mise run //services/identity/ansible:lint",
+  "mise run //services/gatus/ansible:lint",
+  "mise run //services/seaweedfs/ansible:lint",
+  "mise run //services/seaweedfs-csi/ansible:lint",
+  "mise run //services/copyparty/ansible:lint",
+  "mise run //services/homarr/ansible:lint",
+  "mise run //services/gitea/ansible:lint",
+  "mise run //services/gitea-actions/ansible:lint",
+  "mise run //services/paperless/ansible:lint",
+  "mise run //services/redis/ansible:lint",
+  "mise run //services/developer-tooling/ansible:lint",
+  "mise run //platform/charts/cert-manager:kube-linter",
+  "mise run //platform/charts/step-ca:kube-linter",
+]
+
+[tasks.fmt]
+description = "Auto-format all project files"
+run = [
+  "mise run //infrastructure/tofu:fmt"
+]
+
+[tasks.deploy]
+description = "Deploy full stack: infrastructure + K3s + platform + services"
+run = '''
+op run -- bash -c '
+  set -e
+  echo "==> Clearing Ansible fact cache..."
+  rm -rf /tmp/ansible_facts
+
+  echo "==> Deploying infrastructure with OpenTofu..."
+  mise run //infrastructure/tofu:apply -auto-approve
+
+  echo "==> Deploying K3s cluster + Hetzner integrations..."
+  mise run //platform/ansible:deploy
+
+  echo "==> Deploying cert-manager..."
+  mise run //platform/charts/cert-manager:apply
+
+  echo "==> Deploying step-ca..."
+  mise run //platform/charts/step-ca:apply
+
+  echo "==> Deploying services..."
+  mise run //services/database:deploy
+  mise run //services/identity:deploy
+  mise run //services/seaweedfs:deploy
+  mise run //services/seaweedfs-csi:deploy
+  mise run //services/redis:deploy
+  mise run //services/copyparty:deploy
+  mise run //services/homarr:deploy
+  mise run //services/gitea:deploy
+  mise run //services/gitea-actions:deploy
+  mise run //services/paperless:deploy
+  mise run //services/gatus:deploy
+  mise run //services/developer-tooling:deploy
+
+  echo "==> Full stack deployment complete!"
+'
+'''
+
+[tasks.ssh]
+description = "SSH into a K3s node"
+usage = 'arg "index" default="0" help="Node index (0, 1, or 2)"'
+run = '''
+#!/bin/bash
+INDEX={{arg(name="index")}}
+IP=$(mise run -q //infrastructure/tofu:output:json | jq -r ".node_public_ips.value[$INDEX]")
+exec ssh "root@$IP"
+'''
+
+[tasks."ssh:k3s"]
+description = "SSH into K3s node (alias for ssh)"
+usage = 'arg "index" default="0"'
+run = "mise run ssh {{arg(name='index')}}"
+
+[tasks."k:all"]
+description = "List all namespaced Kubernetes resources"
+usage = 'arg "[namespace]" help="Namespace to query (default: all namespaces)"'
+run = '''
+#!/bin/bash
+NS="{{arg(name="namespace")}}"
+RESOURCES=$(kubectl api-resources --verbs=list --namespaced -o name | paste -sd "," -)
+if [[ -n "$NS" ]]; then
+  kubectl get "$RESOURCES" -n "$NS" --ignore-not-found
+else
+  kubectl get "$RESOURCES" -A --ignore-not-found
+fi
+'''
+
+[tasks.backup]
+description = "Run SeaweedFS backup manually"
+run = "mise run //services/seaweedfs:backup"

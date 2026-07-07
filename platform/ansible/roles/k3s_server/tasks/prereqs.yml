@@ -1,0 +1,98 @@
+---
+# K3s server prerequisites - configuration files and directories
+
+- name: Check if K3s is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Download K3s installation script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: "{{ k3s_install_script_path }}"
+    mode: '0755'
+  when: not k3s_binary.stat.exists
+
+- name: Ensure K3s encryption config directory exists
+  ansible.builtin.file:
+    path: "{{ k3s_cred_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Deploy K3s etcd encryption configuration
+  ansible.builtin.template:
+    src: etcd-encryption-config.yml.j2
+    dest: "{{ k3s_cred_dir }}/encryption-config.yml"
+    owner: root
+    group: root
+    mode: '0600'
+  register: k3s_encryption_config
+
+- name: Create audit log directory
+  ansible.builtin.file:
+    path: "{{ k3s_logs_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Deploy API server audit policy
+  ansible.builtin.template:
+    src: audit-policy.yaml.j2
+    dest: "{{ k3s_config_dir }}/audit.yaml"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy EventRateLimit configuration
+  ansible.builtin.template:
+    src: event-rate-limit.yaml.j2
+    dest: "{{ k3s_config_dir }}/event-rate-limit.yaml"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy PSA configuration
+  ansible.builtin.template:
+    src: psa.yaml.j2
+    dest: "{{ k3s_config_dir }}/psa.yaml"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Ensure K3s manifests directory exists
+  ansible.builtin.file:
+    path: "{{ k3s_manifests_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy Traefik HelmChartConfig (DaemonSet + HostPort)
+  ansible.builtin.template:
+    src: traefik-config.yaml.j2
+    dest: "{{ k3s_manifests_dir }}/traefik-config.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Deploy Hetzner CCM manifest (auto-deploy)
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/hcloud-ccm.yaml.j2"
+    dest: "{{ k3s_manifests_dir }}/hcloud-ccm.yaml"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  when: k3s_mode == 'init'
+
+- name: Deploy Hetzner CSI manifest (auto-deploy)
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/hcloud-csi.yaml.j2"
+    dest: "{{ k3s_manifests_dir }}/hcloud-csi.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  when: k3s_mode == 'init'

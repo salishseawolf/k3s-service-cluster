@@ -1,0 +1,71 @@
+---
+# step-ca deployed via K3s Helm controller
+# Uses existingSecrets approach for GitOps compatibility
+# See: https://github.com/smallstep/helm-charts/blob/master/step-certificates/README.md
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: step-ca
+  namespace: kube-system
+  annotations:
+    operator.1password.io/auto-restart: "true"
+spec:
+  repo: {{ .Values.stepca.chart.repo }}
+  chart: {{ .Values.stepca.chart.name }}
+  version: {{ .Values.stepca.chart.version | quote }}
+  targetNamespace: {{ .Values.stepca.targetNamespace }}
+  createNamespace: false
+  valuesContent: |-
+    fullnameOverride: "step-ca"
+    replicaCount: {{ .Values.stepca.replicaCount }}
+    resources:
+      requests:
+        cpu: {{ .Values.stepca.resources.requests.cpu }}
+        memory: {{ .Values.stepca.resources.requests.memory }}
+      limits:
+        cpu: {{ .Values.stepca.resources.limits.cpu }}
+        memory: {{ .Values.stepca.resources.limits.memory }}
+    service:
+      targetPort: 9000
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    ca:
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 1000
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+        seccompProfile:
+          type: RuntimeDefault
+      init:
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
+      provisioner:
+        password:
+          name: step-ca-provisioner-password
+          key: password
+    existingSecrets:
+      enabled: true
+      ca: true             # Use step-ca-ca-password
+      certsAsSecret: true  # Use step-ca-certs
+      configAsSecret: true # Use step-ca-config
+    inject:
+      enabled: false
+    bootstrap:
+      enabled: false

@@ -1,0 +1,58 @@
+[env]
+TF_VAR_hcloud_token = "{{ env.HCLOUD_TOKEN }}"
+TF_VAR_ssh_key_name = "op://Employee/Hetzner/ssh_key_name"
+
+[tasks.init]
+description = "Initialize OpenTofu configuration"
+run = "op run -- tofu init"
+
+[tasks.plan]
+description = "Plan OpenTofu infrastructure changes"
+run = "op run -- tofu plan"
+
+[tasks.apply]
+description = "Apply OpenTofu infrastructure changes"
+run = [
+  "rm -rf /tmp/ansible_facts",
+  "op run -- tofu apply"
+]
+
+[tasks.destroy]
+description = "Destroy OpenTofu infrastructure"
+run = "op run -- tofu destroy"
+
+[tasks.validate]
+description = "Validate OpenTofu configuration"
+run = "op run -- tofu validate"
+
+[tasks.fmt]
+description = "Format OpenTofu files"
+run = "tofu fmt"
+
+[tasks.check]
+description = "Lint and validate all code"
+run = [
+  "tofu fmt -check",
+  "op run -- tofu validate"
+]
+
+[tasks.ip]
+description = "Get public IP of specific node"
+usage = 'arg "index" help="Node index (0-2)" default="0"'
+run = 'tofu output -json node_public_ips | jq -r ".[{{arg(name=\"index\")}}]"'
+
+[tasks."output:json"]
+description = "Get all outputs as JSON"
+run = "tofu output -json"
+
+[tasks.replace-nodes]
+description = "Replace all nodes with updated cloud-init configuration"
+run = [
+  "rm -rf /tmp/ansible_facts",
+  """
+  op run -- tofu apply \
+    -replace=hcloud_server.k3s_nodes[0] \
+    -replace=hcloud_server.k3s_nodes[1] \
+    -replace=hcloud_server.k3s_nodes[2]
+  """
+]

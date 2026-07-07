@@ -1,0 +1,11 @@
+---
+# Ansible-lint configuration for platform ansible
+
+# Skip rules
+skip_list:
+  # The k3s_ prefix convention is intentional (not k3s_server_)
+  - var-naming[no-role-prefix]
+
+# Exclude paths
+exclude_paths:
+  - .cache/

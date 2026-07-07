@@ -1,0 +1,47 @@
+---
+version: 1
+metadata:
+  name: Homarr
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    id: provider-homarr
+    identifiers:
+      name: Homarr OIDC Provider
+    attrs:
+      client_type: confidential
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      redirect_uris:
+        - matching_mode: strict
+          url: https://{{ homarr_domain }}/api/auth/callback/oidc
+        - matching_mode: strict
+          url: http://localhost:3000/api/auth/callback/oidc
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      access_code_validity: minutes=1
+      access_token_validity: hours=24
+      grant_types:
+        - authorization_code
+        - refresh_token
+      include_claims_in_id_token: true
+      property_mappings:
+        - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
+        - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
+        - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'email'"]]
+      scope_set:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      name: Homarr
+      slug: homarr
+    attrs:
+      group: Services
+      provider: !KeyOf provider-homarr
+      meta_launch_url: https://{{ homarr_domain }}

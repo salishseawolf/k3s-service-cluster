@@ -1,0 +1,16 @@
+---
+# step-ca CRD configuration
+stepca:
+  targetNamespace: step-ca
+  chart:
+    version: "1.29.0"
+    repo: https://smallstep.github.io/helm-charts/
+    name: step-certificates
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

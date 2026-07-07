@@ -1,0 +1,29 @@
+---
+# Hetzner CSI Driver
+# Auto-deployed by K3s from /var/lib/rancher/k3s/server/manifests/
+# Uses HelmChart CRD for deployment via K3s helm-controller
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: hcloud-csi
+  namespace: kube-system
+spec:
+  repo: https://charts.hetzner.cloud
+  chart: hcloud-csi
+  version: "{{ hcloud_csi_version }}"
+  targetNamespace: kube-system
+  valuesContent: |-
+    controller:
+      hcloudToken:
+        existingSecret:
+          name: hcloud
+          key: token
+      extraEnv:
+        - name: HCLOUD_VOLUME_DEFAULT_LOCATION
+          value: "{{ hcloud_location }}"
+        - name: HCLOUD_VOLUME_EXTRA_LABELS
+          value: "provisioner=k3s"
+    storageClasses:
+      - name: hcloud-volumes
+        defaultStorageClass: true
+        reclaimPolicy: Delete

@@ -1,0 +1,14 @@
+[env]
+ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
+
+[tasks.init]
+description = "Install Ansible collection dependencies"
+run = "ansible-galaxy collection install -r requirements.yml"
+
+[tasks.deploy]
+description = "Deploy Redis via Ansible"
+run = "mise run init && op run -- ansible-playbook playbooks/deploy.yml"
+
+[tasks.lint]
+description = "Lint Ansible roles"
+run = "ansible-lint"

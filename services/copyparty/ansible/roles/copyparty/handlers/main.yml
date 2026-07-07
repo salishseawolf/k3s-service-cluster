@@ -1,0 +1,11 @@
+---
+- name: Restart Copyparty
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - restart
+      - deploy/copyparty
+      - -n
+      - "{{ copyparty_namespace }}"
+  listen: "config changed"

@@ -1,0 +1,4 @@
+---
+collections:
+  - name: hetzner.hcloud
+  - name: kubernetes.core

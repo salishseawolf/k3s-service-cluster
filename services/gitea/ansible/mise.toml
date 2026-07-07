@@ -1,0 +1,20 @@
+[env]
+ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
+GITEA_DB_PASSWORD = "op://K3s Service Cluster/Gitea Secrets/db/password"
+TF_VAR_domain = "op://K3s Service Cluster/Cloudflare Config/domain"
+GITEA_SMTP_HOST = "op://K3s Service Cluster/Resend.com SMTP/host"
+GITEA_SMTP_PORT = "op://K3s Service Cluster/Resend.com SMTP/port number"
+GITEA_SMTP_USERNAME = "op://K3s Service Cluster/Resend.com SMTP/username"
+GITEA_SMTP_PASSWORD = "op://K3s Service Cluster/Resend.com SMTP/password"
+
+[tasks.init]
+description = "Install Ansible collection dependencies"
+run = "ansible-galaxy collection install -r requirements.yml"
+
+[tasks.deploy]
+description = "Deploy Gitea via Ansible"
+run = "mise run init && op run -- ansible-playbook playbooks/deploy.yml"
+
+[tasks.lint]
+description = "Lint Ansible roles"
+run = "ansible-lint"

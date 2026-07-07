@@ -1,0 +1,53 @@
+---
+# Deploy K3s HA cluster with embedded etcd
+# Standalone: mise run //platform/ansible:deploy:cluster
+
+- name: Fetch Hetzner Cloud facts
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: hcloud_facts
+
+- name: Initialize K3s cluster (first node)
+  hosts: k3s-converged-node-01
+  become: true
+  gather_facts: true
+  vars:
+    k3s_control_plane_endpoint: >-
+      {{ hostvars['localhost']['k3s_control_plane_endpoint'] }}
+    hcloud_network_name: "{{ hostvars['localhost']['hcloud_network_name'] }}"
+    k3s_mode: init
+  roles:
+    - role: k3s_server
+
+- name: Join K3s cluster (additional nodes)
+  hosts: k3s_nodes:!k3s-converged-node-01
+  become: true
+  gather_facts: true
+  serial: 1
+  vars:
+    k3s_control_plane_endpoint: >-
+      {{ hostvars['localhost']['k3s_control_plane_endpoint'] }}
+    k3s_mode: join
+  roles:
+    - role: k3s_server
+
+- name: Install Python Kubernetes library
+  hosts: k3s_nodes
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install python3-kubernetes
+      ansible.builtin.apt:
+        name: python3-kubernetes
+        state: present
+
+- name: Retrieve kubeconfig
+  hosts: k3s-converged-node-01
+  become: true
+  gather_facts: false
+  vars:
+    k3s_control_plane_endpoint: >-
+      {{ hostvars['localhost']['k3s_control_plane_endpoint'] }}
+  roles:
+    - role: k3s_kubeconfig

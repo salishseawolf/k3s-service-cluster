@@ -1,0 +1,62 @@
+---
+# K3s server installation - handles both init and join
+# Required variables:
+#   - k3s_control_plane_endpoint: Load balancer IP
+#   - k3s_mode: 'init' or 'join'
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - k3s_control_plane_endpoint is defined
+      - k3s_mode in ['init', 'join']
+    fail_msg: >-
+      Required variables: k3s_control_plane_endpoint, k3s_mode (init|join)
+
+- name: Wait for cloud-init to complete
+  ansible.builtin.command: cloud-init status --wait
+  changed_when: false
+  timeout: 300
+
+- name: Verify system requirements
+  vars:
+    root_avail: >-
+      {{ ansible_facts['mounts']
+         | selectattr('mount', 'equalto', '/')
+         | map(attribute='size_available')
+         | first }}
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['memtotal_mb'] >= k3s_min_memory_mb
+      - ansible_facts['distribution'] == k3s_required_distribution
+      - root_avail | int > k3s_min_disk_bytes
+    fail_msg: >-
+      System requirements not met
+      ({{ k3s_min_memory_mb }}MB RAM,
+      {{ k3s_required_distribution }},
+      {{ (k3s_min_disk_bytes / 1073741824) | round(1) }}GB disk)
+
+- name: Setup K3s prerequisites
+  ansible.builtin.include_tasks: prereqs.yml
+
+- name: Initialize cluster (first node)
+  ansible.builtin.include_tasks: init.yml
+  when: k3s_mode == 'init'
+
+- name: Join cluster (additional nodes)
+  ansible.builtin.include_tasks: join.yml
+  when: k3s_mode == 'join'
+
+- name: Verify K3s service is running
+  ansible.builtin.systemd:
+    name: k3s
+    state: started
+    enabled: true
+
+- name: Install Helm
+  ansible.builtin.include_role:
+    name: helm
+
+- name: Clean up installation script
+  ansible.builtin.file:
+    path: "{{ k3s_install_script_path }}"
+    state: absent

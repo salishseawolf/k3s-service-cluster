@@ -1,0 +1,20 @@
+---
+plugin: hetzner.hcloud.hcloud
+token_env: HCLOUD_TOKEN
+filters:
+  - label_selector == "project=k3s-service-cluster"
+  - label_selector == "role=k3s-node"
+compose:
+  ansible_host: ipv4_address
+groups:
+  k3s_nodes: hcloud_labels.role == "k3s-node"
+  production: hcloud_labels.environment == "production"
+  k3s_service_cluster: hcloud_labels.project == "k3s-service-cluster"
+  hel1: hcloud_location == "hel1"
+keyed_groups:
+  - key: hcloud_server_type
+    prefix: type
+  - key: hcloud_status
+    prefix: status
+  - key: hcloud_location
+    prefix: location

@@ -1,0 +1,9 @@
+---
+redis_namespace: redis
+redis_image: "redis:7-alpine"
+redis_port: 6379
+redis_maxmemory: "200mb"
+redis_cpu_request: 100m
+redis_memory_request: 128Mi
+redis_cpu_limit: 500m
+redis_memory_limit: 256Mi

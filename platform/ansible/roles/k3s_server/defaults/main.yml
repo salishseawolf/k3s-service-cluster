@@ -1,0 +1,14 @@
+---
+# K3s server role defaults
+
+# Installation paths
+k3s_install_script_path: /tmp/k3s-install.sh
+k3s_config_dir: /var/lib/rancher/k3s/server
+k3s_cred_dir: "{{ k3s_config_dir }}/cred"
+k3s_logs_dir: "{{ k3s_config_dir }}/logs"
+k3s_manifests_dir: "{{ k3s_config_dir }}/manifests"
+
+# System requirements
+k3s_min_memory_mb: 1024
+k3s_min_disk_bytes: 5368709120  # 5GB
+k3s_required_distribution: Debian

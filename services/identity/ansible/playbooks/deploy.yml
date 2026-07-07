@@ -1,0 +1,24 @@
+---
+# Deploy Authentik identity provider
+# Run with: mise run //services/identity:deploy
+
+- name: Deploy Identity
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  module_defaults:
+    kubernetes.core.helm:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.k8s:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.helm_repository:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.k8s_info:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+    kubernetes.core.k8s_exec:
+      kubeconfig: "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}"
+
+  roles:
+    - role: identity
+      tags: ['identity', 'auth', 'authentik']

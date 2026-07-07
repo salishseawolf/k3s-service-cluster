@@ -1,0 +1,35 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+  # Log authentication attempts
+  - level: Metadata
+    verbs: ["create"]
+    resources:
+      - group: "authentication.k8s.io"
+        resources: ["tokenreviews"]
+
+  # Log authorization decisions
+  - level: Metadata
+    verbs: ["create"]
+    resources:
+      - group: "authorization.k8s.io"
+        resources: ["subjectaccessreviews", "selfsubjectaccessreviews"]
+
+  # Log secret access (minimal metadata only)
+  - level: Metadata
+    omitStages: ["RequestReceived"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+    resources:
+      - group: ""
+        resources: ["secrets"]
+
+  # Log service account token creation
+  - level: Metadata
+    verbs: ["create"]
+    resources:
+      - group: ""
+        resources: ["serviceaccounts/token"]
+
+  # Don't log read-only requests (this rule matches last, suppressing all remaining get/list/watch)
+  - level: None
+    verbs: ["get", "list", "watch"]

@@ -1,0 +1,75 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+# Configure CIS-compliant kernel parameters early in boot
+bootcmd:
+  - |
+    cat > /etc/sysctl.d/90-kubelet.conf << 'EOF'
+    # CIS Benchmark kernel parameters for K3s
+    # Do NOT panic on OOM; invoke oom_killer instead (K3s CIS hardening guide)
+    vm.panic_on_oom=0
+    # Allow memory overcommit for container workloads
+    vm.overcommit_memory=1
+    # Reboot 10 seconds after kernel panic
+    kernel.panic=10
+    # Panic on kernel oops
+    kernel.panic_on_oops=1
+    # IP forwarding (K3s requires this)
+    net.ipv4.ip_forward=1
+    net.ipv6.conf.all.forwarding=1
+    # TCP SYN cookies for DDoS protection
+    net.ipv4.tcp_syncookies=1
+    # Disable ICMP redirects (security)
+    net.ipv4.conf.all.accept_redirects=0
+    net.ipv4.conf.default.accept_redirects=0
+    net.ipv6.conf.all.accept_redirects=0
+    net.ipv6.conf.default.accept_redirects=0
+    net.ipv4.conf.all.send_redirects=0
+    net.ipv4.conf.default.send_redirects=0
+    # Reverse path filtering: 1=strict (RFC3704), 2=loose (RFC3704)
+    # Strict can break asymmetric routing/multi-homed nodes common in K8s CNI
+    net.ipv4.conf.all.rp_filter=2
+    net.ipv4.conf.default.rp_filter=2
+    EOF
+  - sysctl --system
+
+packages:
+  - curl
+  - ca-certificates
+  - open-iscsi
+  - nfs-common
+  - firewalld
+  - fail2ban
+  - python3-systemd
+  - libpam-google-authenticator
+  - software-properties-common
+  - ripgrep
+  - fd-find
+  - git
+  - unzip
+  - wireguard-tools
+  - open-iscsi
+  - ca-certificates
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-security.conf
+    content: |
+      PasswordAuthentication no
+    permissions: '0644'
+%{ for script in fileset("${path_module}/files/provision.d", "*.sh") ~}
+  
+  - path: /tmp/${script}
+    content: ${base64encode(file("${path_module}/files/provision.d/${script}"))}
+    encoding: b64
+    permissions: '0755'
+%{ endfor ~}
+
+runcmd:
+%{ for script in sort(fileset("${path_module}/files/provision.d", "*.sh")) ~}
+  - /tmp/${script}
+%{ endfor ~}
+  - rm -f /tmp/*.sh
+
+final_message: "Cloud-init setup complete. System ready for K3s installation."

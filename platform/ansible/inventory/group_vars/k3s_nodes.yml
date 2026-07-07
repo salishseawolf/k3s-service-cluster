@@ -1,0 +1,3 @@
+---
+# K3s cluster configuration for all k3s_nodes
+# (Most K3s config now in group_vars/all.yml for global access)
