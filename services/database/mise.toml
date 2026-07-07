@@ -1,5 +1,5 @@
 [env]
-GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus DB Password/password"
+GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus Secrets/password"
 
 [tasks.deploy]
 description = "Deploy database service"

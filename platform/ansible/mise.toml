@@ -2,7 +2,7 @@
 K3S_TOKEN = "op://K3s Service Cluster/K3s Service Cluster/credential"
 K3S_ETCD_SECRET = "op://K3s Service Cluster/K3s Service Cluster/etcd_secret"
 OP_CONNECT_JWT = "op://K3s Service Cluster/K3s Service Cluster Environment Credentials File/1password-credentials.json"
-OP_OPERATOR_TOKEN = "op://K3s Service Cluster/y4drwjmij5zj3wy4a72ou6scji/credential"
+OP_OPERATOR_TOKEN="op://K3s Service Cluster/K3s Service Cluster 1Password Connect Access/token"
 ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
 
 [tasks.init]
@@ -43,3 +43,4 @@ run = "rm -rf /tmp/ansible_facts"
 [tasks.lint]
 description = "Lint Ansible playbooks"
 run = "ansible-lint"
+

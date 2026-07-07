@@ -1,6 +1,6 @@
 [env]
 ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
-TF_VAR_domain = "op://K3s Service Cluster/Cloudflare Config/domain"
+TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
 
 [tasks.init]
 description = "Install Ansible Galaxy collections"

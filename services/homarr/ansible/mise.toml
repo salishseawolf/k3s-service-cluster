@@ -1,6 +1,6 @@
 [env]
 ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
-HOMARR_DB_PASSWORD = "op://K3s Service Cluster/Homarr DB Password/password"
+HOMARR_DB_PASSWORD = "op://K3s Service Cluster/Homarr Secrets/password"
 
 [tasks.init]
 description = "Install Ansible collection dependencies"

@@ -1,6 +1,6 @@
 [env]
-CERT_MANAGER_EMAIL = "op://K3s Service Cluster/Cloudflare Config/email"
-CLOUDFLARE_API_TOKEN = "op://Employee/K3s Service Cluster Cloudflare DNS Token/credential"
+CERT_MANAGER_EMAIL = "op://K3s Service Cluster/Cloudflare DNS Challenge/email"
+CLOUDFLARE_API_TOKEN = "op://K3s Service Cluster/Cloudflare DNS Challenge/password"
 
 [tasks.apply]
 description = "Deploy cert-manager with Let's Encrypt"

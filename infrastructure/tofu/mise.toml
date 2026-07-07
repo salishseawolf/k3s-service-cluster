@@ -1,9 +1,9 @@
 [env]
 TF_VAR_hcloud_token = "{{ env.HCLOUD_TOKEN }}"
-TF_VAR_ssh_key_name = "op://Employee/Hetzner/ssh_key_name"
+TF_VAR_ssh_key_name = "op://K3s Service Cluster/K3s Service Cluster SSH Key/hetzner_key_name"
 # Admin CIDR is intentionally not defaulted in variables.tf — create this item
-# in the vault (single field: cidr, e.g. 203.0.113.7/32) before first apply.
-TF_VAR_allowed_admin_cidr = "op://K3s Service Cluster/Admin Access/cidr"
+# in the vault (single field: IPV4, e.g. 203.0.113.7/32) before first apply.
+TF_VAR_allowed_admin_cidr = "op://K3s Service Cluster/Admin Allow List/IPV4"
 
 [tasks.init]
 description = "Initialize OpenTofu configuration"

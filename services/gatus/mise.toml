@@ -3,7 +3,7 @@
 GATUS_OIDC_CLIENT_ID = "op://K3s Service Cluster/Gatus OIDC Client Secret/client_id"
 GATUS_OIDC_CLIENT_SECRET = "op://K3s Service Cluster/Gatus OIDC Client Secret/client_secret"
 # PostgreSQL credentials for Gatus (shared vault)
-GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus DB Password/password"
+GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus Secrets/password"
 # Teams webhook URL for alerting (shared vault)
 GATUS_TEAMS_WEBHOOK = "op://K3s Service Cluster/Microsoft Teams Infrastructure Channel Webhook/url"
 
