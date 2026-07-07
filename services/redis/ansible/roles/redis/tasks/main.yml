@@ -12,6 +12,31 @@
         labels:
           pod-security.kubernetes.io/enforce: restricted
 
+
+- name: Create OnePasswordItem for Redis credentials
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: onepassword.com/v1
+      kind: OnePasswordItem
+      metadata:
+        name: "{{ redis_credentials_secret_name }}"
+        namespace: "{{ redis_namespace }}"
+      spec:
+        itemPath: "{{ redis_credentials_ref }}"
+
+- name: Wait for Redis credentials secret to sync
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: "{{ redis_credentials_secret_name }}"
+    namespace: "{{ redis_namespace }}"
+  register: redis_secret_check
+  until:
+    - redis_secret_check.resources | length > 0
+    - redis_secret_check.resources[0].data is defined
+  retries: 15
+  delay: 5
+
 - name: Deploy Redis
   kubernetes.core.k8s:
     state: present
@@ -41,12 +66,20 @@
                 image: "{{ redis_image }}"
                 args:
                   - redis-server
+                  - --requirepass
+                  - "$(REDIS_PASSWORD)"
                   - --maxmemory
                   - "{{ redis_maxmemory }}"
                   - --maxmemory-policy
                   - allkeys-lru
                   - --save
                   - ""
+                env:
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ redis_credentials_secret_name }}"
+                        key: password
                 ports:
                   - containerPort: "{{ redis_port }}"
                     name: redis

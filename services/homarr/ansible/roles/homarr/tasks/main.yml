@@ -166,6 +166,18 @@
       spec:
         itemPath: "{{ homarr_db_password_ref }}"
 
+- name: Create OnePasswordItem for shared Redis credentials
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: onepassword.com/v1
+      kind: OnePasswordItem
+      metadata:
+        name: redis-credentials
+        namespace: "{{ homarr_namespace }}"
+      spec:
+        itemPath: "{{ homarr_redis_credentials_ref }}"
+
 - name: Wait for OnePasswordItem secrets to sync
   kubernetes.core.k8s_info:
     kind: Secret
@@ -180,6 +192,7 @@
   loop:
     - "{{ homarr_encryption_key_secret_name }}"
     - homarr-db-password
+    - redis-credentials
 
 # ──────────────────────────────────────────────────────────────────
 # ConfigMap
@@ -362,6 +375,11 @@
                   - configMapRef:
                       name: homarr-config
                 env:
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: redis-credentials
+                        key: password
                   - name: DB_PASSWORD
                     valueFrom:
                       secretKeyRef:

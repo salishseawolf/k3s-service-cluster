@@ -184,6 +184,18 @@
       spec:
         itemPath: "vaults/K3s Service Cluster/items/Resend.com SMTP"
 
+- name: Create OnePasswordItem for shared Redis credentials
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: onepassword.com/v1
+      kind: OnePasswordItem
+      metadata:
+        name: redis-credentials
+        namespace: "{{ paperless_namespace }}"
+      spec:
+        itemPath: "{{ paperless_redis_credentials_ref }}"
+
 - name: Wait for OnePasswordItem secrets to sync
   kubernetes.core.k8s_info:
     kind: Secret
@@ -195,6 +207,7 @@
   until: _op_sync.resources | length > 0 and _op_sync.resources[0].data is defined
   loop:
     - "{{ paperless_secrets_secret_name }}"
+    - redis-credentials
     - "{{ paperless_secrets_secret_name }}-db"
     - "{{ paperless_secrets_secret_name }}-smtp"
 

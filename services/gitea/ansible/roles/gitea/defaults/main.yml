@@ -23,7 +23,7 @@ gitea_db_port: 5432
 gitea_authentik_host: "https://auth.{{ lookup('env', 'TF_VAR_domain') }}"
 
 # Redis
-gitea_redis_url: "redis://redis.redis.svc.cluster.local:6379"
+gitea_redis_url: "redis://:{{ lookup('env', 'REDIS_PASSWORD') }}@redis.redis.svc.cluster.local:6379"
 
 # SeaweedFS S3
 # External endpoint (for external clients through Traefik IngressRoute)

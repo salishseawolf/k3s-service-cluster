@@ -31,3 +31,5 @@ homarr_db_password_ref: "vaults/K3s Service Cluster/items/Homarr DB Password"
 homarr_db_password: "{{ lookup('env', 'HOMARR_DB_PASSWORD') }}"
 
 homarr_db_password_secret_name: homarr-db-password
+
+homarr_redis_credentials_ref: "vaults/K3s Service Cluster/items/Redis"

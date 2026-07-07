@@ -41,8 +41,13 @@ spec:
           env:
             - name: PAPERLESS_URL
               value: "https://{{ paperless_domain }}"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: password
             - name: PAPERLESS_REDIS
-              value: "redis://{{ paperless_redis_host }}:{{ paperless_redis_port }}"
+              value: "redis://:$(REDIS_PASSWORD)@{{ paperless_redis_host }}:{{ paperless_redis_port }}"
             - name: PAPERLESS_DBHOST
               value: "{{ paperless_db_host }}"
             - name: PAPERLESS_DBPORT

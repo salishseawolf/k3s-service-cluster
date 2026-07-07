@@ -18,6 +18,9 @@ TF_VAR_cloudflare_zone_id = "op://K3s Service Cluster/Cloudflare DNS Challenge/z
 TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
 TF_VAR_server_type = "cx33"
 DOMAIN = "{{ env.TF_VAR_domain }}"
+# Shared Redis auth — consumed by identity, gitea, paperless, homarr renders.
+# Alphanumeric only (it gets embedded in redis:// URLs).
+REDIS_PASSWORD = "op://K3s Service Cluster/Redis/password"
 ANSIBLE_FORCE_COLOR = "1"
 
 [tools]

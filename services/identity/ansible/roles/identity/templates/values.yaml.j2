@@ -9,8 +9,8 @@ authentik:
     user: "{{ authentik_db_user }}"
     password: "{{ authentik_db_password }}"
   redis:
-    host: ""
-    password: ""
+    host: "redis.redis.svc.cluster.local"
+    password: "{{ lookup('env', 'REDIS_PASSWORD') }}"
   email:
     host: "{{ lookup('env', 'AUTHENTIK_SMTP_HOST') }}"
     port: {{ lookup('env', 'AUTHENTIK_SMTP_PORT') }}

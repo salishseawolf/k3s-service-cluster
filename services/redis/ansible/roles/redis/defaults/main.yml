@@ -7,3 +7,9 @@ redis_cpu_request: 100m
 redis_memory_request: 128Mi
 redis_cpu_limit: 500m
 redis_memory_limit: 256Mi
+
+# Auth — password sourced from 1Password via the operator.
+# Use an alphanumeric password (no URL-reserved characters): consumers embed
+# it in redis:// URLs.
+redis_credentials_secret_name: redis-credentials
+redis_credentials_ref: "vaults/K3s Service Cluster/items/Redis"
