@@ -387,3 +387,12 @@
         -n {{ paperless_namespace }} rollout status deployment/paperless --timeout=300s
   register: paperless_rollout
   changed_when: false
+
+# ──────────────────────────────────────────────────────────────────
+# Network policies (docs/PLAN.md H2.1)
+# ──────────────────────────────────────────────────────────────────
+
+- name: Apply network policies
+  kubernetes.core.k8s:
+    state: present
+    template: networkpolicy.yaml.j2

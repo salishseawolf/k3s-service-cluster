@@ -122,3 +122,12 @@
             name: redis
         selector:
           app: redis
+
+# ──────────────────────────────────────────────────────────────────
+# Network policies (docs/PLAN.md H2.1)
+# ──────────────────────────────────────────────────────────────────
+
+- name: Apply network policies
+  kubernetes.core.k8s:
+    state: present
+    template: networkpolicy.yaml.j2

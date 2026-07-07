@@ -346,3 +346,12 @@
           metadata:
             annotations:
               force-restart: "{{ ansible_date_time.epoch }}"
+
+# ──────────────────────────────────────────────────────────────────
+# Network policies (docs/PLAN.md H2.1)
+# ──────────────────────────────────────────────────────────────────
+
+- name: Apply network policies
+  kubernetes.core.k8s:
+    state: present
+    template: networkpolicy.yaml.j2

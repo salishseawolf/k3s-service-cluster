@@ -1055,3 +1055,12 @@
     wait_condition:
       type: Available
       status: "True"
+
+# ──────────────────────────────────────────────────────────────────
+# Network policies (docs/PLAN.md H2.1)
+# ──────────────────────────────────────────────────────────────────
+
+- name: Apply network policies
+  kubernetes.core.k8s:
+    state: present
+    template: networkpolicy.yaml.j2
