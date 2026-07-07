@@ -1,0 +1,76 @@
+---
+# Argo CD bootstrap (docs/PLAN.md R3.1). Argo is bootstrap-tier: Ansible
+# installs it once; from then on Argo reconciles everything under
+# services/*/app via the root ApplicationSet.
+
+- name: Add Argo Helm repo
+  kubernetes.core.helm_repository:
+    name: argo
+    repo_url: "{{ argocd_chart_repo }}"
+
+- name: Create Argo CD namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ argocd_namespace }}"
+        labels:
+          pod-security.kubernetes.io/enforce: restricted
+
+- name: Deploy Argo CD
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo/argo-cd
+    chart_version: "{{ argocd_chart_version }}"
+    release_namespace: "{{ argocd_namespace }}"
+    create_namespace: false
+    values: "{{ lookup('template', 'values.yaml.j2') | from_yaml }}"
+
+- name: Register repository credentials with Argo CD
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: onepassword.com/v1
+      kind: OnePasswordItem
+      metadata:
+        name: "{{ argocd_repo_creds_secret_name }}"
+        namespace: "{{ argocd_namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repo-creds
+      spec:
+        itemPath: "{{ argocd_repo_creds_ref }}"
+
+- name: Register repository with Argo CD
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cluster-repo
+        namespace: "{{ argocd_namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      stringData:
+        type: git
+        url: "{{ argocd_repo_url }}"
+
+- name: Apply root ApplicationSet
+  kubernetes.core.k8s:
+    state: present
+    template: applicationset.yaml.j2
+
+- name: Wait for Argo CD server to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: argocd-server
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_ready
+  until:
+    - argocd_ready.resources | length > 0
+    - argocd_ready.resources[0].status.availableReplicas is defined
+    - argocd_ready.resources[0].status.availableReplicas | int > 0
+  retries: 30
+  delay: 10

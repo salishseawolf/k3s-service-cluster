@@ -1,0 +1,24 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    app.kubernetes.io/name: gatus
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: "Host(`gatus.{{ .Values.domain }}`)"
+      middlewares:
+        # Auth at the edge (docs/PLAN.md H2.3): Authentik's 'internal' group
+        # gates this application before traffic reaches the pod.
+        - name: authentik-forward-auth
+          namespace: identity
+      services:
+        - kind: Service
+          name: gatus
+          port: {{ .Values.port }}
+  tls:
+    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls

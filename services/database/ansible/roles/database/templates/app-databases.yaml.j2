@@ -1,0 +1,14 @@
+# Declarative databases for application consumers (CNPG >= 1.25 Database CRD).
+# Adopts pre-existing databases of the same name; verify status.applied on
+# first reconcile (docs/RUNBOOK.md).
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: gatus-db
+  namespace: {{ postgres_namespace }}
+spec:
+  name: {{ gatus_db_name }}
+  owner: {{ gatus_db_user }}
+  cluster:
+    name: {{ postgres_cluster_name }}

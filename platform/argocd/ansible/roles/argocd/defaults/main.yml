@@ -1,0 +1,17 @@
+---
+argocd_namespace: argocd
+argocd_chart_repo: "https://argoproj.github.io/argo-helm"
+argocd_chart_version: "7.7.11"
+
+# Repository Argo pulls from. Two sane values:
+#   1. In-cluster Gitea (default): keeps everything self-hosted; requires the
+#      monorepo pushed to Gitea before Argo can sync anything.
+#   2. The GitHub push-mirror: breaks the Gitea<->Argo circular dependency for
+#      disaster recovery (see docs/RUNBOOK.md "bootstrap from zero").
+argocd_repo_url: "https://git.{{ lookup('env', 'TF_VAR_domain') }}/salish/cluster.git"
+argocd_repo_revision: main
+
+# Read-only repo credentials (create in 1Password: fields username + password,
+# where password is a Gitea access token with read_repository scope).
+argocd_repo_creds_ref: "vaults/K3s Service Cluster/items/ArgoCD Repo Credentials"
+argocd_repo_creds_secret_name: argocd-repo-creds

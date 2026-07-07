@@ -7,3 +7,8 @@ postgres_cluster_name: "main-db"
 # Barman Cloud Plugin backup (Backblaze B2)
 postgres_backup_secret_name: "cnpg-backup-secret"
 postgres_backup_retention: "30d"
+
+# Declarative app principals (owned by the datastore, consumed by services)
+gatus_db_user: gatus_user
+gatus_db_name: gatus_db
+gatus_db_user_secret_name: gatus-db-user-auth

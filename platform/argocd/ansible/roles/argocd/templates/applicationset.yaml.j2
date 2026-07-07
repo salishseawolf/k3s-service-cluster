@@ -1,0 +1,45 @@
+# Root ApplicationSet (docs/PLAN.md R3.2): every services/<name>/app directory
+# becomes an independently synced Argo Application named <name>, deployed into
+# namespace <name>. Adding a service to GitOps = adding an app/ directory.
+#
+# The domain is injected once here as a Helm parameter; app charts consume it
+# as .Values.domain. Bootstrap-applied by Ansible, so the value tracks
+# TF_VAR_domain — re-run the argocd apply task after a domain change.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: services
+  namespace: {{ argocd_namespace }}
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: "{{ argocd_repo_url }}"
+        revision: "{{ argocd_repo_revision }}"
+        directories:
+          - path: services/*/app
+  template:
+    metadata:
+      # path segments: services / <name> / app
+      name: "{% raw %}{{ index .path.segments 1 }}{% endraw %}"
+    spec:
+      project: default
+      source:
+        repoURL: "{{ argocd_repo_url }}"
+        targetRevision: "{{ argocd_repo_revision }}"
+        path: "{% raw %}{{ .path.path }}{% endraw %}"
+        helm:
+          parameters:
+            - name: domain
+              value: "{{ lookup('env', 'TF_VAR_domain') }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{% raw %}{{ index .path.segments 1 }}{% endraw %}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false
+          - ServerSideApply=true

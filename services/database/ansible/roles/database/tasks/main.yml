@@ -87,6 +87,33 @@
     definition: "{{ lookup('template', 'scheduledbackup.yaml.j2') }}"
 
 # ──────────────────────────────────────────────────────────────────
+# Declarative app principals (docs/PLAN.md R3.3)
+# CNPG managed roles require a kubernetes.io/basic-auth secret, which the
+# 1Password operator cannot emit — so bootstrap Ansible creates it from the
+# same 1P-sourced env var the old imperative provisioning used.
+# ──────────────────────────────────────────────────────────────────
+
+- name: Create basic-auth secret for gatus role
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ gatus_db_user_secret_name }}"
+        namespace: "{{ postgres_namespace }}"
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: "{{ gatus_db_user }}"
+        password: "{{ lookup('env', 'GATUS_DB_PASSWORD') }}"
+  no_log: true
+
+- name: Apply declarative app databases
+  kubernetes.core.k8s:
+    state: present
+    template: app-databases.yaml.j2
+
+# ──────────────────────────────────────────────────────────────────
 # Network policies (docs/PLAN.md H2.1)
 # ──────────────────────────────────────────────────────────────────
 

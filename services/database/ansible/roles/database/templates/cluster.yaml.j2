@@ -23,6 +23,19 @@ spec:
       database: default
       owner: default
 
+  # Declarative principals (docs/PLAN.md R3.3): the shared datastore owns its
+  # roles; consumers reference them. Passwords are basic-auth Secrets sourced
+  # from 1Password at bootstrap. Migrated so far: gatus. Remaining app users
+  # (gitea, paperless, homarr, authentik, seaweedfs) migrate here service by
+  # service — see docs/MIGRATION.md.
+  managed:
+    roles:
+      - name: {{ gatus_db_user }}
+        ensure: present
+        login: true
+        passwordSecret:
+          name: {{ gatus_db_user_secret_name }}
+
   # Backup via Barman Cloud Plugin → Backblaze B2
   plugins:
     - name: barman-cloud.cloudnative-pg.io
