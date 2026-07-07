@@ -56,6 +56,8 @@ run = [
   "mise run //platform/ansible:lint",
   "mise run //platform/charts/cert-manager:check",
   "mise run //platform/charts/step-ca:check",
+  "mise run //platform/charts/velero:check",
+  "mise run //platform/argocd:check",
   "mise run //services/database/ansible:lint",
   "mise run //services/identity/ansible:lint",
   "mise run //services/gatus/ansible:lint",
@@ -98,6 +100,9 @@ op run -- bash -c '
   echo "==> Deploying step-ca..."
   mise run //platform/charts/step-ca:apply
 
+  echo "==> Deploying Velero (backups)..."
+  mise run //platform/charts/velero:apply
+
   echo "==> Deploying services..."
   mise run //services/database:deploy
   mise run //services/identity:deploy
@@ -113,8 +118,14 @@ op run -- bash -c '
   mise run //services/developer-tooling:deploy
 
   echo "==> Full stack deployment complete!"
+  echo "    GitOps tier: push this repo to Gitea (or configure the GitHub"
+  echo "    mirror), then run: mise run deploy:gitops"
 '
 '''
+
+[tasks."deploy:gitops"]
+description = "Bootstrap Argo CD + root ApplicationSet (run after the repo is pushed to Gitea)"
+run = "op run -- mise run //platform/argocd:apply"
 
 [tasks.ssh]
 description = "SSH into a K3s node"
