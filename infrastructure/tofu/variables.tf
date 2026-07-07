@@ -11,9 +11,13 @@ variable "server_type" {
 }
 
 variable "allowed_admin_cidr" {
-  description = "CIDR block allowed for SSH and K8s API access. Currently a single static IP; replace with VPN CIDR once Tailscale/WireGuard is operational for multi-admin access."
+  description = "CIDR block allowed for SSH and K8s API access (and, pre-go-live, HTTP/HTTPS). No default on purpose: supply via TF_VAR_allowed_admin_cidr (see mise.toml) so a stale IP can never silently ship. Replace with VPN CIDR once Tailscale/WireGuard is operational for multi-admin access."
   type        = string
-  default     = "73.97.54.81/32"
+
+  validation {
+    condition     = can(cidrhost(var.allowed_admin_cidr, 0))
+    error_message = "allowed_admin_cidr must be a valid CIDR block, e.g. 203.0.113.7/32."
+  }
 }
 
 variable "location" {
