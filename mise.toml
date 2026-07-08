@@ -76,3 +76,51 @@ op run -- bash -c '
 [tasks.destroy]
 description = "Tear down all cloud resources"
 run = "mise run //infrastructure/tofu:destroy"
+
+[tasks."step-ca:init"]
+description = "Initialize step-ca PKI using step CLI, store in 1Password"
+run = '''
+#!/bin/bash
+set -e
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+CA_PASS="$(op read "op://K3s Service Cluster/StepCA Secrets/ca_password")"
+PROV_PASS="$(op read "op://K3s Service Cluster/StepCA Secrets/provisioner_password")"
+
+echo -n "$CA_PASS" > "$TEMP_DIR/ca_pass"
+echo -n "$PROV_PASS" > "$TEMP_DIR/prov_pass"
+
+echo "==> Generating step-ca PKI (X.509 + SSH)..."
+mise x step -- step ca init --helm \
+  --name="Salish Sea Wolf LLC Internal CA" \
+  --dns="step-ca.step-ca.svc.cluster.local" \
+  --address=":443" \
+  --provisioner="admin@salishseawolf.com" \
+  --password-file="$TEMP_DIR/ca_pass" \
+  --provisioner-password-file="$TEMP_DIR/prov_pass" \
+  --ssh \
+  > "$TEMP_DIR/values.yaml"
+
+echo "==> Extracting PKI components..."
+cd "$TEMP_DIR"
+yq -r '.inject.certificates.root_ca' values.yaml > root_ca.crt
+yq -r '.inject.certificates.intermediate_ca' values.yaml > intermediate_ca.crt
+yq -r '.inject.secrets.x509.intermediate_ca_key' values.yaml > intermediate_ca.key
+yq '.inject.config.files."ca.json"' values.yaml | yq -o=json > ca.json
+yq '.inject.config.files."defaults.json"' values.yaml | yq -o=json > defaults.json
+yq -r '.inject.secrets.ssh.host_ca_key' values.yaml > ssh_host_ca.key 2>/dev/null || echo "no ssh host key"
+yq -r '.inject.secrets.ssh.user_ca_key' values.yaml > ssh_user_ca.key 2>/dev/null || echo "no ssh user key"
+
+echo "==> Storing PKI in 1Password..."
+op item edit "StepCA Secrets" --vault "K3s Service Cluster" \
+  "root_ca_crt=$(cat root_ca.crt)" \
+  "intermediate_ca_crt=$(cat intermediate_ca.crt)" \
+  "intermediate_ca_key=$(cat intermediate_ca.key)" \
+  "ca_json=$(cat ca.json)" \
+  "defaults_json=$(cat defaults.json)" \
+  "ssh_host_ca_key=$(cat ssh_host_ca.key)" \
+  "ssh_user_ca_key=$(cat ssh_user_ca.key)"
+
+echo "==> step-ca PKI initialized and stored in 1Password!"
+'''

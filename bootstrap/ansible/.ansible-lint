@@ -9,3 +9,4 @@ skip_list:
 # Exclude paths
 exclude_paths:
   - .cache/
+  - roles/secret_zero/defaults/  # inline YAML dict alignment (cosmetic commas)
