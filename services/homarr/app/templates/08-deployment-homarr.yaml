@@ -77,7 +77,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: 'homarr-encryption-key'
-              key: secret_encryption_key
+              key: encryption_key
         - name: AUTH_OIDC_CLIENT_ID
           valueFrom:
             secretKeyRef:
