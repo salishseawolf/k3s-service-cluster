@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homarr-config
+  namespace: 'homarr'
+data:
+  TZ: 'America/Los_Angeles'
+  BASE_URL: https://dashboard.{{ .Values.domain }}
+  NEXTAUTH_URL: https://dashboard.{{ .Values.domain }}
+  AUTH_PROVIDERS: oidc
+  AUTH_OIDC_ISSUER: 'https://auth.{{ .Values.domain }}/application/o/homarr/'
+  AUTH_OIDC_CLIENT_NAME: Authentik
+  AUTH_OIDC_SCOPE_OVERWRITE: openid email profile groups
+  AUTH_OIDC_GROUPS_ATTRIBUTE: groups
+  AUTH_OIDC_AUTO_LOGIN: 'true'
+  AUTH_LOGOUT_REDIRECT_URL: 'https://auth.{{ .Values.domain }}/application/o/homarr/end-session/'
+  LOG_LEVEL: info
+  PUID: '0'
+  PGID: '0'
+  DB_DRIVER: node-postgres
+  DB_DIALECT: postgresql
+  DB_HOST: 'main-db-rw.database.svc.cluster.local'
+  DB_PORT: '5432'
+  DB_NAME: 'homarr'
+  DB_USER: 'homarr_user'
+  REDIS_IS_EXTERNAL: 'true'
+  REDIS_HOST: redis.redis.svc.cluster.local
+  REDIS_PORT: '6379'

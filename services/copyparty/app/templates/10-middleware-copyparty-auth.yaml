@@ -1,0 +1,12 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: copyparty-auth
+  namespace: 'copyparty'
+spec:
+  forwardAuth:
+    address: http://copyparty-outpost.copyparty.svc.cluster.local/outpost.goauthentik.io/auth/traefik
+    trustForwardHeader: true
+    authResponseHeaders:
+    - X-authentik-username
+    - X-authentik-groups

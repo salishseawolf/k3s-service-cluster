@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: copyparty-config
+  namespace: 'copyparty'
+data:
+  copyparty.conf: "[global]\n  p: 3923\n  hist: /w/.copyparty-db\n  e2dsa\n  rproxy: 1\n  idp-h-usr: x-authentik-username\n  idp-h-grp: x-authentik-groups\n  idp-store: 3\n  xff-src: 10.42.0.0/16,10.43.0.0/16,192.168.0.0/16\n  ihead: *\n  shr: /shr\n  shr-who: a\n  vc-url: https://api.copyparty.eu/advisories\n  s-tbody: 0\n\n[accounts]\n  # No local accounts \u2014 auth handled by Authentik via IdP headers\n\n[/]\n  /w\n  accs:\n    r: @infrastructure\n    A: @infrastructure\n  flags:\n    fk: 4\n"

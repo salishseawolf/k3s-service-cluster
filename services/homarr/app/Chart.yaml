@@ -1,0 +1,5 @@
+apiVersion: v2
+name: homarr
+description: Dashboard; edge-gated (forward-auth) + app OIDC via inverted credentials.
+type: application
+version: 0.1.0

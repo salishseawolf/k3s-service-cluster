@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homarr
+  namespace: 'homarr'
+  labels:
+    app: homarr
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: homarr
+  template:
+    metadata:
+      labels:
+        app: homarr
+    spec:
+      securityContext:
+        runAsUser: 0
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: init-nginx
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /nginx-lib/logs /nginx-lib/tmp /nginx-cache /nginx-log /nginx-run
+          chmod -R 2770 /nginx-lib /nginx-cache /nginx-log /nginx-run
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - CHOWN
+            - SETUID
+            - SETGID
+          runAsUser: 0
+        volumeMounts:
+        - name: nginx-lib
+          mountPath: /nginx-lib
+        - name: nginx-cache
+          mountPath: /nginx-cache
+        - name: nginx-log
+          mountPath: /nginx-log
+        - name: nginx-run
+          mountPath: /nginx-run
+      containers:
+      - name: homarr
+        image: 'ghcr.io/homarr-labs/homarr:v1.66.1'
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: '7575'
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: homarr-config
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: homarr-db-password
+              key: password
+        - name: SECRET_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: 'homarr-encryption-key'
+              key: secret_encryption_key
+        - name: AUTH_OIDC_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: 'homarr-oidc-creds'
+              key: client_id
+        - name: AUTH_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: 'homarr-oidc-creds'
+              key: client_secret
+        readinessProbe:
+          tcpSocket:
+            port: '7575'
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: '7575'
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - CHOWN
+            - SETUID
+            - SETGID
+        volumeMounts:
+        - name: data
+          mountPath: /appdata
+        - name: nginx-lib
+          mountPath: /var/lib/nginx
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-log
+          mountPath: /var/log/nginx
+        - name: nginx-run
+          mountPath: /run/nginx
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: homarr-data
+      - name: nginx-lib
+        emptyDir: {}
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-log
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}

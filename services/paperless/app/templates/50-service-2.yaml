@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tika
+  namespace: paperless
+  labels:
+    app: tika
+spec:
+  ports:
+    - name: http
+      port: 9998
+      targetPort: 9998
+      protocol: TCP
+  selector:
+    app: tika

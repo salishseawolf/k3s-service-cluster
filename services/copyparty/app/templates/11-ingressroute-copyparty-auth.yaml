@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: copyparty-auth
+  namespace: 'copyparty'
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`files.{{ .Values.domain }}`)
+    priority: 100
+    middlewares:
+    - name: copyparty-auth
+    services:
+    - name: copyparty
+      port: '3923'
+  tls:
+    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    # PVCs are never pruned: a manifest rename must not delete a volume.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  name: paperless-media
+  namespace: 'paperless'
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: '10Gi'
+  storageClassName: 'seaweedfs-storage'

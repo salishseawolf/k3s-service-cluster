@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-runner
+  namespace: 'gitea-actions'
+  labels:
+    app: gitea-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea-runner
+  template:
+    metadata:
+      labels:
+        app: gitea-runner
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: runner
+        image: 'gitea/runner:latest-dind'
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        env:
+        - name: GITEA_INSTANCE_URL
+          value: 'http://gitea-http.gitea:3000'
+        - name: GITEA_RUNNER_REGISTRATION_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: 'gitea-runner-token'
+              key: token
+        - name: GITEA_RUNNER_NAME
+          value: 'gitea-runner-01'
+        - name: CONFIG_FILE
+          value: /data/config.yaml
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: config
+          mountPath: /data/config.yaml
+          subPath: config.yaml
+        resources:
+          requests:
+            cpu: '500m'
+            memory: '512Mi'
+          limits:
+            cpu: '2000m'
+            memory: '2Gi'
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: 'gitea-runner-data'
+      - name: config
+        configMap:
+          name: gitea-runner-config

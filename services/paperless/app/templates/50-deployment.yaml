@@ -1,0 +1,180 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless
+  namespace: paperless
+  labels:
+    app: paperless
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paperless
+  template:
+    metadata:
+      labels:
+        app: paperless
+    spec:
+      initContainers:
+        - name: fix-perms
+          image: "ghcr.io/paperless-ngx/paperless-ngx:latest"
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -c
+            - |
+              chmod 0777 /run
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: run
+              mountPath: /run
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: paperless
+          image: "ghcr.io/paperless-ngx/paperless-ngx:latest"
+          imagePullPolicy: Always
+          env:
+            - name: PAPERLESS_URL
+              value: "https://paperless.{{ .Values.domain }}"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: password
+            - name: PAPERLESS_REDIS
+              value: "redis://:$(REDIS_PASSWORD)@redis.redis.svc.cluster.local:6379"
+            - name: PAPERLESS_DBHOST
+              value: "main-db-rw.database.svc.cluster.local"
+            - name: PAPERLESS_DBPORT
+              value: "5432"
+            - name: PAPERLESS_DBNAME
+              value: "paperless"
+            - name: PAPERLESS_DBUSER
+              value: "paperless_user"
+            - name: PAPERLESS_DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: "paperless-secrets-db"
+                  key: db_password
+            - name: PAPERLESS_DBSSLMODE
+              value: disable
+            - name: PAPERLESS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "paperless-secrets"
+                  key: secret_key
+            - name: PAPERLESS_CONSUMER_DISABLE
+              value: "true"
+            - name: PAPERLESS_LOGROTATE_MAX_SIZE
+              value: "10485760"
+            - name: PAPERLESS_TIME_ZONE
+              value: America/Denver
+            - name: PAPERLESS_DISABLE_REGULAR_LOGIN
+              value: "true"
+            - name: PAPERLESS_REDIRECT_LOGIN_TO_SSO
+              value: "true"
+            - name: PAPERLESS_CSRF_TRUSTED_ORIGINS
+              value: "https://paperless.{{ .Values.domain }}"
+            - name: PAPERLESS_APPS
+              value: allauth.socialaccount.providers.openid_connect
+            - name: PAPERLESS_SOCIAL_AUTO_SIGNUP
+              value: "true"
+            - name: PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS
+              value: "true"
+            - name: PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS
+              value: infrastructure
+            - name: PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS
+              value: "true"
+            - name: PAPERLESS_AUDIT_LOG_ENABLED
+              value: "true"
+            - name: PAPERLESS_EMAIL_HOST
+              value: "smtp.resend.com"
+            - name: PAPERLESS_EMAIL_PORT
+              value: "2465"
+            - name: PAPERLESS_EMAIL_HOST_USER
+              value: "resend"
+            - name: PAPERLESS_EMAIL_HOST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "paperless-secrets-smtp"
+                  key: password
+            - name: PAPERLESS_EMAIL_USE_TLS
+              value: "true"
+            - name: PAPERLESS_LOGOUT_REDIRECT_URL
+              value: "https://auth.{{ .Values.domain }}/application/o/paperless/end-session/"
+            - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
+              valueFrom:
+                secretKeyRef:
+                  name: "paperless-oidc-creds"
+                  key: socialaccount_providers
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
+            - name: PAPERLESS_PORT
+              value: "8000"
+            - name: PAPERLESS_TIKA_ENABLED
+              value: "true"
+            - name: PAPERLESS_TIKA_ENDPOINT
+              value: "http://tika.paperless.svc.cluster.local:9998"
+            - name: PAPERLESS_TIKA_GOTENBERG_ENDPOINT
+              value: "http://gotenberg.paperless.svc.cluster.local:3000"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+          volumeMounts:
+            - name: run
+              mountPath: /run
+            - name: data
+              mountPath: /usr/src/paperless/data
+            - name: media
+              mountPath: /usr/src/paperless/media
+      volumes:
+        - name: run
+          emptyDir:
+            medium: Memory
+        - name: data
+          persistentVolumeClaim:
+            claimName: paperless-data
+        - name: media
+          persistentVolumeClaim:
+            claimName: paperless-media

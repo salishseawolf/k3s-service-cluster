@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-runner-config
+  namespace: 'gitea-actions'
+data:
+  config.yaml: |
+    log:
+      level: info
+    runner:
+      file: /data/.runner
+      capacity: 1
+      timeout: 3h
+      fetch_interval: 2s
+    cache:
+      enabled: true
+      dir: /data/cache
+    container:
+      valid_volumes:
+        - "/data"
+        - "/tmp"
+        - "/var/run/docker.sock"
+      force_pull: false

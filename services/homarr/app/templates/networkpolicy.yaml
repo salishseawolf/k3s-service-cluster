@@ -1,0 +1,50 @@
+# NetworkPolicies for the homarr namespace.
+#
+# Model (docs/PLAN.md H2.1): default-deny ingress per namespace, then explicit
+# allows. Traefik runs as a hostNetwork DaemonSet, so ingress from Traefik
+# arrives with a NODE ip as source — matched via ipBlock on the private net
+# (192.168.0.0/16), not a podSelector. Kubelet probe traffic on some CNIs is
+# sourced from the cni0 bridge IP (pod CIDR); K3s' embedded policy controller
+# permits host-local probe traffic, but VERIFY on a canary namespace first —
+# see docs/RUNBOOK.md before rolling this out cluster-wide.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: "homarr"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: "homarr"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+---
+# Web traffic via hostNetwork Traefik; gatus TCP-checks the service directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-traefik
+  namespace: "homarr"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.0/16
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gatus

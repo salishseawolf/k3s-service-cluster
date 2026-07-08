@@ -1,0 +1,17 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ak-outpost-copyparty-direct
+  namespace: 'copyparty'
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`files.{{ .Values.domain }}`) && PathPrefix(`/outpost.goauthentik.io/`)
+    priority: 150
+    services:
+    - name: ak-outpost-copyparty
+      port: 80
+  tls:
+    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls
