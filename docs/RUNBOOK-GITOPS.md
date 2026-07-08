@@ -23,21 +23,16 @@ Rebrand or domain cutover = a one-file PR.
 ### Vault items (1Password) — create/verify before bootstrap
 | Item | Fields | Notes |
 |---|---|---|
-| ArgoCD Repo Credentials | `username`, `password` | read-only token for the GitHub mirror |
-| Gitea Secrets | `password`, `db_password`, **add:** `internal_token`, `secret_key`, `jwt_secret` | **copy `internal_token`/`secret_key` from the live k8s secret — do NOT regenerate** (invalidates sessions/tokens) |
-| Gitea Admin | `username`, `password` | NEW — admin login is no longer the db password |
-| Gitea OIDC | `key`, `secret` | NEW — generate 40+ char random values (chart expects these key names) |
-| Homarr OIDC | `client_id`, `client_secret` | NEW — generate |
-| Paperless OIDC | `client_id`, `client_secret` | NEW — generate |
-| Gitea Actions Runner Token | `token` | generate once: `gitea actions generate-runner-token` (or admin UI) |
-| BackBlaze Velero B2 Bucket | `s3_key_id`, `s3_application_key`, **add:** `cloud` | `cloud` = the AWS INI block verbatim:<br>`[default]`<br>`aws_access_key_id = …`<br>`aws_secret_access_key = …` |
+| ArgoCD Github Token | `username`, `password` | read-only PAT for the GitHub mirror |
+| Gitea Secrets | `password`, `db_password`, `internal_token`, `secret_key`, `jwt_secret`, `oidc_key`, `oidc_secret`, `actions_token`, `admin_user`, `admin_password` | **oidc_key=** OIDC client ID (use `gitea`), **oidc_secret=** OIDC client secret, **actions_token=** runner registration token, **admin_user/admin_password=** Gitea admin login (no longer the db password) |
+| Homarr Secrets | `password`, `oidc_client`, `oidc_secret` | `password` doubles as its db password (basic-auth) |
+| Paperless Secrets | `secret_key`, `db_password`, `oidc_client`, `oidc_secret` | |
+| BackBlaze Velero B2 Bucket | `s3_key_id`, `s3_application_key`, `cloud` | `cloud` = the AWS INI block verbatim:<br>`[default]`<br>`aws_access_key_id = …`<br>`aws_secret_access_key = …` |
 | Authentik Deployment Secrets | `secret_key`, `db_password`, `bootstrap_email`, `bootstrap_password` | verify |
-| Paperless Secrets | `secret_key`, `db_password` | verify |
 | SeaweedFS Secrets | `db_password`, `backup_access_key`, `backup_secret_key` | verify |
-| Homarr Secrets | `password` | doubles as its db password (basic-auth) |
 | Gatus Secrets | `password` | doubles as its db password |
 | StepCA Secrets | `ca_password`, `provisioner_password`, `root_ca_crt`, `intermediate_ca_crt`, `intermediate_ca_key`, `ca_json`, `defaults_json`, `ssh_host_ca_key`, `ssh_user_ca_key` | consumed by bootstrap secret_zero |
-| Cloudflare DNS Challenge | `password` (API token), `domain`, `zone_id`, `email` | issuer now reads key `password` |
+| Cloudflare DNS Challenge | `password` (API token), `domain`, `zone_id`, `email` | issuer reads key `password` |
 | Redis Password | `password` | alphanumeric only (embeds in redis:// URLs) |
 
 ## 1. Fresh deployment (also the disaster-recovery procedure)
