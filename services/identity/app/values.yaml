@@ -1,0 +1,123 @@
+domain: ""
+
+authentik:
+  authentik:
+    log_level: info
+    # secret_key, postgresql.password, redis.password, email.username/password
+    # deliberately ABSENT: injected as AUTHENTIK_* env from 1P-synced secrets.
+    postgresql:
+      host: main-db-rw.database.svc.cluster.local
+      port: "5432"
+      name: authentik
+      user: authentik
+    redis:
+      host: redis.redis.svc.cluster.local
+    email:
+      host: smtp.resend.com
+      port: 465
+      username: resend
+      use_tls: false
+      use_ssl: true
+
+  postgresql:
+    enabled: false
+  redis:
+    enabled: false
+
+  global:
+    envFrom:
+      # domain-dependent env (AUTHENTIK_HOST, EMAIL__FROM): values files can't
+      # template, so a chart template renders this ConfigMap
+      - configMapRef:
+          name: authentik-domain-env
+    env:
+      - name: AUTHENTIK_SECRET_KEY
+        valueFrom: {secretKeyRef: {name: authentik-secrets, key: secret_key}}
+      - name: AUTHENTIK_POSTGRESQL__PASSWORD
+        valueFrom: {secretKeyRef: {name: authentik-secrets, key: db_password}}
+      - name: AUTHENTIK_REDIS__PASSWORD
+        valueFrom: {secretKeyRef: {name: redis-credentials, key: password}}
+      - name: AUTHENTIK_EMAIL__PASSWORD
+        valueFrom: {secretKeyRef: {name: resend-smtp, key: password}}
+      - name: AUTHENTIK_BOOTSTRAP_EMAIL
+        valueFrom: {secretKeyRef: {name: authentik-secrets, key: bootstrap_email}}
+      - name: AUTHENTIK_BOOTSTRAP_PASSWORD
+        valueFrom: {secretKeyRef: {name: authentik-secrets, key: bootstrap_password}}
+      # OIDC credential inversion — consumed by blueprints via !Env
+      - name: AUTHENTIK_GITEA_CLIENT_ID
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: key}}
+      - name: AUTHENTIK_GITEA_CLIENT_SECRET
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: secret}}
+      - name: AUTHENTIK_HOMARR_CLIENT_ID
+        valueFrom: {secretKeyRef: {name: homarr-oidc-creds, key: client_id}}
+      - name: AUTHENTIK_HOMARR_CLIENT_SECRET
+        valueFrom: {secretKeyRef: {name: homarr-oidc-creds, key: client_secret}}
+      - name: AUTHENTIK_PAPERLESS_CLIENT_ID
+        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: client_id}}
+      - name: AUTHENTIK_PAPERLESS_CLIENT_SECRET
+        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: client_secret}}
+
+  server:
+    volumes:
+      - name: blueprints
+        configMap: {name: authentik-blueprints}
+      - name: wildcard-cert
+        secret:
+          secretName: wildcard-identity-tls   # issued by this chart's Certificate
+    volumeMounts:
+      - name: blueprints
+        mountPath: /blueprints/custom
+      # authentik cert discovery: imported as keypair named "wildcard"
+      - name: wildcard-cert
+        mountPath: /certs/wildcard
+    ingress:
+      enabled: false   # house style: templated IngressRoute (rate-limited)
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      runAsNonRoot: true
+      seccompProfile: {type: RuntimeDefault}
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}
+
+  worker:
+    volumes:
+      - name: blueprints
+        configMap: {name: authentik-blueprints}
+      - name: wildcard-cert
+        secret:
+          secretName: wildcard-identity-tls   # issued by this chart's Certificate
+    volumeMounts:
+      - name: blueprints
+        mountPath: /blueprints/custom
+      - name: wildcard-cert
+        mountPath: /certs/wildcard
+    livenessProbe:
+      exec: {command: [ak, healthcheck]}
+      initialDelaySeconds: 30
+      periodSeconds: 15
+      timeoutSeconds: 10
+      failureThreshold: 5
+    readinessProbe:
+      exec: {command: [ak, healthcheck]}
+      initialDelaySeconds: 30
+      periodSeconds: 15
+      timeoutSeconds: 10
+      failureThreshold: 3
+    startupProbe:
+      exec: {command: [ak, healthcheck]}
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 60
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      runAsNonRoot: true
+      seccompProfile: {type: RuntimeDefault}
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}

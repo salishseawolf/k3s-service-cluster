@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: identity
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    app.kubernetes.io/managed-by: argocd

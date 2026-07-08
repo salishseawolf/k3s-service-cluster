@@ -1,0 +1,12 @@
+apiVersion: v2
+name: identity
+description: >-
+  Authentik (umbrella chart) + every blueprint, edge-auth middleware, and
+  tenancy binding. All secrets arrive via env from 1Password-synced secrets;
+  committed values contain none.
+type: application
+version: 0.1.0
+dependencies:
+  - name: authentik
+    version: "2026.5"
+    repository: https://charts.goauthentik.io
