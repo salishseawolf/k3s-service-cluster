@@ -1,0 +1,14 @@
+# Domain-dependent app.ini keys: values files can't template, this can.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-domain-config
+  namespace: gitea
+data:
+  domain.ini: |
+    [server]
+    DOMAIN = git.{{ .Values.domain }}
+    ROOT_URL = https://git.{{ .Values.domain }}
+    SSH_DOMAIN = git.{{ .Values.domain }}
+    [mailer]
+    FROM = Gitea <gitea@{{ .Values.domain }}>

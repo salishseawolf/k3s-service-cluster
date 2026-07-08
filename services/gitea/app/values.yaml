@@ -1,0 +1,152 @@
+domain: ""
+
+gitea:
+  global:
+    storageClass: seaweedfs-storage
+  replicaCount: 1
+  postgresql-ha: {enabled: false}
+  valkey-cluster: {enabled: false}
+  image:
+    rootless: true
+  persistence:
+    create: true
+    size: 10Gi
+    claimName: gitea-data
+    annotations:
+      argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  service:
+    ssh:
+      clusterIP: ""   # headless + named ports breaks Traefik TCP (Traefik#11041)
+  ingress: {enabled: false}
+  resources:
+    requests: {cpu: 200m, memory: 512Mi}
+    limits: {cpu: 1000m, memory: 2Gi}
+  podSecurityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: Always
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: {drop: [ALL]}
+    runAsNonRoot: true
+    seccompProfile: {type: RuntimeDefault}
+  statefulset:
+    env:
+      - {name: GITEA_APP_INI, value: /data/gitea/conf/app.ini}
+      - {name: GITEA_CUSTOM, value: /data/gitea}
+      - {name: GITEA_WORK_DIR, value: /data}
+      - {name: GITEA_TEMP, value: /tmp/gitea}
+
+  gitea:
+    admin:
+      # username+password keys; NOT the db password (fixed inherited sloppiness)
+      existingSecret: gitea-admin
+    additionalConfigSources:
+      # domain-dependent app.ini keys — values files can't template, chart
+      # templates can: see templates/configmap-domain.yaml
+      - configMap:
+          name: gitea-domain-config
+    # oauth: defined in platform/argocd/root/cluster-values.yaml — the
+    # autoDiscoverUrl is domain-dependent and values files can't template;
+    # cluster-values.yaml is the single domain-bearing file in the repo.
+    config:
+      server:
+        SSH_PORT: 2222
+        SSH_LISTEN_PORT: 2222
+        OFFLINE_MODE: false
+        LANDING_PAGE: login
+        ENABLE_ACCESS_LOG: true
+      database:
+        DB_TYPE: postgres
+        HOST: main-db-rw.database.svc.cluster.local:5432
+        NAME: giteadb
+        USER: gitea_user
+        SSL_MODE: disable
+      security:
+        DISABLE_GIT_HOOKS: false
+        INSTALL_LOCK: true
+        PASSWORD_COMPLEXITY: "lower,upper,digit"
+        MIN_PASSWORD_LENGTH: 12
+        PASSWORD_HASH_ALGO: argon2
+      session: {PROVIDER: redis}
+      cache: {ADAPTER: redis}
+      queue: {TYPE: redis}
+      storage: {STORAGE_TYPE: local}
+      oauth2_client:
+        REGISTER_EMAIL_CONFIRM: false
+        ENABLE_AUTO_REGISTRATION: true
+        OPENID_CONNECT_SCOPES: "openid profile email"
+      log:
+        LEVEL: info
+        ROOT_PATH: /data/gitea/log
+        MODE: console, file
+      log.file:
+        FILE_NAME: gitea.log
+        LOG_ROTATE: true
+        MAX_DAYS: 90
+        MAX_SIZE_SHIFT: 28
+      openid: {ENABLE_OPENID_SIGNIN: false}
+      service:
+        DISABLE_REGISTRATION: true
+        ENABLE_PASSWORD_SIGNIN_FORM: false
+      mailer:
+        ENABLED: true
+        PROTOCOL: smtps
+        SMTP_ADDR: smtp.resend.com
+        SMTP_PORT: 465
+        USER: resend
+      repository:
+        DEFAULT_BRANCH: main
+        FORCE_PRIVATE: true
+        ENABLE_PUSH_CREATE_USER: true
+        ENABLE_PUSH_CREATE_ORG: true
+        DEFAULT_REPO_UNITS: "repo.code,repo.releases,repo.issues,repo.pulls,repo.wiki,repo.projects,repo.packages,repo.actions"
+      repository.pull-request:
+        DEFAULT_MERGE_STYLE: rebase
+        DEFAULT_DELETE_BRANCH_AFTER_MERGE: true
+      actions:
+        DEFAULT_ACTIONS_URL: self
+        LOG_RETENTION_DAYS: 30
+        ARTIFACT_RETENTION_DAYS: 14
+        ZOMBIE_TASK_TIMEOUT: 15m
+        ABANDONED_JOB_TIMEOUT: 1h
+      indexer:
+        REPO_INDEXER_ENABLED: true
+        REPO_INDEXER_TYPE: bleve
+        REPO_INDEXER_PATH: indexers/repos.bleve
+        MAX_FILE_SIZE: 1048576
+      api:
+        ENABLE_SWAGGER: true
+        ENABLE_API_LIMITS: true
+        MAX_RESPONSE_ITEMS: 50
+      webhook:
+        DELIVER_TIMEOUT: 30
+        QUEUE_LENGTH: 100
+      metrics:
+        ENABLED: true
+        ENABLE_ISSUE_BY_LABEL: true
+        ENABLE_ISSUE_BY_REPOSITORY: true
+      packages:
+        ENABLED: true
+        CHUNKED_UPLOAD_PATH: /data/gitea/packages
+
+    extraEnv:
+      - name: REDIS_PASSWORD
+        valueFrom: {secretKeyRef: {name: redis-credentials, key: password}}
+      # $(VAR) expansion: URLs carry the credential without it ever appearing
+      # in a manifest or values file
+      - name: GITEA__session__PROVIDER_CONFIG
+        value: "redis://:$(REDIS_PASSWORD)@redis.redis.svc.cluster.local:6379/0"
+      - name: GITEA__cache__HOST
+        value: "redis://:$(REDIS_PASSWORD)@redis.redis.svc.cluster.local:6379"
+      - name: GITEA__queue__CONN_STR
+        value: "redis://:$(REDIS_PASSWORD)@redis.redis.svc.cluster.local:6379/1"
+      - name: GITEA__database__PASSWD
+        valueFrom: {secretKeyRef: {name: gitea-secrets, key: db_password}}
+      - name: GITEA__security__INTERNAL_TOKEN
+        valueFrom: {secretKeyRef: {name: gitea-secrets, key: internal_token}}
+      - name: GITEA__security__SECRET_KEY
+        valueFrom: {secretKeyRef: {name: gitea-secrets, key: secret_key}}
+      - name: GITEA__oauth2__JWT_SECRET
+        valueFrom: {secretKeyRef: {name: gitea-secrets, key: jwt_secret}}
+      - name: GITEA__mailer__PASSWD
+        valueFrom: {secretKeyRef: {name: resend-smtp, key: password}}
