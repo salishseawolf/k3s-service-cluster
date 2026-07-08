@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: seaweedfs-filer
+  namespace: 'seaweedfs'
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`filer-s3.{{ .Values.domain }}`)
+    middlewares:
+    - name: seaweedfs-filer-auth
+      namespace: 'seaweedfs'
+    services:
+    - name: seaweedfs-internal
+      port: '8888'
+  tls:
+    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls

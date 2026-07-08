@@ -1,0 +1,11 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: seaweedfs-backup-check
+rules:
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - get

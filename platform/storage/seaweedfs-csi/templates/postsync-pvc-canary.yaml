@@ -1,0 +1,44 @@
+# Health gate: the CSI app is not Healthy until a real PVC binds and mounts.
+# Converts the runbook's manual "confirm a PVC binds" check into a permanent,
+# automatic gate on every deploy — wave 40 consumers never start against
+# broken storage.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seaweedfs-csi-pvc-canary
+  namespace: seaweedfs-csi
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: canary
+          image: busybox:1.36
+          command: ["sh", "-c", "echo ok > /probe/canary && cat /probe/canary"]
+          volumeMounts:
+            - name: probe
+              mountPath: /probe
+      volumes:
+        - name: probe
+          persistentVolumeClaim:
+            claimName: csi-canary
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: csi-canary
+  namespace: seaweedfs-csi
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: seaweedfs-storage
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: seaweedfs-leader-election-binding
+  namespace: 'seaweedfs-csi'
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: seaweedfs-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: seaweedfs-controller-sa
+  namespace: 'seaweedfs-csi'

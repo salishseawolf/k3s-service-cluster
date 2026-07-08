@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-csi-controller
+  namespace: 'seaweedfs-csi'
+spec:
+  ports:
+  - port: 9808
+    targetPort: 9808
+  selector:
+    app.kubernetes.io/name: seaweedfs-csi-controller

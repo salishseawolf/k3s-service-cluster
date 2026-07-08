@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: seaweedfs-backup
+  namespace: 'seaweedfs'
+spec:
+  schedule: 0 3 * * *
+  timeZone: America/Los_Angeles
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 7200
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: seaweedfs-backup
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: s3sync
+            image: bitnami/kubectl:latest
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl exec deploy/seaweedfs -n seaweedfs -c backup-tools -- \
+                aws s3 cp --recursive /data/ s3://seaweedfs-backup/ \
+                  --endpoint-url https://{{ .Values.backup.hostname }} \
+                  --no-follow-symlinks
+            env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-backup-creds
+                  key: backup_access_key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-backup-creds
+                  key: backup_secret_key
+            - name: AWS_DEFAULT_REGION
+              value: hel1

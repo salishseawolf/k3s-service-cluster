@@ -1,0 +1,9 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: s3-add-trailing-slash
+  namespace: 'seaweedfs'
+spec:
+  replacePathRegex:
+    regex: ^(/([^/]+))$
+    replacement: ${1}/

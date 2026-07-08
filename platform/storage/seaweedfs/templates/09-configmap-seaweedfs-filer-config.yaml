@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seaweedfs-filer-config
+  namespace: 'seaweedfs'
+data:
+  filer.toml: |
+    [s3]
+    enabled = true
+    [s3.auth]
+    enabled = true

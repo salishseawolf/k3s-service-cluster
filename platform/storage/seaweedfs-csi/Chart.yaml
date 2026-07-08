@@ -1,0 +1,5 @@
+apiVersion: v2
+name: seaweedfs-csi
+description: CSI driver + StorageClass; gated by a PostSync PVC canary.
+type: application
+version: 0.1.0

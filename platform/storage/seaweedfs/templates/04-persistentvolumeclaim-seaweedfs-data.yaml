@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    # PVCs are never pruned: a manifest rename must not delete a volume.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  name: seaweedfs-data
+  namespace: 'seaweedfs'
+  labels:
+    app.kubernetes.io/name: seaweedfs
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: '100Gi'
+  storageClassName: 'hcloud-volumes'

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: seaweedfs
+description: Distributed object storage; filer metadata in the shared CNPG cluster.
+type: application
+version: 0.1.0

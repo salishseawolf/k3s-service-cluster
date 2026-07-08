@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seaweedfs-csi-controller
+  namespace: 'seaweedfs-csi'
+  labels:
+    app.kubernetes.io/name: seaweedfs-csi-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs-csi-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seaweedfs-csi-controller
+    spec:
+      serviceAccountName: seaweedfs-controller-sa
+      priorityClassName: system-cluster-critical
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - seaweedfs-csi-controller
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: seaweedfs-csi-driver
+        image: 'chrislusf/seaweedfs-csi-driver:v1.4.5'
+        args:
+        - --endpoint=$(CSI_ENDPOINT)
+        - --filer=$(SEAWEEDFS_FILER)
+        - --driverName=$(DRIVER_NAME)
+        - --components=controller
+        env:
+        - name: SEAWEEDFS_FILER
+          value: 'seaweedfs-internal.seaweedfs.svc.cluster.local:8888'
+        - name: CSI_ENDPOINT
+          value: unix:///var/lib/csi/sockets/seaweedfs.sock
+        - name: DRIVER_NAME
+          value: seaweedfs-csi-driver
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets
+      - name: csi-provisioner
+        image: 'registry.k8s.io/sig-storage/csi-provisioner:v3.6.0'
+        args:
+        - --csi-address=$(ADDRESS)
+        - --leader-election=true
+        - --leader-election-namespace=seaweedfs-csi
+        - --http-endpoint=:9810
+        env:
+        - name: ADDRESS
+          value: unix:///var/lib/csi/sockets/seaweedfs.sock
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets
+      - name: csi-attacher
+        image: 'registry.k8s.io/sig-storage/csi-attacher:v4.4.0'
+        args:
+        - --csi-address=$(ADDRESS)
+        - --leader-election=true
+        - --leader-election-namespace=seaweedfs-csi
+        - --http-endpoint=:9811
+        env:
+        - name: ADDRESS
+          value: unix:///var/lib/csi/sockets/seaweedfs.sock
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets
+      - name: csi-resizer
+        image: 'registry.k8s.io/sig-storage/csi-resizer:v1.9.0'
+        args:
+        - --csi-address=$(ADDRESS)
+        - --leader-election=true
+        - --leader-election-namespace=seaweedfs-csi
+        - --http-endpoint=:9809
+        env:
+        - name: ADDRESS
+          value: unix:///var/lib/csi/sockets/seaweedfs.sock
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets
+      - name: livenessprobe
+        image: 'registry.k8s.io/sig-storage/livenessprobe:v2.10.0'
+        args:
+        - --csi-address=$(ADDRESS)
+        - --http-endpoint=:9808
+        env:
+        - name: ADDRESS
+          value: unix:///var/lib/csi/sockets/seaweedfs.sock
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets
+      volumes:
+      - name: socket-dir
+        emptyDir: {}

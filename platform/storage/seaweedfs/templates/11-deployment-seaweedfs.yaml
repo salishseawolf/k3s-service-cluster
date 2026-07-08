@@ -1,0 +1,194 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seaweedfs
+  namespace: 'seaweedfs'
+  labels:
+    app.kubernetes.io/name: seaweedfs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seaweedfs
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+      initContainers:
+      - name: config-builder
+        image: busybox:1.36
+        command:
+        - /bin/sh
+        - -c
+        - |
+          ROOT_USER=$(cat /secrets/root-creds/username)
+          ROOT_PASS=$(cat /secrets/root-creds/password)
+          GITEA_S3_KEY=$(cat /secrets/gitea-s3-creds/access_key)
+          GITEA_S3_SECRET=$(cat /secrets/gitea-s3-creds/secret_key)
+          DB_PASS=$(cat /secrets/db-password/db_password)
+          cat > /shared/s3.json << EOF
+          {
+            "identities": [
+              {
+                "name": "$ROOT_USER",
+                "credentials": [
+                  {
+                    "accessKey": "$ROOT_USER",
+                    "secretKey": "$ROOT_PASS"
+                  }
+                ],
+                "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+              },
+              {
+                "name": "gitea",
+                "credentials": [
+                  {
+                    "accessKey": "$GITEA_S3_KEY",
+                    "secretKey": "$GITEA_S3_SECRET"
+                  }
+                ],
+                "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+              }
+            ]
+          }
+          EOF
+          cat /etc/filer-config/filer.toml > /shared/filer.toml
+          cat >> /shared/filer.toml << EOF
+          [postgres2]
+          enabled = true
+          hostname = "main-db-rw.database.svc.cluster.local"
+          port = 5432
+          username = "seaweedfs_user"
+          password = "$DB_PASS"
+          database = "seaweedfs_filer"
+          sslmode = "disable"
+          connection_max_idle = 5
+          connection_max_open = 10
+          connection_max_lifetime_seconds = 0
+          createTable = 'CREATE TABLE IF NOT EXISTS "%s" (dirhash BIGINT NOT NULL, name VARCHAR(65535) NOT NULL, directory TEXT NOT NULL, meta BYTEA, PRIMARY KEY (dirhash, name))'
+          EOF
+        volumeMounts:
+        - name: root-creds
+          mountPath: /secrets/root-creds
+          readOnly: true
+        - name: db-password
+          mountPath: /secrets/db-password
+        - mountPath: /secrets/gitea-s3-creds
+          name: gitea-s3-creds
+          readOnly: true
+        - name: filer-config
+          mountPath: /etc/filer-config
+          readOnly: true
+        - name: config-data
+          mountPath: /shared
+      containers:
+      - name: seaweedfs
+        image: 'chrislusf/seaweedfs:4.32_full'
+        command:
+        - weed
+        - server
+        - -filer
+        - -s3
+        - -master.port=9333
+        - -volume.port=8080
+        - -filer.port=8888
+        - -s3.port=8333
+        - -dir=/data
+        - -volume.max=100
+        - -s3.config=/etc/seaweedfs/s3.json
+        ports:
+        - containerPort: '9333'
+          name: master
+        - containerPort: '8080'
+          name: volume
+        - containerPort: '8888'
+          name: filer
+        - containerPort: '8333'
+          name: s3
+        - containerPort: 18888
+          name: filer-grpc
+        env:
+        - name: WEED_MASTER
+          value: localhost:9333
+        - name: S3_CONFIG_FILE
+          value: /etc/seaweedfs/s3.json
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: config-data
+          mountPath: /etc/seaweedfs/filer.toml
+          subPath: filer.toml
+        - name: config-data
+          mountPath: /etc/seaweedfs/s3.json
+          subPath: s3.json
+        livenessProbe:
+          httpGet:
+            path: /cluster/status
+            port: '9333'
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /cluster/status
+            port: '9333'
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 1Gi
+          limits:
+            cpu: 4000m
+            memory: 4Gi
+      - name: backup-tools
+        image: amazon/aws-cli:latest
+        command:
+        - sleep
+        - infinity
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: seaweedfs-backup-creds
+              key: backup_access_key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: seaweedfs-backup-creds
+              key: backup_secret_key
+        - name: AWS_DEFAULT_REGION
+          value: hel1
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: seaweedfs-data
+      - name: config-data
+        emptyDir: {}
+      - name: filer-config
+        configMap:
+          name: seaweedfs-filer-config
+      - name: root-creds
+        secret:
+          secretName: seaweedfs-root-creds
+      - name: db-password
+        secret:
+          secretName: seaweedfs-db-password
+      - name: gitea-s3-creds
+        secret:
+          secretName: gitea-s3-creds
