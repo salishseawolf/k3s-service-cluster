@@ -2,7 +2,13 @@ extends: default
 
 ignore:
   # Helm templates use Go templating syntax which yamllint doesn't understand
-  - "platform/charts/**/templates/*.yaml"
+  - "platform/*/templates/*.yaml"
+  - "platform/*/config/templates/*.yaml"
+  - "platform/*/crd/templates/*.yaml"
+  - "platform/storage/*/templates/*.yaml"
+  - "platform/velero/templates/*.yaml"
+  - "services/*/app/templates/*.yaml"
+  - "bootstrap/ansible/roles/secret_zero/defaults/main.yml"
   - "infrastructure/tofu/*.yaml"
 
 rules:

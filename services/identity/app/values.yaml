@@ -45,17 +45,17 @@ authentik:
         valueFrom: {secretKeyRef: {name: authentik-secrets, key: bootstrap_password}}
       # OIDC credential inversion — consumed by blueprints via !Env
       - name: AUTHENTIK_GITEA_CLIENT_ID
-        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: key}}
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: oidc_key}}
       - name: AUTHENTIK_GITEA_CLIENT_SECRET
-        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: secret}}
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: oidc_secret}}
       - name: AUTHENTIK_HOMARR_CLIENT_ID
-        valueFrom: {secretKeyRef: {name: homarr-oidc-creds, key: client_id}}
+        valueFrom: {secretKeyRef: {name: homarr-oidc-creds, key: oidc_client}}
       - name: AUTHENTIK_HOMARR_CLIENT_SECRET
-        valueFrom: {secretKeyRef: {name: homarr-oidc-creds, key: client_secret}}
+        valueFrom: {secretKeyRef: {name: homarr-oidc-creds, key: oidc_secret}}
       - name: AUTHENTIK_PAPERLESS_CLIENT_ID
-        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: client_id}}
+        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: oidc_client}}
       - name: AUTHENTIK_PAPERLESS_CLIENT_SECRET
-        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: client_secret}}
+        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: oidc_secret}}
 
   server:
     volumes:

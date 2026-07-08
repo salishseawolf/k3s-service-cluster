@@ -101,7 +101,8 @@ gitea:
         FORCE_PRIVATE: true
         ENABLE_PUSH_CREATE_USER: true
         ENABLE_PUSH_CREATE_ORG: true
-        DEFAULT_REPO_UNITS: "repo.code,repo.releases,repo.issues,repo.pulls,repo.wiki,repo.projects,repo.packages,repo.actions"
+        DEFAULT_REPO_UNITS: >-
+          repo.code,repo.releases,repo.issues,repo.pulls,repo.wiki,repo.projects,repo.packages,repo.actions
       repository.pull-request:
         DEFAULT_MERGE_STYLE: rebase
         DEFAULT_DELETE_BRANCH_AFTER_MERGE: true
