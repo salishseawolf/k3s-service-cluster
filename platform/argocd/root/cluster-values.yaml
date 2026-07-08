@@ -1,7 +1,7 @@
 # ─── THE single domain-bearing file ──────────────────────────────────────
 # Every Application pulls this via a multi-source $values ref. Rebrand or
 # domain cutover = a one-file PR. Nothing else in the repo names the domain.
-domain: "CHANGEME.example"
+domain: "salishseawolf.com"
 
 # gitea oauth registration lives here (not in services/gitea/app/values.yaml)
 # because autoDiscoverUrl is domain-dependent and Helm values files cannot
@@ -15,4 +15,4 @@ gitea:
         scopes: "openid profile email"
         groupClaimName: groups
         adminGroup: infrastructure
-        autoDiscoverUrl: "https://auth.CHANGEME.example/application/o/gitea/.well-known/openid-configuration"
+        autoDiscoverUrl: "https://auth.salishseawolf.com/application/o/gitea/.well-known/openid-configuration"

@@ -11,7 +11,7 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+    repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
     targetRevision: main
     path: platform/argocd/root/appset
   destination:

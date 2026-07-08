@@ -8,7 +8,7 @@ spec:
   goTemplateOptions: ["missingkey=error"]
   generators:
     - git:
-        repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+        repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
         revision: main
         directories:
           # explicit-ordered services are ALSO under services/*/app; exclude
@@ -26,14 +26,14 @@ spec:
     spec:
       project: services
       sources:
-        - repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+        - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
           targetRevision: main
           path: '{{.path.path}}'
           helm:
             valueFiles:
               - $values/platform/argocd/root/cluster-values.yaml
             ignoreMissingValueFiles: true
-        - repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+        - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
           targetRevision: main
           ref: values
       destination:

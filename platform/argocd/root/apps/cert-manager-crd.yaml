@@ -8,13 +8,13 @@ metadata:
 spec:
   project: platform
   sources:
-    - repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
       targetRevision: main
       path: platform/cert-manager/crd
       helm:
         valueFiles:
           - $values/platform/argocd/root/cluster-values.yaml
-    - repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
       targetRevision: main
       ref: values
   destination:
