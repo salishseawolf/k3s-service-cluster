@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+        revision: main
+        directories:
+          # explicit-ordered services are ALSO under services/*/app; exclude
+          # the ones the root apps already own
+          - path: services/*/app
+          - path: services/database/app
+            exclude: true
+          - path: services/redis/app
+            exclude: true
+          - path: services/identity/app
+            exclude: true
+  template:
+    metadata:
+      name: '{{index .path.segments 1}}'
+    spec:
+      project: services
+      sources:
+        - repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+          targetRevision: main
+          path: '{{.path.path}}'
+          helm:
+            valueFiles:
+              - $values/platform/argocd/root/cluster-values.yaml
+            ignoreMissingValueFiles: true
+        - repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{index .path.segments 1}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false
+          - ServerSideApply=true
+        retry:
+          limit: 10
+          backoff: {duration: 20s, factor: 2, maxDuration: 5m}

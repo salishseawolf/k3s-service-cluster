@@ -1,0 +1,60 @@
+argo-cd:
+  # Argo CD Helm values — sized for a 3-node cx33 cluster, restricted PSA.
+  global:
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+
+  configs:
+    params:
+      # TLS terminates at Traefik; Argo serves plain HTTP behind it.
+      server.insecure: true
+    cm:
+      # Later (docs/MIGRATION.md): swap admin login for Authentik OIDC and
+      # disable the local admin account.
+      admin.enabled: "true"
+
+  dex:
+    # Authentik is the IdP; dex is redundant here.
+    enabled: false
+
+  notifications:
+    enabled: false
+
+  applicationSet:
+    enabled: true
+
+  server:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+    ingress:
+      enabled: false
+
+  repoServer:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+  controller:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 384Mi
+      limits:
+        memory: 768Mi
+
+  redis:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi

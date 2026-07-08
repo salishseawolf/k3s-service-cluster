@@ -12,18 +12,4 @@ common:
 
 # Secrets - populated via op run at deploy time
 # DO NOT commit actual values here
-secrets:
-  # CA password (decrypts intermediate CA key)
-  caPassword: ""
-  # Provisioner password (JWK provisioner auth)
-  provisionerPassword: ""
-  # Public certificates
-  rootCaCrt: ""
-  intermediateCaCrt: ""
-  # Configuration
-  caJson: ""
-  defaultsJson: ""
-  # Private keys (encrypted with caPassword)
-  intermediateCaKey: ""
-  sshHostCaKey: ""
-  sshUserCaKey: ""
+# secrets: synced from 1P — see templates/secrets.yaml

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: argocd
+description: >-
+  Argo manages Argo: bootstrap installs whatever chart version gets the
+  reconciler breathing, then this app converges it to the version pinned
+  here. Upgrades are PRs against this file.
+type: application
+version: 0.1.0
+dependencies:
+  - name: argo-cd
+    version: "7.7.11"
+    repository: https://argoproj.github.io/argo-helm

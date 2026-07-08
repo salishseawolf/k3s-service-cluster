@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: >-
+    Cluster plumbing: operators, CRD providers, storage, backup. The ONLY
+    project allowed to create cluster-scoped resources (StorageClass,
+    ClusterIssuer, CRDs) or target privileged namespaces. The privileged/PSA
+    boundary coincides with this tier boundary by design.
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

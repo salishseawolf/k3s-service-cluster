@@ -1,0 +1,21 @@
+# Wave 40: the ApplicationSet. Order-free tier — a new service is
+# `mkdir services/<name>/app`; retries handle startup races. Services that
+# turn out to need strict ordering graduate to an explicit manifest here.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: services-appset
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/CHANGEME/k3s-service-cluster.git
+    targetRevision: main
+    path: platform/argocd/root/appset
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}

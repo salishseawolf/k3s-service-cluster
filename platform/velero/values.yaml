@@ -1,0 +1,40 @@
+velero:
+  upgradeCRDs: false
+  configuration:
+    volumeSnapshotLocation: []
+    backupStorageLocation:
+      - name: default
+        provider: aws
+        bucket: k3s-service-cluster
+        prefix: velero/
+        config:
+          region: eu-central-003
+          s3ForcePathStyle: true
+          s3Url: https://s3.eu-central-003.backblazeb2.com
+    uploaderType: kopia
+  credentials:
+    # Synced by the OnePasswordItem below; the item's `cloud` field holds the
+    # AWS INI verbatim (the operator cannot template, so the vault does).
+    existingSecret: velero-b2-credentials
+  kubectl:
+    image: {tag: latest}
+  initContainers:
+    - name: velero-plugin-for-aws
+      image: velero/velero-plugin-for-aws:v1.10.0
+      volumeMounts:
+        - {mountPath: /target, name: plugins}
+  schedules:
+    default-backup:
+      schedule: "0 0 * * *"
+      useOwnerReferencesInBackup: true
+      template:
+        ttl: 720h
+        snapshotVolumes: false
+        defaultVolumesToFsBackup: true
+        excludedNamespaces: [database, cnpg-system]
+        includedNamespaces: ["*"]
+  deployNodeAgent: true
+  nodeAgent:
+    resources:
+      requests: {cpu: 100m, memory: 128Mi}
+      limits: {cpu: 300m, memory: 256Mi}

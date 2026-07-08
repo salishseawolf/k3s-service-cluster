@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: services
+  namespace: argocd
+spec:
+  description: >-
+    Workloads. May create namespaces (their own) but NO other cluster-scoped
+    resources — a service chart structurally cannot ship a StorageClass,
+    ClusterRole, or CRD, and cannot become the next privileged workload
+    without being deliberately promoted to platform.
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota   # quotas are set by the charts themselves; listed
+      # here as an example of how to fence later — remove if it bites.

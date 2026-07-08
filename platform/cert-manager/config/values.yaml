@@ -9,7 +9,6 @@ email: ""
 domain: ""
 
 # Cloudflare API token for DNS-01 challenge
-cloudflareApiToken: ""
 
 # Which Let's Encrypt issuer to use: "production" or "staging"
 # Staging has higher rate limits but produces untrusted certificates
