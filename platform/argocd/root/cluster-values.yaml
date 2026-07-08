@@ -11,7 +11,7 @@ gitea:
     oauth:
       - name: authentik
         provider: openidConnect
-        existingSecret: gitea-oidc-creds   # keys: oidc_secret (missing key field — add 'key: gitea' to Gitea Secrets)
+        existingSecret: gitea-oidc-creds   # keys: oidc_key, oidc_secret
         scopes: "openid profile email"
         groupClaimName: groups
         adminGroup: infrastructure
