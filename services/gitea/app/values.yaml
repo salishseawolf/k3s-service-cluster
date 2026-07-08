@@ -153,3 +153,7 @@ gitea:
         valueFrom: {secretKeyRef: {name: gitea-secrets, key: jwt_secret}}
       - name: GITEA__mailer__PASSWD
         valueFrom: {secretKeyRef: {name: resend-smtp, key: password}}
+      - name: GITEA_OAUTH_KEY_0
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: oidc_key}}
+      - name: GITEA_OAUTH_SECRET_0
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: oidc_secret}}
