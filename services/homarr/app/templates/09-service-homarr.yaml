@@ -9,8 +9,8 @@ spec:
   type: ClusterIP
   ports:
   - name: http
-    port: '7575'
-    targetPort: '7575'
+    port: 7575
+    targetPort: 7575
     protocol: TCP
   selector:
     app: homarr

@@ -103,13 +103,13 @@ spec:
         - -volume.max=100
         - -s3.config=/etc/seaweedfs/s3.json
         ports:
-        - containerPort: '9333'
+        - containerPort: 9333
           name: master
-        - containerPort: '8080'
+        - containerPort: 8080
           name: volume
-        - containerPort: '8888'
+        - containerPort: 8888
           name: filer
-        - containerPort: '8333'
+        - containerPort: 8333
           name: s3
         - containerPort: 18888
           name: filer-grpc
@@ -130,13 +130,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /cluster/status
-            port: '9333'
+            port: 9333
           initialDelaySeconds: 30
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /cluster/status
-            port: '9333'
+            port: 9333
           initialDelaySeconds: 10
           periodSeconds: 10
         resources:

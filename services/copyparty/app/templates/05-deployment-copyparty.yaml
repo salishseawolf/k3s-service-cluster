@@ -22,7 +22,7 @@ spec:
       - name: copyparty
         image: 'copyparty/ac:1.20.16'
         ports:
-        - containerPort: '3923'
+        - containerPort: 3923
           name: http
         env:
         - name: PYTHONUNBUFFERED

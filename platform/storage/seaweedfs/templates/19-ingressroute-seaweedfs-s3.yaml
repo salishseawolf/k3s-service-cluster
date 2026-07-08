@@ -13,6 +13,6 @@ spec:
     - name: s3-add-trailing-slash
     services:
     - name: seaweedfs-s3
-      port: '8333'
+      port: 8333
   tls:
     secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls

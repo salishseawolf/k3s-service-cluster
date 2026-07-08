@@ -19,5 +19,5 @@ spec:
       kind: Namespace
   namespaceResourceBlacklist:
     - group: ''
-      kind: ResourceQuota   # quotas are set by the charts themselves; listed
-      # here as an example of how to fence later — remove if it bites.
+      kind: LimitRange  # limits are set by the charts themselves; drop from
+                        # project and let the namespace inherit cluster defaults

@@ -9,13 +9,13 @@ spec:
   type: ClusterIP
   ports:
   - port: 9333
-    targetPort: '9333'
+    targetPort: 9333
     name: master
   - port: 8080
-    targetPort: '8080'
+    targetPort: 8080
     name: volume
   - port: 8888
-    targetPort: '8888'
+    targetPort: 8888
     name: filer
   - port: 18888
     targetPort: 18888

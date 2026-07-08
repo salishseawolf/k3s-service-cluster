@@ -14,6 +14,6 @@ spec:
       namespace: 'seaweedfs'
     services:
     - name: seaweedfs-internal
-      port: '8888'
+      port: 8888
   tls:
     secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls

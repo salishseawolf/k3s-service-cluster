@@ -57,7 +57,7 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
-          containerPort: '7575'
+          containerPort: 7575
           protocol: TCP
         envFrom:
         - configMapRef:
@@ -90,12 +90,12 @@ spec:
               key: oidc_secret
         readinessProbe:
           tcpSocket:
-            port: '7575'
+            port: 7575
           initialDelaySeconds: 15
           periodSeconds: 10
         livenessProbe:
           tcpSocket:
-            port: '7575'
+            port: 7575
           initialDelaySeconds: 30
           periodSeconds: 15
         resources:

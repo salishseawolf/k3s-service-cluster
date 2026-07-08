@@ -5,8 +5,8 @@ metadata:
   namespace: 'copyparty'
 spec:
   ports:
-  - port: '3923'
-    targetPort: '3923'
+  - port: 3923
+    targetPort: 3923
     name: http
   selector:
     app.kubernetes.io/name: copyparty
