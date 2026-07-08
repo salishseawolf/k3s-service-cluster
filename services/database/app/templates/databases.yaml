@@ -1,0 +1,66 @@
+# Declarative databases (CNPG >= 1.25). Adopts pre-existing databases.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: authentik
+  namespace: database
+spec:
+  name: authentik
+  owner: authentik
+  cluster:
+    name: {{ .Values.clusterName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: giteadb
+  namespace: database
+spec:
+  name: giteadb
+  owner: gitea_user
+  cluster:
+    name: {{ .Values.clusterName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: paperless
+  namespace: database
+spec:
+  name: paperless
+  owner: paperless_user
+  cluster:
+    name: {{ .Values.clusterName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: homarr
+  namespace: database
+spec:
+  name: homarr
+  owner: homarr_user
+  cluster:
+    name: {{ .Values.clusterName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: seaweedfs-filer
+  namespace: database
+spec:
+  name: seaweedfs_filer
+  owner: seaweedfs_user
+  cluster:
+    name: {{ .Values.clusterName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: gatus-db
+  namespace: database
+spec:
+  name: gatus_db
+  owner: gatus_user
+  cluster:
+    name: {{ .Values.clusterName }}

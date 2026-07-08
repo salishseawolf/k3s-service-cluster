@@ -1,0 +1,9 @@
+apiVersion: v2
+name: database
+description: >-
+  Shared CloudNativePG cluster. Owns every application principal (managed
+  roles + Database CRs); consumers reference, never provision. Password
+  secrets are kubernetes.io/basic-auth, created by bootstrap secret_zero
+  (the 1Password Operator cannot emit that type).
+type: application
+version: 0.1.0

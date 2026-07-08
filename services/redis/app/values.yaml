@@ -1,0 +1,9 @@
+domain: ""
+image: "redis:7-alpine"
+port: 6379
+maxmemory: 200mb
+credentialsSecret: redis-credentials
+itemPath: "vaults/K3s Service Cluster/items/Redis Password"
+resources:
+  requests: {cpu: 100m, memory: 128Mi}
+  limits: {cpu: 500m, memory: 256Mi}

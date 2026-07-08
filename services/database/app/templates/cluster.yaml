@@ -1,0 +1,77 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: database
+spec:
+  instances: {{ .Values.instances }}
+
+  storage:
+    size: {{ .Values.storageSize }}
+    # Deliberately hcloud-volumes, NOT seaweedfs-storage: SeaweedFS's filer
+    # stores metadata in this cluster. Putting this cluster on SeaweedFS
+    # creates database->seaweedfs->database and an unbootstrappable cluster.
+    storageClass: hcloud-volumes
+
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+  bootstrap:
+    initdb:
+      database: default
+      owner: default
+
+  # Declarative principals: the datastore owns its roles; consumers reference.
+  # basic-auth secrets are created by bootstrap secret_zero.
+  managed:
+    roles:
+      - name: authentik
+        ensure: present
+        login: true
+        passwordSecret:
+          name: authentik-db-user-auth
+      - name: gitea_user
+        ensure: present
+        login: true
+        passwordSecret:
+          name: gitea-db-user-auth
+      - name: paperless_user
+        ensure: present
+        login: true
+        passwordSecret:
+          name: paperless-db-user-auth
+      - name: homarr_user
+        ensure: present
+        login: true
+        passwordSecret:
+          name: homarr-db-user-auth
+      - name: seaweedfs_user
+        ensure: present
+        login: true
+        passwordSecret:
+          name: seaweedfs-db-user-auth
+      - name: gatus_user
+        ensure: present
+        login: true
+        passwordSecret:
+          name: gatus-db-user-auth
+
+  # Backup via Barman Cloud Plugin -> Backblaze B2
+  # Temporarily disabled — re-enable after CNPG backup secret key names are verified
+  # plugins:
+  #   - name: barman-cloud.cloudnative-pg.io
+  #     isWALArchiver: true
+  #     parameters:
+  #       barmanObjectName: "{{ .Values.clusterName }}-store"
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+
+  monitoring:
+    enablePodMonitor: true
