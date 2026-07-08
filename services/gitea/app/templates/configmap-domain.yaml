@@ -10,5 +10,3 @@ data:
     DOMAIN = git.{{ .Values.domain }}
     ROOT_URL = https://git.{{ .Values.domain }}
     SSH_DOMAIN = git.{{ .Values.domain }}
-    [mailer]
-    FROM = gitea@{{ .Values.domain }}
