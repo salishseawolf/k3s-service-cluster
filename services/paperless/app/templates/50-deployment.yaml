@@ -108,10 +108,17 @@ spec:
             - name: PAPERLESS_LOGOUT_REDIRECT_URL
               value: "https://auth.{{ .Values.domain }}/application/o/paperless/end-session/"
             - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
+              value: '[{"name":"Authentik","clientId":"$(PAPERLESS_OIDC_CLIENT)","secret":"$(PAPERLESS_OIDC_SECRET)","authorizationUrl":"https://auth.{{ .Values.domain }}/application/o/paperless/authorize/","tokenUrl":"https://auth.{{ .Values.domain }}/application/o/paperless/token/","profileUrl":"https://auth.{{ .Values.domain }}/application/o/paperless/userinfo/"}]'
+            - name: PAPERLESS_OIDC_CLIENT
               valueFrom:
                 secretKeyRef:
-                  name: "paperless-oidc-creds"
-                  key: socialaccount_providers
+                  name: paperless-oidc-creds
+                  key: oidc_client
+            - name: PAPERLESS_OIDC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-oidc-creds
+                  key: oidc_secret
             - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
               value: "1"
             - name: PAPERLESS_PORT

@@ -82,12 +82,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: 'homarr-oidc-creds'
-              key: client_id
+              key: oidc_client
         - name: AUTH_OIDC_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: 'homarr-oidc-creds'
-              key: client_secret
+              key: oidc_secret
         readinessProbe:
           tcpSocket:
             port: '7575'

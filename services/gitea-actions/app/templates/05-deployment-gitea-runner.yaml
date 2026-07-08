@@ -31,7 +31,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: 'gitea-runner-token'
-              key: token
+              key: actions_token
         - name: GITEA_RUNNER_NAME
           value: 'gitea-runner-01'
         - name: CONFIG_FILE
