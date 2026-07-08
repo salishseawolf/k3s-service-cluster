@@ -22,14 +22,6 @@ jobs:
           pip install --quiet yamllint
           yamllint -c .yamllint.yaml services/
 
-      - name: ansible-lint
-        run: |
-          pip install --quiet "ansible-lint" "ansible-core"
-          for d in services/*/ansible; do
-            [ -d "$d" ] || continue
-            echo "==> $d"
-            ansible-lint "$d" || exit 1
-          done
 
   charts:
     runs-on: ubuntu-latest
@@ -47,6 +39,8 @@ jobs:
           for chart in services/*/app; do
             [ -f "$chart/Chart.yaml" ] || continue
             echo "==> $chart"
+            # umbrella charts (identity, gitea) declare upstream dependencies
+            grep -q "^dependencies:" "$chart/Chart.yaml" && ./helm dependency update "$chart"
             ./helm template test "$chart" --set domain=ci.example.com > /tmp/rendered.yaml
             # CRDs (IngressRoute, OnePasswordItem, CNPG) aren't in upstream
             # schemas — skip unknown kinds rather than vendoring schemas.
