@@ -1,0 +1,54 @@
+---
+- name: Install Argo CD
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo-cd
+    chart_repo_url: "{{ argocd_chart_repo }}"
+    chart_version: "{{ argocd_chart_version }}"
+    release_namespace: "{{ argocd_namespace }}"
+    create_namespace: true
+    wait: true
+    values: "{{ (lookup('file', playbook_dir + '/../../../platform/argocd/self/values.yaml') | from_yaml)['argo-cd'] }}"
+
+- name: Register repository credentials (synced from 1Password)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: onepassword.com/v1
+      kind: OnePasswordItem
+      metadata:
+        name: cluster-repo-creds
+        namespace: "{{ argocd_namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repo-creds
+      spec:
+        itemPath: "{{ argocd_repo_creds_ref }}"
+
+- name: Register repository with Argo CD
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cluster-repo
+        namespace: "{{ argocd_namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      stringData:
+        type: git
+        url: "{{ argocd_repo_url }}"
+
+- name: Apply Argo projects
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/../../../platform/argocd/root/projects/*.yaml"
+
+- name: Apply root Applications (the entire cluster follows from these)
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/../../../platform/argocd/root/apps/*.yaml"

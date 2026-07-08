@@ -1,0 +1,88 @@
+---
+# CNPG managed roles require kubernetes.io/basic-auth; step-ca requires
+# smallstep.com/ca-password. The 1P Operator emits only Opaque — these are
+# the two typed-secret residues that keep this role alive. If External
+# Secrets Operator ever replaces the 1P Operator, this role shrinks to
+# nothing but the Connect credential.
+
+- name: Ensure database namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: database
+        labels:
+          pod-security.kubernetes.io/enforce: restricted
+
+- name: Create CNPG basic-auth password secrets
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ item.name }}"
+        namespace: database
+        labels:
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: "{{ item.username }}"
+        password: "{{ lookup('env', item.env) }}"
+  loop: "{{ cnpg_basic_auth_secrets }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Ensure step-ca namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: step-ca
+        labels:
+          pod-security.kubernetes.io/enforce: restricted
+
+- name: Create step-ca secrets (typed + CA key material)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ item.name }}"
+        namespace: step-ca
+      type: "{{ item.type }}"
+      stringData: "{{ item.data }}"
+  loop:
+    - name: step-ca-ca-password
+      type: smallstep.com/ca-password
+      data:
+        password: "{{ lookup('env', 'STEP_CA_PASSWORD') }}"
+    - name: step-ca-provisioner-password
+      type: Opaque
+      data:
+        password: "{{ lookup('env', 'STEP_CA_PROVISIONER_PASSWORD') }}"
+    - name: step-ca-certs
+      type: Opaque
+      data:
+        root_ca.crt: "{{ lookup('env', 'STEP_CA_ROOT_CA_CRT') }}"
+        intermediate_ca.crt: "{{ lookup('env', 'STEP_CA_INTERMEDIATE_CA_CRT') }}"
+    - name: step-ca-config
+      type: Opaque
+      data:
+        ca.json: "{{ lookup('env', 'STEP_CA_CA_JSON') }}"
+        defaults.json: "{{ lookup('env', 'STEP_CA_DEFAULTS_JSON') | default('{}', true) }}"
+    - name: step-ca-secrets
+      type: smallstep.com/private-keys
+      data:
+        intermediate_ca_key: "{{ lookup('env', 'STEP_CA_INTERMEDIATE_CA_KEY') }}"
+        ssh_host_ca_key: "{{ lookup('env', 'STEP_CA_SSH_HOST_CA_KEY') | default('', true) }}"
+        ssh_user_ca_key: "{{ lookup('env', 'STEP_CA_SSH_USER_CA_KEY') | default('', true) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

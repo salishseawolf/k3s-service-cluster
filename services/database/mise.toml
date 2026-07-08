@@ -1,6 +1,0 @@
-[env]
-GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus Secrets/password"
-
-[tasks.deploy]
-description = "Deploy database service"
-run = "mise run //services/database/ansible:deploy"

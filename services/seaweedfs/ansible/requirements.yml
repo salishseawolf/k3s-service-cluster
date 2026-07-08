@@ -1,6 +1,0 @@
----
-collections:
-  - name: hetzner.hcloud
-  - name: kubernetes.core
-  - name: community.general
-  - name: ansible.posix

@@ -1,0 +1,67 @@
+[env]
+K3S_TOKEN = "op://K3s Service Cluster/K3s Service Cluster/credential"
+K3S_ETCD_SECRET = "op://K3s Service Cluster/K3s Service Cluster/etcd_secret"
+OP_CONNECT_JWT = "op://K3s Service Cluster/K3s Service Cluster Environment Credentials File/1password-credentials.json"
+OP_OPERATOR_TOKEN="op://K3s Service Cluster/K3s Service Cluster 1Password Connect Access/token"
+ANSIBLE_CONFIG = "{{ config_root }}/ansible.cfg"
+
+[tasks.init]
+description = "Install Ansible Galaxy collections"
+sources = ["requirements.yml"]
+run = "ansible-galaxy collection install -r requirements.yml"
+
+[tasks.deploy]
+description = "Deploy K3s cluster with Hetzner integrations"
+depends = ["init"]
+run = "op run -- ansible-playbook playbooks/main.yml"
+
+[tasks."deploy:cluster"]
+description = "Deploy K3s HA cluster only"
+depends = ["init"]
+run = "op run -- ansible-playbook playbooks/k3s-cluster.yml"
+
+[tasks.ping]
+description = "Test connectivity"
+run = "op run -- ansible-playbook playbooks/ping.yml"
+
+[tasks.inventory]
+description = "List Ansible inventory from Hetzner Cloud"
+run = "op run -- ansible-inventory --list"
+
+[tasks."update-known-hosts"]
+description = "Update SSH known_hosts with current server fingerprints"
+run = "op run -- ansible-playbook playbooks/update-known-hosts.yml"
+
+[tasks.uninstall]
+description = "Uninstall K3s from all nodes"
+run = "op run -- ansible-playbook playbooks/uninstall-k3s.yml"
+
+[tasks."clear-cache"]
+description = "Clear cached Ansible facts"
+run = "rm -rf /tmp/ansible_facts"
+
+[tasks.lint]
+description = "Lint Ansible playbooks"
+run = "ansible-lint"
+
+# ─── secret zero env (resolved by `op run`, never written to disk) ────────
+[env]
+# CNPG basic-auth principals (mirrors services' consolidated items)
+AUTHENTIK_DB_PASSWORD = "op://K3s Service Cluster/Authentik Deployment Secrets/db_password"
+GITEA_DB_PASSWORD = "op://K3s Service Cluster/Gitea Secrets/db_password"
+PAPERLESS_DB_PASSWORD = "op://K3s Service Cluster/Paperless Secrets/db_password"
+HOMARR_DB_PASSWORD = "op://K3s Service Cluster/Homarr Secrets/password"
+SEAWEEDFS_DB_PASSWORD = "op://K3s Service Cluster/SeaweedFS Secrets/db_password"
+GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus Secrets/password"
+# step-ca CA material
+STEP_CA_PASSWORD = "op://K3s Service Cluster/StepCA Secrets/ca_password"
+STEP_CA_PROVISIONER_PASSWORD = "op://K3s Service Cluster/StepCA Secrets/provisioner_password"
+STEP_CA_ROOT_CA_CRT = "op://K3s Service Cluster/StepCA Secrets/root_ca_crt"
+STEP_CA_INTERMEDIATE_CA_CRT = "op://K3s Service Cluster/StepCA Secrets/intermediate_ca_crt"
+STEP_CA_INTERMEDIATE_CA_KEY = "op://K3s Service Cluster/StepCA Secrets/intermediate_ca_key"
+STEP_CA_CA_JSON = "op://K3s Service Cluster/StepCA Secrets/ca_json"
+STEP_CA_DEFAULTS_JSON = "op://K3s Service Cluster/StepCA Secrets/defaults_json"
+STEP_CA_SSH_HOST_CA_KEY = "op://K3s Service Cluster/StepCA Secrets/ssh_host_ca_key"
+STEP_CA_SSH_USER_CA_KEY = "op://K3s Service Cluster/StepCA Secrets/ssh_user_ca_key"
+# Argo CD pulls from the GitHub push-mirror (set your mirror URL)
+ARGOCD_REPO_URL = "https://github.com/CHANGEME/k3s-service-cluster.git"

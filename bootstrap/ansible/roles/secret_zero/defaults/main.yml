@@ -1,0 +1,12 @@
+---
+# Typed secrets the 1Password Operator cannot emit. Everything here is
+# sourced from op:// env refs resolved by mise at invocation time; nothing
+# is stored on disk. This list is the ENTIRE per-cluster secret residue —
+# every other secret flows through OnePasswordItem CRs.
+cnpg_basic_auth_secrets:
+  - {name: authentik-db-user-auth,  username: authentik,      env: AUTHENTIK_DB_PASSWORD}
+  - {name: gitea-db-user-auth,      username: gitea_user,     env: GITEA_DB_PASSWORD}
+  - {name: paperless-db-user-auth,  username: paperless_user, env: PAPERLESS_DB_PASSWORD}
+  - {name: homarr-db-user-auth,     username: homarr_user,    env: HOMARR_DB_PASSWORD}
+  - {name: seaweedfs-db-user-auth,  username: seaweedfs_user, env: SEAWEEDFS_DB_PASSWORD}
+  - {name: gatus-db-user-auth,      username: gatus_user,     env: GATUS_DB_PASSWORD}

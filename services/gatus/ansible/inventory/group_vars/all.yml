@@ -1,9 +1,0 @@
----
-# Global variables for all hosts
-
-# Ansible connection settings
-ansible_python_interpreter: auto_silent
-ansible_user: root
-
-# Project metadata
-project_name: gatus_service
