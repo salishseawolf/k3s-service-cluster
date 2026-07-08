@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: step-ca-config
-  namespace: argocd
+  namespace: step-ca
   annotations:
     argocd.argoproj.io/sync-wave: "10"
 spec:
@@ -19,7 +19,7 @@ spec:
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: step-ca
   syncPolicy:
     automated:
       prune: true
