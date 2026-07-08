@@ -5,8 +5,7 @@ metadata:
   name: gitea-domain-config
   namespace: gitea
 data:
-  domain.ini: |
-    [server]
+  server: |
     DOMAIN = git.{{ .Values.domain }}
     ROOT_URL = https://git.{{ .Values.domain }}
     SSH_DOMAIN = git.{{ .Values.domain }}
