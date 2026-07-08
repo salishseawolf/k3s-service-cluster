@@ -58,7 +58,7 @@
         name: "{{ postgres_backup_secret_name }}"
         namespace: "{{ postgres_namespace }}"
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/CNPG B2 Bucket"
+        itemPath: "vaults/K3s Service Cluster/items/BackBlaze CNPG B2 Bucket"
 
 - name: Wait for CNPG backup secret to sync
   kubernetes.core.k8s_info:

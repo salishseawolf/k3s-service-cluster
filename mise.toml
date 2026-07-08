@@ -22,6 +22,7 @@ DOMAIN = "{{ env.TF_VAR_domain }}"
 # Alphanumeric only (it gets embedded in redis:// URLs).
 REDIS_PASSWORD = "op://K3s Service Cluster/Redis Password/password"
 ANSIBLE_FORCE_COLOR = "1"
+OP_ACCOUNT = "U2NWAVMUCZHATMVL7WHEOJIDNY"
 
 [tools]
 "opentofu" = "latest"
@@ -30,6 +31,7 @@ ANSIBLE_FORCE_COLOR = "1"
 "uv" = "latest"
 "pipx:ansible-core" = { version = "latest", uvx_args = "--with requests --with hcloud --with kubernetes" }
 "pipx:ansible-lint" = "latest"
+"pipx:b2" = "latest"
 "kubectl" = "latest"
 "yamllint" = "latest"
 "hcloud" = "latest"

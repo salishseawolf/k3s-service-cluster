@@ -5,15 +5,15 @@ metadata:
   namespace: {{ postgres_namespace }}
 spec:
   configuration:
-    destinationPath: "s3://blackviolet/cnpg/"
+    destinationPath: "s3://k3s-service-cluster/cnpg/"
     endpointURL: "https://s3.eu-central-003.backblazeb2.com"
     s3Credentials:
       accessKeyId:
         name: {{ postgres_backup_secret_name }}
-        key: key_id
+        key: s3_key_id
       secretAccessKey:
         name: {{ postgres_backup_secret_name }}
-        key: application_key
+        key: s3_application_key
     wal:
       compression: gzip
       maxParallel: 8

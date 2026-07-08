@@ -205,12 +205,6 @@
           # Generous for normal SSO traffic; brutal for credential stuffing.
           average: 25
           burst: 50
-            - X-authentik-jwt
-            - X-authentik-meta-jwks
-            - X-authentik-meta-outpost
-            - X-authentik-meta-provider
-            - X-authentik-meta-app
-            - X-authentik-meta-version
 
 - name: Deploy Authentik outpost callback IngressRoute
   kubernetes.core.k8s:
@@ -255,7 +249,7 @@
 - name: Read wildcard certificate data
   ansible.builtin.shell:
     cmd: |
-      kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" get secret -n kube-system wildcard-blackviolet-bid-tls -o json
+      kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" get secret -n kube-system wildcard-{{ lookup('env', 'TF_VAR_domain') | replace('.', '-') }}-tls -o json
   register: wildcard_secret_raw
   changed_when: false
 
@@ -333,14 +327,15 @@
   changed_when: false
 
 - name: Add CoreDNS rewrite for LDAP outpost
-  when: "'rewrite name ldap.blackviolet.bid' not in coredns_corefile.stdout"
+  when: "\"rewrite name ldap.{{ lookup('env', 'TF_VAR_domain') }}\" not in coredns_corefile.stdout"
   ansible.builtin.shell:
     cmd: |
       kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" get cm -n kube-system coredns -o json | python3 -c "
       import sys, json
       cm = json.load(sys.stdin)
+      domain = \"{{ lookup('env', 'TF_VAR_domain') }}\"
       cm['data']['Corefile'] = cm['data']['Corefile'].replace(
-        '.:53 {', '.:53 {\\n    rewrite name ldap.blackviolet.bid ak-outpost-ldap.identity.svc.cluster.local', 1
+        '.:53 {', '.:53 {\\\\n    rewrite name ldap.' + domain + ' ak-outpost-ldap.identity.svc.cluster.local', 1
       )
       print(json.dumps(cm))
       " | kubectl --kubeconfig "{{ lookup('env', 'KUBECONFIG', default='/etc/rancher/k3s/k3s.yaml') }}" apply -f -

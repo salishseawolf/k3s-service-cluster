@@ -1,6 +1,5 @@
 [env]
 CERT_MANAGER_EMAIL = "op://K3s Service Cluster/Cloudflare DNS Challenge/email"
-CLOUDFLARE_API_TOKEN = "op://K3s Service Cluster/Cloudflare DNS Challenge/password"
 
 [tasks.apply]
 description = "Deploy cert-manager with Let's Encrypt"
@@ -23,7 +22,7 @@ echo "==> Installing cert-manager config chart..."
 op run -- bash -c 'helm upgrade --install cert-manager-config ./config \
   --set email="$CERT_MANAGER_EMAIL" \
   --set domain="$DOMAIN" \
-  --set cloudflareApiToken="$CLOUDFLARE_API_TOKEN" \
+  --set cloudflareApiToken="$TF_VAR_cloudflare_api_token" \
   --set issuer=production'
 
 echo "==> cert-manager deployment complete!"

@@ -3,7 +3,7 @@ velero_namespace: "velero"
 velero_chart_version: "8.5.0"
 velero_b2_secret_name: "velero-b2-raw"
 velero_credentials_secret_name: "velero-b2-credentials"
-velero_b2_bucket: "blackviolet"
+velero_b2_bucket: "k3s-service-cluster"
 velero_b2_region: "eu-central-003"
 velero_b2_endpoint: "https://s3.eu-central-003.backblazeb2.com"
 

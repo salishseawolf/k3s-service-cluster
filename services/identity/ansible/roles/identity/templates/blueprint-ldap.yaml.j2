@@ -10,7 +10,7 @@ entries:
     id: cert-wildcard
     state: present
     identifiers:
-      name: Wildcard blackviolet.bid
+      name: Wildcard {{ lookup('env', 'TF_VAR_domain') }}
     attrs:
       certificate_data: |
 {{ wildcard_tls_crt | indent(8, true) }}
@@ -64,8 +64,8 @@ entries:
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       base_dn: dc=ldap,dc=goauthentik,dc=io
       search_mode: cached
-      certificate: !Find [authentik_crypto.certificatekeypair, [name, Wildcard blackviolet.bid]]
-      tls_server_name: ldap.blackviolet.bid
+      certificate: !Find [authentik_crypto.certificatekeypair, [name, Wildcard {{ lookup('env', 'TF_VAR_domain') }}]]
+      tls_server_name: ldap.{{ lookup('env', 'TF_VAR_domain') }}
 
   # ─── Application ────────────────────────────────────────────────────────────
   - model: authentik_core.application

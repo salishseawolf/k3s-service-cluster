@@ -41,16 +41,10 @@ server:
     - name: blueprints
       configMap:
         name: authentik-blueprints
-    - name: sssd-password
-      secret:
-        secretName: "{{ ldap_sssd_password_secret_name }}"
 
   volumeMounts:
     - name: blueprints
       mountPath: /blueprints/custom
-    - name: sssd-password
-      mountPath: /blueprints/secrets/sssd-password
-      subPath: password
 
   ingress:
     enabled: true
@@ -122,16 +116,10 @@ worker:
     - name: blueprints
       configMap:
         name: authentik-blueprints
-    - name: sssd-password
-      secret:
-        secretName: "{{ ldap_sssd_password_secret_name }}"
 
   volumeMounts:
     - name: blueprints
       mountPath: /blueprints/custom
-    - name: sssd-password
-      mountPath: /blueprints/secrets/sssd-password
-      subPath: password
 
   # POD Level Context
   securityContext: 

@@ -30,7 +30,7 @@
         name: "{{ velero_b2_secret_name }}"
         namespace: "{{ velero_namespace }}"
       spec:
-        itemPath: "vaults/K3s Service Cluster/items/Velero B2 Bucket"
+        itemPath: "vaults/K3s Service Cluster/items/BackBlaze Velero B2 Bucket"
 
 - name: Wait for Velero B2 secret to sync
   kubernetes.core.k8s_info:
