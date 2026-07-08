@@ -7,6 +7,11 @@ metadata:
     argocd.argoproj.io/sync-wave: "10"
 spec:
   project: platform
+  ignoreDifferences:
+  - group: postgresql.cnpg.io
+    kind: Cluster
+    jsonPointers:
+    - /spec/imageName
   sources:
     - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
       targetRevision: main

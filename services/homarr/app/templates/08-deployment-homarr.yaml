@@ -72,7 +72,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: homarr-db-password
-              key: password
+              key: db_password
         - name: SECRET_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:

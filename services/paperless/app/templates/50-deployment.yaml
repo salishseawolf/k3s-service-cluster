@@ -108,7 +108,7 @@ spec:
             - name: PAPERLESS_LOGOUT_REDIRECT_URL
               value: "https://auth.{{ .Values.domain }}/application/o/paperless/end-session/"
             - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
-              value: '[{"name":"Authentik","clientId":"$(PAPERLESS_OIDC_CLIENT)","secret":"$(PAPERLESS_OIDC_SECRET)","authorizationUrl":"https://auth.{{ .Values.domain }}/application/o/paperless/authorize/","tokenUrl":"https://auth.{{ .Values.domain }}/application/o/paperless/token/","profileUrl":"https://auth.{{ .Values.domain }}/application/o/paperless/userinfo/"}]'
+              value: '{"openid_connect":{"APPS":[{"provider_id":"authentik","name":"Authentik","client_id":"$(PAPERLESS_OIDC_CLIENT)","secret":"$(PAPERLESS_OIDC_SECRET)","settings":{"server_url":"https://auth.{{ .Values.domain }}/application/o/paperless/"}}]}}'
             - name: PAPERLESS_OIDC_CLIENT
               valueFrom:
                 secretKeyRef:
