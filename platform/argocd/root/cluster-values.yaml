@@ -11,7 +11,7 @@ gitea:
     oauth:
       - name: authentik
         provider: openidConnect
-        # key/secret come from extraEnv GITEA_OAUTH_KEY_0 / GITEA_OAUTH_SECRET_0
+        existingSecret: gitea-oidc-creds  # keys: key, secret (vault has oidc_key/oidc_secret)
         scopes: "openid profile email"
         groupClaimName: groups
         adminGroup: infrastructure

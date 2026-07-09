@@ -12,7 +12,8 @@ spec:
     kind: Cluster
     jsonPointers:
     - /spec/imageName
-    - /spec/resources
+    - /spec/resources/requests/cpu
+    - /spec/resources/limits/cpu
   sources:
     - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
       targetRevision: main
