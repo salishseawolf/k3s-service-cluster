@@ -1,32 +1,33 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: seaweedfs-csi
-  namespace: seaweedfs-csi
-  annotations:
-    argocd.argoproj.io/sync-wave: "30"
-spec:
-  project: platform
-  sources:
-    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-      targetRevision: main
-      path: platform/storage/seaweedfs-csi
-      helm:
-        valueFiles:
-          - $values/platform/argocd/root/cluster-values.yaml
-    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-      targetRevision: main
-      ref: values
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: seaweedfs-csi
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=false
-      - ServerSideApply=true
-    retry:
-      limit: 5
-      backoff: {duration: 20s, factor: 2, maxDuration: 5m}
+1|apiVersion: argoproj.io/v1alpha1
+2|kind: Application
+3|metadata:
+4|  name: seaweedfs-csi
+5|  namespace: seaweedfs-csi
+6|  annotations:
+7|    argocd.argoproj.io/sync-wave: "30"
+8|spec:
+9|  project: platform
+10|  sources:
+11|    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
+12|      targetRevision: main
+13|      path: platform/storage/seaweedfs-csi
+14|      helm:
+15|        valueFiles:
+16|          - $values/platform/argocd/root/cluster-values.yaml
+17|    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
+18|      targetRevision: main
+19|      ref: values
+20|  destination:
+21|    server: https://kubernetes.default.svc
+22|    namespace: seaweedfs-csi
+23|  syncPolicy:
+24|    automated:
+25|      prune: true
+26|      selfHeal: true
+27|    syncOptions:
+28|      - CreateNamespace=false
+29|      - ServerSideApply=true
+30|    retry:
+31|      limit: 5
+32|      backoff: {duration: 20s, factor: 2, maxDuration: 5m}
+33|
