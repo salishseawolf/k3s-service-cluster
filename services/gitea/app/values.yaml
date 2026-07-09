@@ -38,7 +38,6 @@ gitea:
 
   gitea:
     admin:
-      # username+password keys on Gitea Secrets (renamed from admin_user/admin_password)
       existingSecret: gitea-admin
     additionalConfigSources:
       # domain-dependent app.ini keys — values files can't template, chart
