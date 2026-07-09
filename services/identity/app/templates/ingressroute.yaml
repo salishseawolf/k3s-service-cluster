@@ -14,5 +14,6 @@ spec:
       services:
         - name: identity-authentik-server
           port: 80
+          nativeLB: true
   tls:
     secretName: wildcard-identity-tls
