@@ -13,6 +13,7 @@ spec:
     path: platform/argocd/root
     directory:
       recurse: true
+      exclude: 'cluster-values.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
