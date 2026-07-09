@@ -1,38 +1,37 @@
-1|apiVersion: argoproj.io/v1alpha1
-2|kind: Application
-3|metadata:
-4|  name: database
-5|  namespace: database
-6|  annotations:
-7|    argocd.argoproj.io/sync-wave: "10"
-8|spec:
-9|  project: platform
-10|  ignoreDifferences:
-11|  - group: postgresql.cnpg.io
-12|    kind: Cluster
-13|    jsonPointers:
-14|    - /spec/imageName
-15|  sources:
-16|    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-17|      targetRevision: main
-18|      path: services/database/app
-19|      helm:
-20|        valueFiles:
-21|          - $values/platform/argocd/root/cluster-values.yaml
-22|    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-23|      targetRevision: main
-24|      ref: values
-25|  destination:
-26|    server: https://kubernetes.default.svc
-27|    namespace: database
-28|  syncPolicy:
-29|    automated:
-30|      prune: true
-31|      selfHeal: true
-32|    syncOptions:
-33|      - CreateNamespace=false
-34|      - ServerSideApply=true
-35|    retry:
-36|      limit: 5
-37|      backoff: {duration: 20s, factor: 2, maxDuration: 5m}
-38|
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: database
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: platform
+  ignoreDifferences:
+  - group: postgresql.cnpg.io
+    kind: Cluster
+    jsonPointers:
+    - /spec/imageName
+  sources:
+    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
+      targetRevision: main
+      path: services/database/app
+      helm:
+        valueFiles:
+          - $values/platform/argocd/root/cluster-values.yaml
+    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: database
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff: {duration: 20s, factor: 2, maxDuration: 5m}
