@@ -46,9 +46,14 @@
   with_fileglob:
     - "{{ playbook_dir }}/../../../platform/argocd/root/projects/*.yaml"
 
-- name: Apply root Applications (the entire cluster follows from these)
+# Apply root Application (manages apps + projects via app-of-apps)
+- name: Apply root Application
   kubernetes.core.k8s:
     state: present
-    src: "{{ item }}"
-  with_fileglob:
-    - "{{ playbook_dir }}/../../../platform/argocd/root/apps/*.yaml"
+    src: "{{ playbook_dir }}/../../../platform/argocd/root.yaml"
+
+# Apply Argo self-manage Application (separate — avoids circular dependency)
+- name: Apply Argo self-manage Application
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ playbook_dir }}/../../../platform/argocd/root/apps/argocd.yaml"

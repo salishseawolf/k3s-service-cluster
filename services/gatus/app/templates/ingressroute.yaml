@@ -20,4 +20,4 @@ spec:
         - kind: Service
           name: gatus
           port: {{ .Values.port }}
-  tls: {} wildcard-{{ .Values.domain | replace "." "-" }}-tls
+  tls: {}
