@@ -44,6 +44,8 @@ spec:
   ingress:
     - from:
         - ipBlock:
+            cidr: 10.42.0.0/16
+        - ipBlock:
             cidr: 192.168.0.0/16
 ---
 # Runners reach Gitea directly in-cluster (clone, API, artifacts).
