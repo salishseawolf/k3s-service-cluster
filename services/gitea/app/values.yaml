@@ -38,10 +38,8 @@ gitea:
 
   gitea:
     admin:
-      # admin_user+admin_password keys on Gitea Secrets; NOT the db password
+      # username+password keys on Gitea Secrets (renamed from admin_user/admin_password)
       existingSecret: gitea-admin
-      existingSecretUsernameKey: admin_user
-      existingSecretPasswordKey: admin_password
     additionalConfigSources:
       # domain-dependent app.ini keys — values files can't template, chart
       # templates can: see templates/configmap-domain.yaml
