@@ -1,16 +1,2 @@
-# Namespace-local wildcard cert (stable secret name — values files cannot
-# template, and TLS secrets are namespace-scoped). cert-manager issues it
-# here; authentik discovers it at /certs/wildcard for the LDAP provider.
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: wildcard-identity
-  namespace: identity
-spec:
-  secretName: wildcard-identity-tls
-  issuerRef:
-    name: letsencrypt-production
-    kind: ClusterIssuer
-  dnsNames:
-    - "{{ .Values.domain }}"
-    - "*.{{ .Values.domain }}"
+{{- /* Wildcard TLS certificate is managed by cert-manager-config chart (platform/cert-manager/config). 
+  This chart uses the TLSStore default certificate in kube-system. No per-namespace cert needed. */ -}}
