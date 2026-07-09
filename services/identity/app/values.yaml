@@ -86,14 +86,9 @@ authentik:
     volumes:
       - name: blueprints
         configMap: {name: authentik-blueprints}
-      - name: wildcard-cert
-        secret:
-          secretName: wildcard-identity-tls   # issued by this chart's Certificate
     volumeMounts:
       - name: blueprints
         mountPath: /blueprints/custom
-      - name: wildcard-cert
-        mountPath: /certs/wildcard
     livenessProbe:
       exec: {command: [ak, healthcheck]}
       initialDelaySeconds: 30
