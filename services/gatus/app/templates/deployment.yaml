@@ -36,7 +36,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.db.name }}
-                  key: password
+                  key: db_password
             - name: GATUS_TEAMS_WEBHOOK
               valueFrom:
                 secretKeyRef:

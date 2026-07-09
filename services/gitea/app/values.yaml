@@ -35,6 +35,13 @@ gitea:
       - {name: GITEA_CUSTOM, value: /data/gitea}
       - {name: GITEA_WORK_DIR, value: /data}
       - {name: GITEA_TEMP, value: /tmp/gitea}
+      - name: GITEA__database__PASSWD
+        valueFrom: {secretKeyRef: {name: gitea-secrets, key: db_password}}
+      - {name: GITEA__mailer__FROM, value: noreply@salishseawolf.com}
+      - name: GITEA_OAUTH_KEY_0
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: oidc_key}}
+      - name: GITEA_OAUTH_SECRET_0
+        valueFrom: {secretKeyRef: {name: gitea-oidc-creds, key: oidc_secret}}
 
   gitea:
     admin:
