@@ -15,5 +15,4 @@ spec:
     services:
     - name: seaweedfs-internal
       port: 8888
-  tls:
-    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls
+  tls: {} wildcard-{{ .Values.domain | replace "." "-" }}-tls

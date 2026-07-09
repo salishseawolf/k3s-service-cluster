@@ -16,5 +16,4 @@ spec:
     services:
     - name: homarr
       port: '7575'
-  tls:
-    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls
+  tls: {} wildcard-{{ .Values.domain | replace "." "-" }}-tls

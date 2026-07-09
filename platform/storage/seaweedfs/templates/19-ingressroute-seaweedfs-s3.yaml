@@ -14,5 +14,4 @@ spec:
     services:
     - name: seaweedfs-s3
       port: 8333
-  tls:
-    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls
+  tls: {} wildcard-{{ .Values.domain | replace "." "-" }}-tls

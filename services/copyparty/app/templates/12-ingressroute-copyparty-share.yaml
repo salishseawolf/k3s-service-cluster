@@ -13,5 +13,4 @@ spec:
     services:
     - name: copyparty
       port: '3923'
-  tls:
-    secretName: wildcard-{{ .Values.domain | replace "." "-" }}-tls
+  tls: {} wildcard-{{ .Values.domain | replace "." "-" }}-tls
