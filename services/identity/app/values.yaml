@@ -42,7 +42,7 @@ authentik:
       - name: AUTHENTIK_EMAIL__HOST
         valueFrom: {secretKeyRef: {name: resend-smtp, key: host}}
       - name: AUTHENTIK_EMAIL__PORT
-        valueFrom: {secretKeyRef: {name: resend-smtp, key: port number}}
+        valueFrom: {secretKeyRef: {name: resend-smtp, key: port-number}}
       - name: AUTHENTIK_EMAIL__USERNAME
         valueFrom: {secretKeyRef: {name: resend-smtp, key: username}}
       - name: AUTHENTIK_BOOTSTRAP_EMAIL
