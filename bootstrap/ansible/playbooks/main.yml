@@ -76,5 +76,4 @@
 
           Next steps:
           1. export KUBECONFIG=./kubeconfig
-          2. kubectl get nodes
-          3. mise run //platform/charts/cert-manager:apply
+          2. kubectl get nodes"
