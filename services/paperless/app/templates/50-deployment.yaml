@@ -17,8 +17,8 @@ spec:
     spec:
       initContainers:
         - name: fix-perms
-          image: "ghcr.io/paperless-ngx/paperless-ngx:latest"
-          imagePullPolicy: Always
+          image: "ghcr.io/paperless-ngx/paperless-ngx:2.20.15"
+          imagePullPolicy: IfNotPresent
           command:
             - sh
             - -c
@@ -36,8 +36,8 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: paperless
-          image: "ghcr.io/paperless-ngx/paperless-ngx:latest"
-          imagePullPolicy: Always
+          image: "ghcr.io/paperless-ngx/paperless-ngx:2.20.15"
+          imagePullPolicy: IfNotPresent
           env:
             - name: PAPERLESS_URL
               value: "https://paperless.{{ .Values.domain }}"
