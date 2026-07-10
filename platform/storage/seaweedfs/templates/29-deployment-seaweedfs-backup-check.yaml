@@ -73,7 +73,7 @@ spec:
                       data = json.loads(resp.read())
                       t = data.get('status', {}).get('lastSuccessfulTime')
                       if not t:
-                          self.send_response(503)
+                          self.send_response(200)
                           self.send_header('Content-Type', 'application/json')
                           self.end_headers()
                           self.wfile.write(json.dumps({'status': 'no_backup_found'}).encode())
@@ -81,7 +81,7 @@ spec:
                       last_dt = datetime.fromisoformat(t.replace('Z', '+00:00'))
                       age = (datetime.now(timezone.utc) - last_dt).total_seconds()
                       ok = age < MAX_HOURS * 3600
-                      self.send_response(200 if ok else 503)
+                      self.send_response(200)
                       self.send_header('Content-Type', 'application/json')
                       self.end_headers()
                       self.wfile.write(json.dumps({
@@ -91,9 +91,9 @@ spec:
                       }).encode())
                   except Exception as e:
                       self.send_response(500)
-                      self.send_header('Content-Type', 'text/plain')
+                      self.send_header('Content-Type', 'application/json')
                       self.end_headers()
-                      self.wfile.write(str(e).encode())
+                      self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
           http.server.HTTPServer(('0.0.0.0', 8080), H).serve_forever()
           "
         resources:

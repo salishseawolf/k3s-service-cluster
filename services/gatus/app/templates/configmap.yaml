@@ -133,6 +133,7 @@ data:
         interval: 3600s
         conditions:
           - "[STATUS] == 200"
+          - "[BODY].status == ok"
         failures: 3
         success: 2
       - name: Internet Connectivity
