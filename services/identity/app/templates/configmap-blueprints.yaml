@@ -57,7 +57,7 @@ data:
           config:
             kubernetes_namespace: copyparty
             object_naming_template: ak-outpost-copyparty
-            authentik_host: http://authentik-server.identity.svc.cluster.local
+            authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             authentik_host_browser: "https://auth.{{ .Values.domain }}"
   blueprint-default-login-customization.yaml: |
     # Customizes Authentik's built-in default login identification stage to show
@@ -685,7 +685,7 @@ data:
           providers:
             - !Find [authentik_providers_ldap.ldapprovider, [name, Internal Services LDAP]]
           config:
-            authentik_host: http://authentik-server.identity.svc.cluster.local
+            authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             log_level: info
 
       # ─── LDAP Read-Only Group ──────────────────────────────────────────────────
@@ -1011,5 +1011,5 @@ data:
           config:
             kubernetes_namespace: seaweedfs
             object_naming_template: ak-outpost-seaweedfs-filer
-            authentik_host: http://authentik-server.identity.svc.cluster.local
+            authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             authentik_host_browser: "https://auth.{{ .Values.domain }}"
