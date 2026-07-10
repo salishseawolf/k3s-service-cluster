@@ -24,11 +24,9 @@ db:
   sslmode: disable
 
 secrets:
-  # Same 1Password items the bootstrap deploy used — the operator projects
-  # them here; the chart only ever commits the op:// pointers.
   db:
     name: gatus-db
     itemPath: "vaults/K3s Service Cluster/items/Gatus Secrets"
-  teamsWebhook:
-    name: gatus-teams-webhook
-    itemPath: "vaults/K3s Service Cluster/items/Microsoft Teams Infrastructure Channel Webhook"
+  slack:
+    name: gatus-slack
+    itemPath: "vaults/K3s Service Cluster/items/Gatus Slack App"

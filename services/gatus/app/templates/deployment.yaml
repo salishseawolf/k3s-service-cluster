@@ -37,11 +37,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.db.name }}
                   key: db_password
-            - name: GATUS_TEAMS_WEBHOOK
+            - name: GATUS_SLACK_WEBHOOK
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.teamsWebhook.name }}
-                  key: url
+                  name: {{ .Values.secrets.slack.name }}
+                  key: webhook
           ports:
             - name: http
               containerPort: {{ .Values.port }}

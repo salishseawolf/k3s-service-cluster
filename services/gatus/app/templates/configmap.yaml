@@ -19,8 +19,8 @@ data:
         interval: 5m
 
     alerting:
-      teams:
-        webhook-url: "${GATUS_TEAMS_WEBHOOK}"
+      slack:
+        webhook-url: "${GATUS_SLACK_WEBHOOK}"
 
     # App-level OIDC removed: this route sits behind authentik-forward-auth,
     # so authentication happens before traffic reaches the pod.
