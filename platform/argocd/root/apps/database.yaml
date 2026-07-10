@@ -14,6 +14,7 @@ spec:
     - /spec/imageName
     - /spec/resources/requests/cpu
     - /spec/resources/limits/cpu
+    - /spec/managed/roles
   sources:
     - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
       targetRevision: main
