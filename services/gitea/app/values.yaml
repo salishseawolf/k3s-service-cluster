@@ -55,7 +55,8 @@ gitea:
 
   gitea:
     admin:
-      existingSecret: gitea-admin
+      existingSecret: gitea-secrets
+      passwordMode: keepUpdated
     additionalConfigSources:
       # domain-dependent app.ini keys — values files can't template, chart
       # templates can: see templates/configmap-domain.yaml
