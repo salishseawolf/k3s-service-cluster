@@ -14,5 +14,5 @@ spec:
     - name: copyparty-auth
     services:
     - name: copyparty
-      port: '3923'
+      port: 3923
   tls: {}

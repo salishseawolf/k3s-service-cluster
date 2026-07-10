@@ -2,6 +2,10 @@
 
 File provides guidance to AI agents when working with this repository.
 
+## Agent Behavior
+
+- **Do NOT pivot or make changes without explicit user approval.** Questions and observations are not change requests — treat them as discussion unless the user explicitly says "yes" or "do it". If uncertain, ask before acting.
+
 ## Project Overview
 
 This is a 3-node HA K3s cluster on Hetzner Cloud (hel1, salishseawolf.com).

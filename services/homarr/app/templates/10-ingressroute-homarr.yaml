@@ -15,5 +15,5 @@ spec:
       namespace: identity
     services:
     - name: homarr
-      port: '7575'
+      port: 7575
   tls: {}
