@@ -33,31 +33,43 @@ spec:
       - name: authentik
         ensure: present
         login: true
+        connectionLimit: -1
+        inherit: true
         passwordSecret:
           name: authentik-db-user-auth
       - name: gitea_user
         ensure: present
         login: true
+        connectionLimit: -1
+        inherit: true
         passwordSecret:
           name: gitea-db-user-auth
       - name: paperless_user
         ensure: present
         login: true
+        connectionLimit: -1
+        inherit: true
         passwordSecret:
           name: paperless-db-user-auth
       - name: homarr_user
         ensure: present
         login: true
+        connectionLimit: -1
+        inherit: true
         passwordSecret:
           name: homarr-db-user-auth
       - name: seaweedfs_user
         ensure: present
         login: true
+        connectionLimit: -1
+        inherit: true
         passwordSecret:
           name: seaweedfs-db-user-auth
       - name: gatus_user
         ensure: present
         login: true
+        connectionLimit: -1
+        inherit: true
         passwordSecret:
           name: gatus-db-user-auth
 
