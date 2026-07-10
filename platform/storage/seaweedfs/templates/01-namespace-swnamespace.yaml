@@ -3,5 +3,6 @@ kind: Namespace
 metadata:
   name: 'seaweedfs'
   labels:
+    app.kubernetes.io/managed-by: argocd
     app.kubernetes.io/name: seaweedfs
     pod-security.kubernetes.io/enforce: privileged
