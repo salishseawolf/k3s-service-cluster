@@ -1013,3 +1013,57 @@ data:
             object_naming_template: ak-outpost-seaweedfs-filer
             authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             authentik_host_browser: "https://auth.{{ .Values.domain }}"
+  blueprint-argocd.yaml: |
+
+    ---
+    version: 1
+    metadata:
+      name: Argo CD
+      labels:
+        blueprints.goauthentik.io/instantiate: "true"
+    entries:
+      - model: authentik_providers_oauth2.oauth2provider
+        state: present
+        id: provider-argocd
+        identifiers:
+          name: Argo CD OIDC Provider
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          client_type: confidential
+          client_id: !Env AUTHENTIK_ARGOCD_CLIENT_ID
+          client_secret: !Env AUTHENTIK_ARGOCD_CLIENT_SECRET
+          redirect_uris:
+            - matching_mode: strict
+              url: "https://argocd.{{ .Values.domain }}/auth/callback"
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          sub_mode: hashed_user_id
+          grant_types:
+            - authorization_code
+            - refresh_token
+          include_claims_in_id_token: true
+          access_code_validity: minutes=1
+          access_token_validity: hours=24
+          property_mappings:
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'email'"]]
+          scope_set:
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+
+      - model: authentik_core.application
+        state: present
+        id: app-argocd
+        identifiers:
+          name: Argo CD
+          slug: argocd
+        attrs:
+          name: Argo CD
+          provider: !KeyOf provider-argocd
+          meta_launch_url: "https://argocd.{{ .Values.domain }}"
+          meta_description: "GitOps continuous delivery"
+          meta_icon: ""
+          policy_engine_mode: any
+          group: "Infrastructure"

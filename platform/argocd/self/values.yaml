@@ -11,9 +11,20 @@ argo-cd:
       # TLS terminates at Traefik; Argo serves plain HTTP behind it.
       server.insecure: true
     cm:
-      # Later (docs/MIGRATION.md): swap admin login for Authentik OIDC and
-      # disable the local admin account.
+      url: https://argocd.salishseawolf.com
       admin.enabled: "true"
+      oidc.config: |
+        name: Authentik
+        issuer: https://auth.salishseawolf.com/application/o/argocd/
+        clientID: $argocd-oidc:oidc_client
+        clientSecret: $argocd-oidc:password
+        requestedScopes: ["openid", "profile", "email"]
+        requestedIDTokenClaims: {"groups": {"essential": true}}
+        logoutURL: https://auth.salishseawolf.com/application/o/argocd/end-session/
+    rbac:
+      policy.default: role:readonly
+      policy.csv: |
+        g, infrastructure, role:admin
 
   dex:
     # Authentik is the IdP; dex is redundant here.
