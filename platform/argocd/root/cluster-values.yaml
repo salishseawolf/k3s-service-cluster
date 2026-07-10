@@ -12,7 +12,7 @@ gitea:
       - name: authentik
         provider: openidConnect
         existingSecret: gitea-oidc-creds  # keys: key, secret (vault has oidc_key/oidc_secret)
-        insecureSkipVerify: true
+        insecureSkipVerify: true  # TODO: remove when switching back to LE production cert
         scopes: "openid profile email"
         groupClaimName: groups
         adminGroup: infrastructure
