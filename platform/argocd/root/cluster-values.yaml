@@ -12,6 +12,7 @@ gitea:
       - name: authentik
         provider: openidConnect
         existingSecret: gitea-oidc-creds  # keys: key, secret (vault has oidc_key/oidc_secret)
+        insecureSkipVerify: true
         scopes: "openid profile email"
         groupClaimName: groups
         adminGroup: infrastructure
