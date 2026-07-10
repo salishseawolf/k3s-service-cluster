@@ -6,5 +6,5 @@ backupSecretName: cnpg-backup-secret
 backupRetention: 30d
 b2:
   bucketPath: "s3://k3s-service-cluster/cnpg/"
-  endpoint: "https://s3.eu-central-003.backblazeb2.com"
-  region: "eu-central-003"
+  endpoint: "https://s3.us-west-004.backblazeb2.com"
+  region: "us-west-004"

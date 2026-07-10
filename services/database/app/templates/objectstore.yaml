@@ -1,0 +1,17 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: cnpg-b2-store
+  namespace: database
+spec:
+  configuration:
+    destinationPath: {{ .Values.b2.bucketPath | quote }}
+    endpointURL: {{ .Values.b2.endpoint | quote }}
+    s3Credentials:
+      accessKeyId:
+        name: {{ .Values.backupSecretName }}
+        key: s3_key_id
+      secretAccessKey:
+        name: {{ .Values.backupSecretName }}
+        key: s3_application_key
+  retentionPolicy: {{ .Values.backupRetention | quote }}

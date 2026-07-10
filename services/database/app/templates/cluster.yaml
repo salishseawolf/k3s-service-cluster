@@ -74,12 +74,11 @@ spec:
           name: gatus-db-user-auth
 
   # Backup via Barman Cloud Plugin -> Backblaze B2
-  # Temporarily disabled — re-enable after CNPG backup secret key names are verified
-  # plugins:
-  #   - name: barman-cloud.cloudnative-pg.io
-  #     isWALArchiver: true
-  #     parameters:
-  #       barmanObjectName: "{{ .Values.clusterName }}-store"
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: cnpg-b2-store
 
   affinity:
     enablePodAntiAffinity: true
