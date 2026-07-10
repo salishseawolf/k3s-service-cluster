@@ -12,4 +12,4 @@ domain: ""
 
 # Which Let's Encrypt issuer to use: "production" or "staging"
 # Staging has higher rate limits but produces untrusted certificates
-issuer: staging
+issuer: production
