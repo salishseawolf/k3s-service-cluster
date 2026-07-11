@@ -14,13 +14,3 @@ data:
     requestedScopes: ["openid", "profile", "email"]
     requestedIDTokenClaims: {"groups": {"essential": true}}
     logoutURL: https://auth.{{ .Values.domain }}/application/o/argocd/end-session/
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-  namespace: argocd
-data:
-  policy.default: role:readonly
-  policy.csv: |
-    g, infrastructure, role:admin
