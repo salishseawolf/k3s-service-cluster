@@ -92,6 +92,8 @@ spec:
               value: "true"
             - name: PAPERLESS_AUDIT_LOG_ENABLED
               value: "true"
+            - name: PAPERLESS_ACCOUNT_EMAIL_VERIFICATION
+              value: "none"
             - name: PAPERLESS_EMAIL_HOST
               value: "smtp.resend.com"
             - name: PAPERLESS_EMAIL_PORT
