@@ -11,10 +11,10 @@ metadata:
     app.kubernetes.io/component: postgresql
 spec:
   hard:
-    requests.cpu: "2000m"
-    requests.memory: "4Gi"
-    limits.cpu: "4000m"
-    limits.memory: "8Gi"
+    requests.cpu: "3000m"
+    requests.memory: "6Gi"
+    limits.cpu: "6000m"
+    limits.memory: "12Gi"
     persistentvolumeclaims: "5"
     requests.storage: "100Gi"
     configmaps: "20"
