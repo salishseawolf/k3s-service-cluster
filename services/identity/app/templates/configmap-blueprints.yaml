@@ -577,6 +577,7 @@ data:
 
       - model: authentik_core.application
         state: present
+        id: app-homarr
         identifiers:
           name: Homarr
           slug: homarr
@@ -584,6 +585,14 @@ data:
           group: Services
           provider: !KeyOf provider-homarr
           meta_launch_url: https://dashboard.{{ .Values.domain }}
+
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 10
+          target: !KeyOf app-homarr
+        attrs:
+          group: !KeyOf infrastructure-group
   blueprint-infrastructure-group.yaml: |
     version: 1
     metadata:

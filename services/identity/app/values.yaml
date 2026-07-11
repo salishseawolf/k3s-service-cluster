@@ -61,11 +61,11 @@ authentik:
       - name: AUTHENTIK_PAPERLESS_CLIENT_ID
         valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: oidc_client}}
       - name: AUTHENTIK_PAPERLESS_CLIENT_SECRET
+        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: oidc_secret}}
       - name: AUTHENTIK_ARGOCD_CLIENT_ID
         valueFrom: {secretKeyRef: {name: argocd-oidc, key: oidc_client}}
       - name: AUTHENTIK_ARGOCD_CLIENT_SECRET
         valueFrom: {secretKeyRef: {name: argocd-oidc, key: password}}
-        valueFrom: {secretKeyRef: {name: paperless-oidc-creds, key: oidc_secret}}
 
   server:
     volumes:
