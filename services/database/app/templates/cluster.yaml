@@ -80,6 +80,8 @@ spec:
       parameters:
         barmanObjectName: cnpg-b2-store
 
+  enablePDB: true
+
   affinity:
     enablePodAntiAffinity: true
     topologyKey: kubernetes.io/hostname
