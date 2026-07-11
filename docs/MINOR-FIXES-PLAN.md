@@ -20,15 +20,15 @@
 
 ## m2 — Unpinned sidecar images
 
-**Issue:** Three sidecar images use unpinned tags, risking unexpected upgrades on pod restart.
+**Issue:** Sidecar images use unpinned tags, risking unexpected upgrades on pod restart.
 
-### m2a — `bitnami/kubectl:latest`
-**File:** `platform/storage/seaweedfs/templates/25-cronjob-seaweedfs-backup.yaml:25`
-**Fix:** Pin to `bitnamilegacy/kubectl:1.31` (Bitnami deprecated versioned tags on Docker Hub; the `bitnamilegacy` org provides frozen snapshots). Add a comment noting this should be revisited when a maintained alternative is available.
+### m2a — `bitnami/kubectl:latest` ~~RESOLVED — CronJob deleted by SeaweedFS backup removal~~
+**File:** ~~`platform/storage/seaweedfs/templates/25-cronjob-seaweedfs-backup.yaml:25`~~
+**Status:** Obsolete. The backup CronJob was removed.
 
-### m2b — `python:3.11-slim`
-**File:** `platform/storage/seaweedfs/templates/29-deployment-seaweedfs-backup-check.yaml:25`
-**Fix:** Pin to `python:3.11.15-slim` (current latest 3.11.x patch).
+### m2b — `python:3.11-slim` ~~RESOLVED — Deployment deleted by SeaweedFS backup removal~~
+**File:** ~~`platform/storage/seaweedfs/templates/29-deployment-seaweedfs-backup-check.yaml:25`~~
+**Status:** Obsolete. The backup-check deployment was removed.
 
 ### m2c — `busybox` (no tag)
 **File:** `services/homarr/app/templates/08-deployment-homarr.yaml:28`

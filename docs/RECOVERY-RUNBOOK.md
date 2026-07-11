@@ -11,8 +11,7 @@ restoring persistent data from Backblaze B2 backups.
 |---|---|---|---|
 | CNPG PostgreSQL (6 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
-| SeaweedFS volume data | `s3://seaweedfs-backups/` (Hetzner Storage Box) | CronJob (daily S3 sync) | 24h |
-| PVC data (Gitea, Paperless, Homarr, etc.) | B2 velero/ prefix | Velero kopia (daily) | 24h |
+| All PVCs (Gitea, Paperless, Homarr, SeaweedFS volumes, etc.) | B2 velero/ prefix | Velero kopia (daily) | 24h |
 | Secrets | 1Password vault | Operator re-creates from vault | N/A (git) |
 | Cluster config (CRDs, Argo, etc.) | Git | Argo CD re-deploys | N/A (git) |
 | Certificates | N/A | cert-manager auto-renew | N/A (git) |
@@ -143,19 +142,7 @@ velero restore create --from-backup <latest-backup-name> \
   --exclude-namespaces database,cnpg-system --wait
 ```
 
-### Phase 4 — Restore SeaweedFS volume data
-The SeaweedFS volume data is backed up via CronJob to B2. Restore manually:
-```bash
-# Identify the Hetzner Storage Box endpoint from the vault
-# (seaweedfs-backup-salishseawolf.hel1.your-objectstorage.com)
-
-# Exec into the backup-tools sidecar and sync from object storage
-kubectl -n seaweedfs exec deployment/seaweedfs -c backup-tools -- \
-  aws s3 sync s3://seaweedfs-backups/ /data/ \
-  --endpoint-url https://seaweedfs-backup-salishseawolf.hel1.your-objectstorage.com
-```
-
-### Phase 5 — Re-enable Argo CD management
+### Phase 4 — Re-enable Argo CD management
 ```bash
 argocd app sync root  # re-creates the database app from git
 argocd app unpause database  # if paused
@@ -190,7 +177,7 @@ monthly:
 |---|---|
 | B2 CNPG backup | `BackBlaze CNPG B2 Bucket` |
 | B2 Velero backup | `BackBlaze Velero B2 Bucket` |
-| B2 SeaweedFS backup | `SeaweedFS Secrets` |
+| SeaweedFS root credentials | `SeaweedFS Secrets` |
 | Argo CD admin login | `argocd-initial-admin-secret` (K8s secret) |
 | Authentik admin login | `akadmin` (bootstrap user) |
 | SSH key | `K3s Service Cluster SSH Key` |

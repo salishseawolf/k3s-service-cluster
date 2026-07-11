@@ -1,3 +1,1 @@
 domain: ""
-backup:
-  hostname: ""  # not used; backup credentials are in seaweedfs-backup-creds (Hetzner Storage Box)

@@ -4,8 +4,9 @@
 - [ ] **m1: Inconsistent namespace name quoting**
   Some use `'namespace'` (quoted), some use bare `namespace`
 - [ ] **m2: Unpinned sidecar images**
-  `bitnami/kubectl:latest` (backup cronjob), `python:3.11-slim` (backup-check),
-  `busybox` (homarr init)
+  `busybox` (homarr init). *(Previously also covered `bitnami/kubectl:latest` 
+  and `python:3.11-slim` — those were in the now-removed SeaweedFS backup 
+  CronJob and backup-check deployment.)*
 - [ ] **m3: Empty values.yaml stubs lack domain injection comment**
   copyparty, gitea-actions, homarr, paperless, seaweedfs-csi values.yaml
 - [ ] **m4: Gitea values.yaml references disabled valkey-cluster subchart**

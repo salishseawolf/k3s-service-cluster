@@ -127,15 +127,6 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
-      - name: SeaweedFS Backup Freshness
-        group: backups
-        url: "http://seaweedfs-backup-check.seaweedfs.svc.cluster.local:8080/health"
-        interval: 3600s
-        conditions:
-          - "[STATUS] == 200"
-          - "[BODY].status == ok"
-        failures: 3
-        success: 2
       - name: Velero Service
         group: backups
         url: "tcp://velero.velero.svc.cluster.local:8085"
