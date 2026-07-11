@@ -108,8 +108,7 @@ The live cluster keeps running from its current state throughout; Argo
   emits only Opaque secrets. Adopting External Secrets Operator (1Password
   provider, typed secrets + templating) would shrink it to just the Connect
   credential — worth it if the residue ever grows.
-- CNPG barman plugin remains disabled (commented in
-  services/database/app/templates/cluster.yaml) pending backup secret key
-  verification; instances at 2, return to 3 after re-enabling.
+- CNPG barman-cloud plugin enabled via ObjectStore CRD; daily backups to B2
+  with 30d retention; instances at 3 for HA.
 - Forward-auth on Gatus/Homarr blocks non-browser API clients; join the
   `internal` group before edge auth locks you out.

@@ -8,9 +8,9 @@ velero:
         bucket: k3s-service-cluster
         prefix: velero/
         config:
-          region: eu-central-003
+          region: us-west-004
           s3ForcePathStyle: true
-          s3Url: https://s3.eu-central-003.backblazeb2.com
+          s3Url: https://s3.us-west-004.backblazeb2.com
     uploaderType: kopia
   credentials:
     # Synced by the OnePasswordItem below; the item's `cloud` field holds the

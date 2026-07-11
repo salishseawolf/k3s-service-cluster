@@ -1,6 +1,6 @@
 domain: ""
 clusterName: main-db
-instances: 2   # scaled 3->2 during barman plugin removal; return to 3 after
+instances: 3   # HA; barman plugin re-enabled
 storageSize: 20Gi
 backupSecretName: cnpg-backup-secret
 backupRetention: 30d

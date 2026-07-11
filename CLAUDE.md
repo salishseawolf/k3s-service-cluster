@@ -131,4 +131,4 @@ When adding a new service under `services/<name>/app/`:
 - Prune=false on all PVCs (data survives Argo pruning)
 - PSA: restricted cluster-wide, baseline/privileged per-namespace where needed
 - etcd encryption at rest (AES-CBC)
-- CNPG backup plugin disabled pending B2 key verification
+- CNPG barman-cloud plugin enabled; daily backups to Backblaze B2 with 30d retention

@@ -136,6 +136,22 @@ data:
           - "[BODY].status == ok"
         failures: 3
         success: 2
+      - name: Velero Service
+        group: backups
+        url: "tcp://velero.velero.svc.cluster.local:8085"
+        interval: 300s
+        conditions:
+          - "[CONNECTED] == true"
+        failures: 3
+        success: 2
+      - name: CNPG Backup
+        group: backups
+        url: "tcp://main-db-rw.database.svc.cluster.local:5432"
+        interval: 300s
+        conditions:
+          - "[CONNECTED] == true"
+        failures: 3
+        success: 2
       - name: Internet Connectivity
         group: external
         url: "https://google.com"
