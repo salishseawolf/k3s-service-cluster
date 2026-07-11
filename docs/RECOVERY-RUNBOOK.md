@@ -89,11 +89,43 @@ Verify all 6 databases are present:
 kubectl -n database exec main-db-restore-1 -c postgres -- psql -U postgres -c "\l"
 ```
 
-Once verified, migrate the restored cluster to the expected name:
+Once verified, delete the empty cluster and create a new one with the
+correct name that recovers from the backup:
 ```bash
-kubectl -n database delete cluster main-db  # delete empty deployment
-kubectl -n database patch cluster main-db-restore --type=merge \
-  -p='{"metadata":{"name":"main-db"}}'
+kubectl -n database delete cluster main-db
+
+# Create a new Cluster CR with bootstrap.recovery pointing at the backup
+kubectl apply -f - <<EOF
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: main-db
+  namespace: database
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.4
+  storage:
+    size: 20Gi
+    storageClass: hcloud-volumes
+  bootstrap:
+    recovery:
+      source: b2-backup
+      recoveryType: latest
+  externalClusters:
+    - name: b2-backup
+      barmanObjectStore:
+        destinationPath: s3://k3s-service-cluster/cnpg/
+        endpointURL: https://s3.us-west-004.backblazeb2.com
+        s3Credentials:
+          accessKeyId:
+            name: cnpg-backup-secret
+            key: s3_key_id
+          secretAccessKey:
+            name: cnpg-backup-secret
+            key: s3_application_key
+        wal:
+          maxParallel: 8
+EOF
 ```
 
 ### Phase 3 — Restore Velero backups
@@ -120,7 +152,7 @@ kubectl -n seaweedfs get pods -l app.kubernetes.io/name=seaweedfs
 # Exec into the backup-tools sidecar and sync from B2
 kubectl -n seaweedfs exec deployment/seaweedfs -c backup-tools -- \
   aws s3 sync s3://k3s-service-cluster/seaweedfs/ /data/ \
-  --endpoint-url https://s3.eu-central-003.backblazeb2.com
+  --endpoint-url https://s3.us-west-004.backblazeb2.com
 ```
 
 ### Phase 5 — Re-enable Argo CD management

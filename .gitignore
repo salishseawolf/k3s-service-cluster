@@ -69,3 +69,4 @@ pids
 
 # Node modules (if any JS tools added later)
 node_modules/
+platform/argocd/self/charts/
