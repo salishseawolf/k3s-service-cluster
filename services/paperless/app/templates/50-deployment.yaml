@@ -107,8 +107,6 @@ spec:
               value: "true"
             - name: PAPERLESS_LOGOUT_REDIRECT_URL
               value: "https://auth.{{ .Values.domain }}/application/o/paperless/end-session/"
-            - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
-              value: '{"openid_connect":{"APPS":[{"provider_id":"authentik","name":"Authentik","client_id":"$(PAPERLESS_OIDC_CLIENT)","secret":"$(PAPERLESS_OIDC_SECRET)","settings":{"server_url":"https://auth.{{ .Values.domain }}/application/o/paperless/"}}]}}'
             - name: PAPERLESS_OIDC_CLIENT
               valueFrom:
                 secretKeyRef:
@@ -119,6 +117,8 @@ spec:
                 secretKeyRef:
                   name: paperless-oidc-creds
                   key: oidc_secret
+            - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
+              value: '{"openid_connect":{"APPS":[{"provider_id":"authentik","name":"Authentik","client_id":"$(PAPERLESS_OIDC_CLIENT)","secret":"$(PAPERLESS_OIDC_SECRET)","settings":{"server_url":"https://auth.{{ .Values.domain }}/application/o/paperless/"}}]}}'
             - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
               value: "1"
             - name: PAPERLESS_PORT
