@@ -75,7 +75,7 @@ spec:
             - name: PAPERLESS_TIME_ZONE
               value: America/Denver
             - name: PAPERLESS_DISABLE_REGULAR_LOGIN
-              value: "true"
+              value: "false"
             - name: PAPERLESS_REDIRECT_LOGIN_TO_SSO
               value: "true"
             - name: PAPERLESS_CSRF_TRUSTED_ORIGINS
