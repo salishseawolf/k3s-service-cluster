@@ -592,7 +592,7 @@ data:
           order: 10
           target: !KeyOf app-homarr
         attrs:
-          group: !KeyOf infrastructure-group
+          group: !Find [authentik_core.group, [name, infrastructure]]
   blueprint-infrastructure-group.yaml: |
     version: 1
     metadata:
