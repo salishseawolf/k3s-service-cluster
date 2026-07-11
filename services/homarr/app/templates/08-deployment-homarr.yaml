@@ -41,6 +41,8 @@ spec:
             - CHOWN
             - SETUID
             - SETGID
+            - FOWNER
+            - DAC_OVERRIDE
           runAsUser: 0
         volumeMounts:
         - name: nginx-lib

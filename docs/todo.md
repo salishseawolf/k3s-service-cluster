@@ -1,17 +1,24 @@
 # Infrastructure Review — Todo
 
+## Active Issues
+- [ ] **B2: CNPG database backups failing (AccessDenied)**
+  Barman-cloud WAL archive and scheduled backups fail with
+  `AccessDenied` on `ListObjectsV2`. The B2 API key in
+  `BackBlaze CNPG B2 Bucket` vault item lacks bucket read permission.
+  Fix: update B2 key permissions, or create a new application key
+  with read+write access to the `k3s-service-cluster` bucket.
+
+- [ ] **Homarr OIDC: Policy binding still failing**
+  `!Find [authentik_core.group, [name, infrastructure]]` fix applied
+  but user still sees "Policy binding 'None'". May be Authentik
+  upstream race condition (self-heals within 60 min) or deeper issue.
+
+- [ ] **Paperless OIDC: Still showing setup wizard**
+  Env var ordering fixed (PAPERLESS_OIDC_CLIENT/SECRET before
+  SOCIALACCOUNT_PROVIDERS) but user still sees setup wizard.
+
 ## Minor
 - [ ] **m1: Inconsistent namespace name quoting**
-  Some use `'namespace'` (quoted), some use bare `namespace`
-- [ ] **m2: Unpinned sidecar images**
-  `busybox` (homarr init). *(Previously also covered `bitnami/kubectl:latest` 
-  and `python:3.11-slim` — those were in the now-removed SeaweedFS backup 
-  CronJob and backup-check deployment.)*
-- [ ] **m3: Empty values.yaml stubs lack domain injection comment**
-  copyparty, gitea-actions, homarr, paperless, seaweedfs-csi values.yaml
-- [ ] **m4: Gitea values.yaml references disabled valkey-cluster subchart**
-- [ ] **m5: Stale identity certificate placeholder template**
-  `services/identity/app/templates/certificate.yaml`
 - [ ] **m6: Poorly named paperless deployment files**
 - [ ] **m7: Share IngressRoute auth bypass undocumented**
 
@@ -19,11 +26,7 @@
 - [ ] **S1: Add PodDisruptionBudget for CNPG database cluster**
 - [ ] **S2: Add egress NetworkPolicy restrictions where safe**
 - [ ] **S3: Add ResourceQuota + LimitRange to service namespaces**
-- [ ] **S4: Standardize or remove certificate.yaml comment file**
-- [ ] **S5: Consider cluster monitoring (node-exporter, Prometheus, Grafana)**
+- [ ] **S5: Consider cluster monitoring**
 
 ## Pending Verification (on next fresh deploy)
-- [ ] Argo CD Authentik SSO
-- [ ] CNPG B2 backup (ObjectStore CRD + plugin-barman-cloud)
 - [ ] Gitea OIDC resolves with production LE cert
-- [ ] Database app syncs cleanly with managed roles
