@@ -11,7 +11,7 @@ restoring persistent data from Backblaze B2 backups.
 |---|---|---|---|
 | CNPG PostgreSQL (6 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
-| SeaweedFS volume data | `s3://k3s-service-cluster/seaweedfs/` | CronJob (daily S3 sync) | 24h |
+| SeaweedFS volume data | `s3://seaweedfs-backups/` (Hetzner Storage Box) | CronJob (daily S3 sync) | 24h |
 | PVC data (Gitea, Paperless, Homarr, etc.) | B2 velero/ prefix | Velero kopia (daily) | 24h |
 | Secrets | 1Password vault | Operator re-creates from vault | N/A (git) |
 | Cluster config (CRDs, Argo, etc.) | Git | Argo CD re-deploys | N/A (git) |
@@ -146,13 +146,13 @@ velero restore create --from-backup <latest-backup-name> \
 ### Phase 4 — Restore SeaweedFS volume data
 The SeaweedFS volume data is backed up via CronJob to B2. Restore manually:
 ```bash
-# Identify the SeaweedFS volume pod
-kubectl -n seaweedfs get pods -l app.kubernetes.io/name=seaweedfs
+# Identify the Hetzner Storage Box endpoint from the vault
+# (seaweedfs-backup-salishseawolf.hel1.your-objectstorage.com)
 
-# Exec into the backup-tools sidecar and sync from B2
+# Exec into the backup-tools sidecar and sync from object storage
 kubectl -n seaweedfs exec deployment/seaweedfs -c backup-tools -- \
-  aws s3 sync s3://k3s-service-cluster/seaweedfs/ /data/ \
-  --endpoint-url https://s3.us-west-004.backblazeb2.com
+  aws s3 sync s3://seaweedfs-backups/ /data/ \
+  --endpoint-url https://seaweedfs-backup-salishseawolf.hel1.your-objectstorage.com
 ```
 
 ### Phase 5 — Re-enable Argo CD management
