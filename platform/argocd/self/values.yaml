@@ -1,4 +1,6 @@
 argo-cd:
+  # Injected by root ApplicationSet from cluster-values.yaml
+  domain: ""
   # Argo CD Helm values — sized for a 3-node cx33 cluster, restricted PSA.
   global:
     securityContext:
@@ -7,24 +9,11 @@ argo-cd:
         type: RuntimeDefault
 
   configs:
+    cm:
+      create: false
     params:
       # TLS terminates at Traefik; Argo serves plain HTTP behind it.
       server.insecure: true
-    cm:
-      url: https://argocd.salishseawolf.com
-      admin.enabled: "true"
-      oidc.config: |
-        name: Authentik
-        issuer: https://auth.salishseawolf.com/application/o/argocd/
-        clientID: $argocd-oidc:oidc_client
-        clientSecret: $argocd-oidc:password
-        requestedScopes: ["openid", "profile", "email"]
-        requestedIDTokenClaims: {"groups": {"essential": true}}
-        logoutURL: https://auth.salishseawolf.com/application/o/argocd/end-session/
-    rbac:
-      policy.default: role:readonly
-      policy.csv: |
-        g, infrastructure, role:admin
 
   dex:
     # Authentik is the IdP; dex is redundant here.
