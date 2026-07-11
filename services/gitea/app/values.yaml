@@ -28,7 +28,6 @@ gitea:
       - name: GITEA__mailer__FROM
         value: noreply@salishseawolf.com
   postgresql-ha: {enabled: false}
-  valkey-cluster: {enabled: false}
   image:
     rootless: true
   persistence:

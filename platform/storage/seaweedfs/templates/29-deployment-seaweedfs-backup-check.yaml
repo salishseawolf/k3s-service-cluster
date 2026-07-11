@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: server
-        image: python:3.11-slim
+        image: python:3.11.15-slim
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

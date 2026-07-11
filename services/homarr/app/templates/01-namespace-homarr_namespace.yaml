@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: 'homarr'
+  name: homarr
   labels:
     app.kubernetes.io/managed-by: argocd
     pod-security.kubernetes.io/enforce: baseline

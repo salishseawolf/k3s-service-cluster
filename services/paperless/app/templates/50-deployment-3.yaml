@@ -1,3 +1,4 @@
+# Deployment for Gotenberg document converter — companion to paperless-ngx
 apiVersion: apps/v1
 kind: Deployment
 metadata:

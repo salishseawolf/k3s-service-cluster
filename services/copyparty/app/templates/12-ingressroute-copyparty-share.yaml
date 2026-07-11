@@ -1,3 +1,6 @@
+# Share links bypass Authentik forward-auth intentionally — copyparty's
+# built-in access controls handle authorization for the /shr endpoint.
+# Priority 150 ensures this route matches before the auth-gated catch-all.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

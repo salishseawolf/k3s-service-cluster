@@ -1,2 +1,0 @@
-{{- /* Wildcard TLS certificate is managed by cert-manager-config chart (platform/cert-manager/config). 
-  This chart uses the TLSStore default certificate in kube-system. No per-namespace cert needed. */ -}}
