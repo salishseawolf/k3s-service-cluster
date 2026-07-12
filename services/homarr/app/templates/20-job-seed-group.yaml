@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: psql
-        image: postgres:17
+        image: postgres:17-alpine
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
