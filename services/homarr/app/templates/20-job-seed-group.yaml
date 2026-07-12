@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-homarr-group
+  namespace: '{{ .Release.Namespace }}'
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      restartPolicy: Never
+      containers:
+      - name: psql
+        image: postgres:17-alpine
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: homarr-db-password
+              key: db_password
+        command:
+        - sh
+        - -c
+        - |
+          psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
+            INSERT INTO \"group\" (id, name, owner_id)
+            SELECT '00000000-0000-0000-0000-000000000001', 'infrastructure', NULL
+            WHERE NOT EXISTS (SELECT 1 FROM \"group\" WHERE name = 'infrastructure');
+          " && \
+          psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
+            INSERT INTO \"groupPermission\" (group_id, permission)
+            SELECT '00000000-0000-0000-0000-000000000001', permission
+            FROM (VALUES
+              ('admin'),
+              ('board:create'),
+              ('board:delete'),
+              ('board:update'),
+              ('invite:use'),
+              ('invite:send'),
+              ('user:create'),
+              ('user:delete'),
+              ('user:manage'),
+              ('integration:create'),
+              ('integration:delete'),
+              ('integration:update')
+            ) AS p(permission)
+            WHERE NOT EXISTS (
+              SELECT 1 FROM \"groupPermission\" gp
+              WHERE gp.group_id = '00000000-0000-0000-0000-000000000001'
+              AND gp.permission = p.permission
+            );
+          "
+      restartPolicy: Never
+  backoffLimit: 3
