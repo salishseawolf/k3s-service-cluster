@@ -11,6 +11,8 @@ spec:
   template:
     spec:
       serviceAccountName: default
+      nodeSelector:
+        kubernetes.io/hostname: k3s-converged-node-03
       restartPolicy: Never
       containers:
       - name: psql
