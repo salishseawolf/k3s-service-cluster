@@ -8,15 +8,17 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
     argocd.argoproj.io/sync-wave: "5"
 spec:
+  ttlSecondsAfterFinished: 3600
   template:
     spec:
       serviceAccountName: default
       nodeSelector:
-        kubernetes.io/hostname: k3s-converged-node-03
+        kubernetes.io/hostname: {{ .Values.seedJob.nodeName }}
       restartPolicy: Never
       containers:
       - name: psql
         image: postgres:17-alpine
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -42,12 +44,17 @@ spec:
         - sh
         - -c
         - |
-          psql -h main-db-rw -U homarr_user -d homarr -c "
-            INSERT INTO \"group\" (id, name, owner_id)
-            SELECT '00000000-0000-0000-0000-000000000001', 'infrastructure', NULL
+          for i in $(seq 1 30); do
+            psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "SELECT 1" > /dev/null 2>&1 && break
+            echo "Waiting for database... attempt $i"
+            sleep 10
+          done
+          psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
+            INSERT INTO \"group\" (id, name, owner_id, \"position\")
+            SELECT '00000000-0000-0000-0000-000000000001', 'infrastructure', NULL, 0
             WHERE NOT EXISTS (SELECT 1 FROM \"group\" WHERE name = 'infrastructure');
           " && \
-          psql -h main-db-rw -U homarr_user -d homarr -c "
+          psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
             INSERT INTO \"groupPermission\" (group_id, permission)
             SELECT '00000000-0000-0000-0000-000000000001', 'admin'
             WHERE NOT EXISTS (
@@ -56,4 +63,4 @@ spec:
               AND gp.permission = 'admin'
             );
           "
-  backoffLimit: 6
+  backoffLimit: 3
