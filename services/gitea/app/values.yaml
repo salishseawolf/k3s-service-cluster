@@ -27,6 +27,16 @@ gitea:
         valueFrom: {secretKeyRef: {name: resend-smtp, key: password}}
       - name: GITEA__mailer__FROM
         value: noreply@salishseawolf.com
+      - name: GITEA_RUNNER_REGISTRATION_TOKEN_FILE
+        value: /etc/runner-token/actions_token
+  extraVolumes:
+    - name: runner-token
+      secret:
+        secretName: gitea-runner-token
+  extraContainerVolumeMounts:
+    - name: runner-token
+      mountPath: /etc/runner-token
+      readOnly: true
   postgresql-ha: {enabled: false}
   image:
     rootless: true
