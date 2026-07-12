@@ -5,6 +5,8 @@ metadata:
   namespace: '{{ .Release.Namespace }}'
   annotations:
     argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   template:
     spec:
@@ -20,6 +22,13 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
         env:
         - name: PGPASSWORD
           valueFrom:
@@ -37,26 +46,11 @@ spec:
           " && \
           psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
             INSERT INTO \"groupPermission\" (group_id, permission)
-            SELECT '00000000-0000-0000-0000-000000000001', permission
-            FROM (VALUES
-              ('admin'),
-              ('board:create'),
-              ('board:delete'),
-              ('board:update'),
-              ('invite:use'),
-              ('invite:send'),
-              ('user:create'),
-              ('user:delete'),
-              ('user:manage'),
-              ('integration:create'),
-              ('integration:delete'),
-              ('integration:update')
-            ) AS p(permission)
+            SELECT '00000000-0000-0000-0000-000000000001', 'admin'
             WHERE NOT EXISTS (
               SELECT 1 FROM \"groupPermission\" gp
               WHERE gp.group_id = '00000000-0000-0000-0000-000000000001'
-              AND gp.permission = p.permission
+              AND gp.permission = 'admin'
             );
           "
-      restartPolicy: Never
-  backoffLimit: 3
+  backoffLimit: 6
