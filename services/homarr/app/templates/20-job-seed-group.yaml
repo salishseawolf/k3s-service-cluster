@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: seed-homarr-group
-  namespace: '{{ .Release.Namespace }}'
+  namespace: database
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
@@ -40,12 +40,12 @@ spec:
         - sh
         - -c
         - |
-          psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
+          psql -h main-db-rw -U homarr_user -d homarr -c "
             INSERT INTO \"group\" (id, name, owner_id)
             SELECT '00000000-0000-0000-0000-000000000001', 'infrastructure', NULL
             WHERE NOT EXISTS (SELECT 1 FROM \"group\" WHERE name = 'infrastructure');
           " && \
-          psql -h main-db-rw.database.svc.cluster.local -U homarr_user -d homarr -c "
+          psql -h main-db-rw -U homarr_user -d homarr -c "
             INSERT INTO \"groupPermission\" (group_id, permission)
             SELECT '00000000-0000-0000-0000-000000000001', 'admin'
             WHERE NOT EXISTS (
