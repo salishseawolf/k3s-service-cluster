@@ -20,6 +20,7 @@ spec:
           capabilities:
             drop: ["ALL"]
           runAsNonRoot: true
+          runAsUser: 999
           seccompProfile:
             type: RuntimeDefault
         resources:
