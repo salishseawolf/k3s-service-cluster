@@ -100,11 +100,10 @@ echo "==> Provisioning test cluster (OpenTofu)..."
 tofu apply -auto-approve
 echo ""
 echo "==> Bootstrap test cluster (Ansible)..."
-cd "$MISE_PROJECT_ROOT"
-# Install Hetzner Cloud inventory plugin (if not already installed)
-mise run //bootstrap/ansible:init
-ansible-playbook -i bootstrap/ansible/inventory/hcloud-test.yml \\
-  bootstrap/ansible/playbooks/k3s-cluster.yml \\
+cd "$MISE_PROJECT_ROOT"/bootstrap/ansible
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook \\
+  -i inventory/hcloud-test.yml \\
+  playbooks/k3s-cluster.yml \\
   -e hcloud_project_label=k3s-service-cluster-test \\
   -e k3s_cluster_init_node=k3s-test-node-01
 echo ""
