@@ -1,8 +1,10 @@
-# Test cluster — temporary 3-node K3s cluster mirroring production topology,
-# for full backup-restore drills.
+# Test cluster — temporary K3s cluster for full backup-restore drills.
+# Runs 1 node by default (cloud instance limits) sized to cover production's
+# cumulative resources; topology otherwise mirrors prod (control-plane LB,
+# private network, firewall, prod cloud-init + Ansible bootstrap).
 #
-# Mirrors infrastructure/tofu 1:1 (3 nodes + control-plane LB + private
-# network + firewall), with:
+# Mirrors infrastructure/tofu (control-plane LB + private network +
+# firewall + prod cloud-init), with:
 #   - distinct names/labels (project=k3s-service-cluster-test) so the prod
 #     Ansible dynamic inventory and hcloud_facts lookups NEVER match these
 #     resources — and vice versa
@@ -205,14 +207,21 @@ resource "hcloud_firewall" "test" {
   }
 }
 
-# K3s Nodes — same count, image, layout, and cloud-init as production.
+# K3s Nodes — same image, layout, and cloud-init as production. Node count
+# and per-node size come from var.server_types: default is ONE node covering
+# prod's cumulative resources (see variables.tf) due to instance limits.
+# Topology still mirrors prod where it matters for the drill: control-plane
+# LB (which hcloud_facts and the kubeconfig endpoint require), private
+# network, firewall, and the prod Ansible bootstrap (the join play simply
+# matches no hosts). Single-node etcd has no fault tolerance — fine for an
+# ephemeral drill; it does NOT exercise prod's node-failure behavior.
 # Names are distinct (k3s-test-node-*) both because hcloud requires unique
 # names and so inventory host patterns can never cross environments.
 resource "hcloud_server" "test_nodes" {
-  count       = 3
+  count       = length(var.server_types)
   name        = "k3s-test-node-${format("%02d", count.index + 1)}"
   image       = "debian-12"
-  server_type = var.server_type
+  server_type = var.server_types[count.index]
   location    = var.location
   ssh_keys    = [data.hcloud_ssh_key.k3s_ssh_key.id]
 
@@ -240,8 +249,17 @@ resource "hcloud_server" "test_nodes" {
 
 # Wildcard DNS for the test domain — points to the test LB.
 # The zone for salishseawolf.bid must exist in Cloudflare.
+# SAFETY: the zone is resolved by NAME from var.test_domain, deliberately
+# NOT from TF_VAR_cloudflare_zone_id — the root mise.toml exports that from
+# the production (.com) credentials for infrastructure/tofu, and using it
+# here would create a wildcard record in the PRODUCTION zone pointing at
+# the test LB. The API token's zone scope must include salishseawolf.bid.
+data "cloudflare_zone" "test" {
+  name = var.test_domain
+}
+
 resource "cloudflare_record" "wildcard" {
-  zone_id = var.cloudflare_zone_id
+  zone_id = data.cloudflare_zone.test.id
   name    = "*"
   content = hcloud_load_balancer.test.ipv4
   type    = "A"

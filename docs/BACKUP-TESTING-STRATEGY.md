@@ -13,17 +13,18 @@ only way to prove the backup pipeline works end-to-end.
 
 ## Strategy 1 — Full Cluster Restore (separate infrastructure)
 
-Provision a temporary 3-node K3s cluster mirroring production topology
-(3 converged nodes at prod's server type + control-plane LB + private
-network, ~€0.03-0.05/hr all-in), bootstrap it with the SAME Ansible playbooks
-as production, and perform a full restore from B2. Spin it up, test, tear
-down — well under €1 for a full-day drill. There is no recurring cost: all
-resources are destroyed after each drill. Because the drill runs the real
-bootstrap path (HA etcd, hcloud-ccm/csi, CIS args), it validates the
-provisioning runbook as well as the backups.
+Provision a temporary 1-node K3s cluster mirroring production where it
+matters (cx43 covering prod's cumulative 6 vCPU / 12 GB, plus control-plane
+LB + private network, ~€0.03-0.04/hr all-in), bootstrap it with the SAME
+Ansible playbooks as production, and perform a full restore from B2. Spin it
+up, test, tear down — well under €1 for a full-day drill. There is no
+recurring cost: all resources are destroyed after each drill. Because the
+drill runs the real bootstrap path (cluster-init, hcloud-ccm/csi, CIS args),
+it validates the provisioning runbook as well as the backups — though not
+the HA join path or node-failure behavior.
 
 **Steps:**
-1. Provision the mirrored 3-node cluster via `tools/test-cluster/tofu` and
+1. Provision the mirrored cluster via `tools/test-cluster/tofu` and
    bootstrap it with the production Ansible playbooks (test inventory)
 2. Install Velero + CNPG operator + plugin-barman-cloud on the test cluster
 3. Restore Velero backup (all PVCs, configs, resources)

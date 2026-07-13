@@ -2,9 +2,11 @@
 
 ## Goal
 
-Provision a temporary, isolated 3-node K3s cluster on Hetzner that mirrors
-production topology (3 converged nodes + control-plane LB + private network,
-bootstrapped by the SAME Ansible playbooks as prod) and restore the full
+Provision a temporary, isolated K3s cluster on Hetzner that mirrors
+production where it matters (control-plane LB + private network,
+bootstrapped by the SAME Ansible playbooks as prod). Due to cloud instance
+limits it runs a single converged node sized to cover prod's CUMULATIVE
+resources: cx43 (8 vCPU / 16 GB) vs prod's 3x cx23 (6 vCPU / 12 GB total) and restore the full
 production workload from Backblaze B2 backups (Velero kopia + CNPG
 barman-cloud). Prove the backup pipeline AND the bootstrap runbook end-to-end
 with zero cross-talk to production.
@@ -258,7 +260,7 @@ any possible misconfiguration from writing to the production backup bucket.
   whitelisted (ingress traffic arrives via the test LB, mirroring prod).
 
 **Recommended configuration:** implemented in `tools/test-cluster/tofu/`
-(3 nodes on `10.0.1.2-4`, LB on `10.0.1.10`, separate network `10.0.0.0/16`,
+(1 node on `10.0.1.2`, LB on `10.0.1.10`, separate network `10.0.0.0/16`,
 prod-mirrored firewall). See that module rather than duplicating HCL here.
 
 **Key isolation properties:**
@@ -369,8 +371,9 @@ prod-mirrored firewall). See that module rather than duplicating HCL here.
 
 **0.1 Test OpenTofu lives in the repo**
 
-`tools/test-cluster/tofu/` mirrors `infrastructure/tofu` — 3 nodes
-(`k3s-test-node-01..03`), a control-plane LB, private network `10.0.0.0/16`,
+`tools/test-cluster/tofu/` mirrors `infrastructure/tofu` — a single node
+(`k3s-test-node-01`, cx43, covering the cumulative resources of prod's 3
+nodes; see `var.server_types`), a control-plane LB, private network `10.0.0.0/16`,
 and the prod firewall rule set. It reuses production's `cloud-init.yaml` and
 `files/provision.d/` scripts via relative path, so node provisioning is
 byte-identical to prod. All resources carry `project=k3s-service-cluster-test`
@@ -428,37 +431,28 @@ tofu init
 tofu apply
 ```
 
-**1.2 Create DNS record**
+**1.2 DNS record — created automatically by tofu**
 
-⚠️ The record lives in the **salishseawolf.bid zone**, not the .com zone. The
-`zone_id` stored in "Cloudflare DNS Challenge" is the .com zone — look up the
-.bid zone ID separately, and confirm the API token's zone scope covers it.
+The wildcard A record `*.salishseawolf.bid` → test LB is created by the
+`cloudflare_record.wildcard` resource in the same `tofu apply`. The zone is
+resolved BY NAME (`var.test_domain`), never from the environment's
+`TF_VAR_cloudflare_zone_id` — that variable carries the production .com
+zone ID for `infrastructure/tofu`, and must never be used here. Verify:
 
 ```bash
-LB_IP=$(tofu output -raw test_lb_ip)
-BID_ZONE_ID=$(curl -s "https://api.cloudflare.com/client/v4/zones?name=salishseawolf.bid" \
-  -H "Authorization: Bearer ${CF_TOKEN}" | jq -r '.result[0].id')
-curl -X POST "https://api.cloudflare.com/client/v4/zones/${BID_ZONE_ID}/dns_records" \
-  -H "Authorization: Bearer ${CF_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "A",
-    "name": "*.salishseawolf.bid",
-    "content": "'${LB_IP}'",
-    "ttl": 300,
-    "proxied": false,
-    "comment": "Test cluster restore — temporary"
-  }'
+dig +short "test-$(date +%s).salishseawolf.bid" @1.1.1.1   # should return the LB IP
 ```
 
 ### Phase 2 — Bootstrap K3s and ArgoCD (15 min)
 
 **2.1 Bootstrap K3s with the SAME Ansible playbooks as production**
 
-This is the realism payoff of the 3-node mirror: the drill exercises the
-actual DR bootstrap path — HA embedded etcd (cluster-init + serial joins),
-CIS-hardened K3s args, hcloud-ccm, hcloud-csi, and the encryption/audit
-config — exactly as it would run after total infrastructure loss.
+This is the realism payoff of the mirrored setup: the drill exercises the
+actual DR bootstrap path — cluster-init, CIS-hardened K3s args, hcloud-ccm,
+hcloud-csi, and the encryption/audit config — exactly as it would run after
+total infrastructure loss. (With one node, the join play matches no hosts
+and is skipped; etcd runs single-member, so the drill does NOT exercise
+prod's HA join or node-failure behavior.)
 
 The test inventory (`inventory/hcloud-test.yml`) only matches
 `project=k3s-service-cluster-test`, and the two extra-vars repoint the
@@ -478,7 +472,7 @@ ansible-playbook -i inventory/hcloud-test.yml playbooks/k3s-cluster.yml \
 
 # Kubeconfig is retrieved by the playbook (endpoint = the test LB IP)
 export KUBECONFIG=./kubeconfig
-kubectl get nodes   # expect 3 Ready nodes
+kubectl get nodes   # expect 1 Ready node (k3s-test-node-01)
 ```
 
 ⚠️ Exposure note: like prod, the LB's services (6443/80/443/2222) cannot have
@@ -634,7 +628,7 @@ metadata:
   name: main-db
   namespace: database
 spec:
-  instances: 3   # mirrors prod; drop to 1 to speed up recovery if desired
+  instances: 1   # single test node — replicas add nothing here (prod runs 3)
   imageName: ghcr.io/cloudnative-pg/postgresql:17.4
   storage:
     size: 20Gi
@@ -798,7 +792,7 @@ let ArgoCD handle it if you chose the full ArgoCD approach.
 
 ### Phase 5 — Validation (10 min)
 
-- [ ] All 3 test nodes Ready: `kubectl get nodes` (k3s-test-node-01..03)
+- [ ] Test node Ready: `kubectl get nodes` (k3s-test-node-01)
 - [ ] CNPG cluster healthy: `kubectl -n database get cluster main-db`
 - [ ] All 6 databases present: `psql -U postgres -c "\l"`
 - [ ] Velero PVCs restored: `kubectl get pvc --all-namespaces | grep -v database`
@@ -807,7 +801,7 @@ let ArgoCD handle it if you chose the full ArgoCD approach.
 - [ ] Paperless documents searchable
 - [ ] Homarr dashboard loads with widgets
 - [ ] SeaweedFS filer accessible
-- [ ] No unexpected connections to production (on each test node:
+- [ ] No unexpected connections to production (on the test node:
   `ss -tnp | grep 192.168` should be empty)
 - [ ] Production cluster unchanged: `kubectl --kubeconfig <prod-kubeconfig> get nodes` all Ready
 
@@ -820,7 +814,7 @@ CF_RECORD_ID=$(curl -s "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dn
 curl -X DELETE "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${CF_RECORD_ID}" \
   -H "Authorization: Bearer ${CF_TOKEN}"
 
-# 2. Destroy Hetzner resources (3 nodes, LB, network, subnet, firewall,
+# 2. Destroy Hetzner resources (node, LB, network, subnet, firewall,
 #    and any hcloud Volumes the CSI driver created)
 cd tools/test-cluster/tofu
 tofu destroy -auto-approve
@@ -861,8 +855,8 @@ git branch -D test-full-cluster-restore
 | Git | `main` branch on GitHub mirror | `test-full-cluster-restore` branch | Separate branch; no push back |
 
 **Estimated total time:** 90-120 minutes
-**Estimated cost:** roughly €0.03-0.05/hr all-in (3 nodes at prod's server
-type + one lb11 + CSI-created Volumes) — well under €1 for a full-day drill.
+**Estimated cost:** roughly €0.03-0.04/hr all-in (one cx43 + one lb11 +
+CSI-created Volumes) — well under €1 for a full-day drill.
 Note: CX21 from the original draft was deprecated by Hetzner in Sep 2024 and
 is no longer orderable; the module defaults to the same server type as
 production nodes for a faithful mirror.

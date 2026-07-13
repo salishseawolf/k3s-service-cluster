@@ -13,7 +13,9 @@ _.file = [".secrets.env", "/tmp/.secrets.env.agent"]
 KUBECONFIG = "{{ config_root }}/kubeconfig"
 TF_VAR_cloudflare_zone_id = "op://K3s Service Cluster/Cloudflare DNS Challenge/zone_id"
 TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
-TF_VAR_server_type = "cx33"
+# Single test node covering prod's cumulative 3x cx23 (6 vCPU / 12 GB);
+# JSON list — node count = list length (see tools/test-cluster/tofu/variables.tf)
+TF_VAR_server_types = '["cx43"]'
 DOMAIN = "{{ env.TF_VAR_domain }}"
 ANSIBLE_FORCE_COLOR = "1"
 OP_ACCOUNT = "U2NWAVMUCZHATMVL7WHEOJIDNY"
@@ -106,7 +108,7 @@ ansible-playbook -i bootstrap/ansible/inventory/hcloud-test.yml \\
 echo ""
 echo "Drill infrastructure ready:"
 echo "  Apps:  *.salishseawolf.bid"
-echo "  SSH:   k3s-test-node-01..03 (see tofu output for IPs)"
+echo "  SSH:   k3s-test-node-01 (see tofu output for IP)"
 echo "  Next:  follow docs/BACKUP-TESTING-FULL-CLUSTER-RESTORE.md Phase 2"
 '
 """
