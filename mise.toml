@@ -29,7 +29,6 @@ K3S_ETCD_SECRET = "op://K3s Service Cluster/K3s Service Cluster/etcd_secret"
 
 [tools]
 "opentofu" = "latest"
-"1password-cli" = "latest"
 "pre-commit" = "3.8.0"
 "pipx" = "latest"
 "uv" = "latest"
