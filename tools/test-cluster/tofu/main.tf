@@ -20,6 +20,10 @@ provider "hcloud" {
   token = var.hcloud_token
 }
 
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
 locals {
   # Reuse production's node provisioning verbatim
   prod_module = "${path.module}/../../../infrastructure/tofu"
@@ -234,9 +238,19 @@ resource "hcloud_server" "test_nodes" {
   depends_on = [hcloud_network_subnet.test]
 }
 
+# Wildcard DNS for the test domain — points to the test LB.
+# The zone for salishseawolf.bid must exist in Cloudflare.
+resource "cloudflare_record" "wildcard" {
+  zone_id = var.cloudflare_zone_id
+  name    = "*"
+  content = hcloud_load_balancer.test.ipv4
+  type    = "A"
+  ttl     = 120
+}
+
 output "test_lb_ip" {
   value       = hcloud_load_balancer.test.ipv4
-  description = "Public IP of the test control-plane LB — point *.salishseawolf.bid here"
+  description = "Public IP of the test control-plane LB — *.salishseawolf.bid points here"
 }
 
 output "test_node_ips" {

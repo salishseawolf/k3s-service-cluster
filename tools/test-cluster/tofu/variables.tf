@@ -36,3 +36,14 @@ variable "server_type" {
   type        = string
   default     = "cx23"
 }
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token with DNS edit access for salishseawolf.bid"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Zone ID for salishseawolf.bid in Cloudflare"
+  type        = string
+}
