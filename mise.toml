@@ -99,10 +99,13 @@ echo ""
 echo "==> Provisioning test cluster (OpenTofu)..."
 tofu apply -auto-approve
 echo ""
-echo "==> Bootstrap test cluster (Ansible)..."
+echo "==> Install Ansible collections..."
 cd "$MISE_PROJECT_ROOT"/bootstrap/ansible
+ansible-galaxy collection install -r requirements.yml
+echo ""
+echo "==> Bootstrap test cluster (Ansible)..."
 ANSIBLE_CONFIG=ansible.cfg ansible-playbook \\
-  -i inventory/hcloud-test.yml \\
+  -i inventory/test/hcloud.yml \\
   playbooks/k3s-cluster.yml \\
   -e hcloud_project_label=k3s-service-cluster-test \\
   -e k3s_cluster_init_node=k3s-test-node-01

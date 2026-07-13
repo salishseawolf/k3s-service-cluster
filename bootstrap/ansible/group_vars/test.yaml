@@ -1,0 +1,3 @@
+---
+# Test cluster hosts connect as root (Debian 12 default)
+ansible_user: root
