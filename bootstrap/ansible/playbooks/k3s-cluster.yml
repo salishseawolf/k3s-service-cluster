@@ -9,7 +9,7 @@
     - role: hcloud_facts
 
 - name: Initialize K3s cluster (first node)
-  hosts: k3s-converged-node-01
+  hosts: k3s_init_node
   become: true
   gather_facts: true
   vars:
@@ -21,7 +21,7 @@
     - role: k3s_server
 
 - name: Join K3s cluster (additional nodes)
-  hosts: k3s_nodes:!k3s-converged-node-01
+  hosts: k3s_nodes:!k3s_init_node
   become: true
   gather_facts: true
   serial: 1
@@ -43,7 +43,7 @@
         state: present
 
 - name: Retrieve kubeconfig
-  hosts: k3s-converged-node-01
+  hosts: k3s_init_node
   become: true
   gather_facts: false
   vars:

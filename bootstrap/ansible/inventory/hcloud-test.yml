@@ -1,0 +1,32 @@
+---
+# Hetzner Cloud Dynamic Inventory — TEST restore cluster ONLY
+#
+# Matches only servers labeled project=k3s-service-cluster-test (created by
+# tools/test-cluster/tofu). The production inventory (hcloud.yml) filters
+# project=k3s-service-cluster, so neither inventory can ever see the other
+# environment's nodes.
+#
+# Usage (see docs/BACKUP-TESTING-FULL-CLUSTER-RESTORE.md Phase 2):
+#   ansible-playbook -i inventory/hcloud-test.yml playbooks/k3s-cluster.yml \
+#     -e hcloud_project_label=k3s-service-cluster-test \
+#     -e k3s_cluster_init_node=k3s-test-node-01
+
+plugin: hetzner.hcloud.hcloud
+
+token_env: HCLOUD_TOKEN
+
+filters:
+  - label_selector == "project=k3s-service-cluster-test"
+  - label_selector == "role=k3s-node"
+
+compose:
+  ansible_host: ipv4_address
+
+groups:
+  k3s_nodes: hcloud_labels.role == "k3s-node"
+  k3s_init_node: inventory_hostname == "k3s-test-node-01"
+  test: hcloud_labels.environment == "test"
+
+keyed_groups:
+  - key: hcloud_server_type
+    prefix: type

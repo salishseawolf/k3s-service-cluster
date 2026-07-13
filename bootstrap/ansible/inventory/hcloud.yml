@@ -24,6 +24,10 @@ groups:
   # Group all k3s nodes
   k3s_nodes: hcloud_labels.role == "k3s-node"
 
+  # The cluster-init node, so playbooks can target a group instead of a
+  # hardcoded hostname (lets the same playbooks bootstrap the test cluster)
+  k3s_init_node: inventory_hostname == "k3s-converged-node-01"
+
   # Group by environment
   production: hcloud_labels.environment == "production"
 

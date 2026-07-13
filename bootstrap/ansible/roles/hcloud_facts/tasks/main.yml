@@ -16,7 +16,7 @@
 
 - name: Fetch Load Balancer from Hetzner Cloud
   hetzner.hcloud.load_balancer_info:
-    label_selector: "project=k3s-service-cluster,role=k3s-control-plane"
+    label_selector: "project={{ hcloud_project_label | default('k3s-service-cluster') }},role=k3s-control-plane"
   register: hcloud_load_balancers
   no_log: true
 
@@ -25,7 +25,7 @@
     that:
       - hcloud_load_balancers.hcloud_load_balancer_info | length == 1
     fail_msg: >-
-      Expected 1 Load Balancer with project=k3s-service-cluster,role=k3s-control-plane
+      Expected 1 Load Balancer with project={{ hcloud_project_label | default('k3s-service-cluster') }},role=k3s-control-plane
 
 - name: Set Load Balancer IP fact
   ansible.builtin.set_fact:
@@ -35,7 +35,7 @@
 
 - name: Fetch Hetzner Cloud Network
   hetzner.hcloud.network_info:
-    label_selector: "project=k3s-service-cluster"
+    label_selector: "project={{ hcloud_project_label | default('k3s-service-cluster') }}"
   register: hcloud_networks
   no_log: true
 
@@ -43,7 +43,7 @@
   ansible.builtin.assert:
     that:
       - hcloud_networks.hcloud_network_info | length == 1
-    fail_msg: "Expected 1 network with project=k3s-service-cluster"
+    fail_msg: "Expected 1 network with project={{ hcloud_project_label | default('k3s-service-cluster') }}"
 
 - name: Set network fact
   ansible.builtin.set_fact:
