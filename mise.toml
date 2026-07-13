@@ -18,8 +18,16 @@ DOMAIN = "{{ env.TF_VAR_domain }}"
 ANSIBLE_FORCE_COLOR = "1"
 OP_ACCOUNT = "U2NWAVMUCZHATMVL7WHEOJIDNY"
 
+# Test cluster variables (resolved by op run during test-cluster:drill)
+TF_VAR_hcloud_token = "{{ env.HCLOUD_TOKEN }}"
+TF_VAR_ssh_key_name = "op://K3s Service Cluster/K3s Service Cluster SSH Key/hetzner_key_name"
+TF_VAR_allowed_admin_cidr = "op://K3s Service Cluster/Admin Allow List/IPV4"
+K3S_TOKEN = "op://K3s Service Cluster/K3s Service Cluster/credential"
+K3S_ETCD_SECRET = "op://K3s Service Cluster/K3s Service Cluster/etcd_secret"
+
 [tools]
 "opentofu" = "latest"
+"1password-cli" = "latest"
 "pre-commit" = "3.8.0"
 "pipx" = "latest"
 "uv" = "latest"
@@ -76,6 +84,38 @@ op run -- bash -c '
 [tasks.destroy]
 description = "Tear down all cloud resources"
 run = "mise run //infrastructure/tofu:destroy"
+
+[tasks."test-cluster:drill"]
+description = "Provision + bootstrap a temporary test cluster for backup restore validation"
+run = """
+op run -- bash -c '
+set -e
+echo "==> Initializing test cluster (OpenTofu)..."
+cd tools/test-cluster/tofu
+tofu init
+echo ""
+echo "==> Provisioning test cluster (OpenTofu)..."
+tofu apply -auto-approve
+echo ""
+echo "==> Bootstrap test cluster (Ansible)..."
+cd "$MISE_PROJECT_ROOT"
+ansible-playbook -i bootstrap/ansible/inventory/hcloud-test.yml \\
+  bootstrap/ansible/playbooks/k3s-cluster.yml \\
+  -e hcloud_project_label=k3s-service-cluster-test \\
+  -e k3s_cluster_init_node=k3s-test-node-01
+echo ""
+echo "Drill infrastructure ready:"
+echo "  Apps:  *.salishseawolf.bid"
+echo "  SSH:   k3s-test-node-01..03 (see tofu output for IPs)"
+echo "  Next:  follow docs/BACKUP-TESTING-FULL-CLUSTER-RESTORE.md Phase 2"
+'
+"""
+
+[tasks."test-cluster:destroy"]
+description = "Destroy the test cluster (tofu + DNS cleanup)"
+run = """
+op run -- bash -c 'cd tools/test-cluster/tofu && tofu destroy -auto-approve'
+"""
 
 [tasks."step-ca:init"]
 description = "Initialize step-ca PKI using step CLI, store in 1Password"
