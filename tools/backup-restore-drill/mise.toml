@@ -18,7 +18,7 @@ description = "Provision test cluster, restore CNPG and Velero backups, validate
 run = """
 op run -- bash -c '
 set -e
-TOFU_DIR="$MISE_PROJECT_ROOT"/tools/test-cluster/tofu
+TOFU_DIR="$MISE_PROJECT_ROOT"/../test-cluster/tofu
 
 echo "==> Phase 1: Provision test cluster (OpenTofu)..."
 cd "$TOFU_DIR"
@@ -27,7 +27,7 @@ tofu apply -auto-approve
 echo ""
 
 echo "==> Phase 2: Bootstrap K3s (Ansible)..."
-cd "$MISE_PROJECT_ROOT"/bootstrap/ansible
+cd "$MISE_PROJECT_ROOT"/../../bootstrap/ansible
 ansible-galaxy collection install -r requirements.yml -q
 ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
   -i inventory/test/hcloud.yml \
@@ -173,7 +173,7 @@ echo "  kubectl get pvc --all-namespaces"
 description = "Tear down the test cluster"
 run = """
 op run -- bash -c '
-cd "$MISE_PROJECT_ROOT"/tools/test-cluster/tofu
+cd "$MISE_PROJECT_ROOT"/../test-cluster/tofu
 tofu destroy -auto-approve
 '
 """
