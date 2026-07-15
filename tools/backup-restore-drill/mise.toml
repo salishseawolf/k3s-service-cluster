@@ -1,8 +1,17 @@
 [env]
-TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/test_domain"
+# Tofu variables
+TF_VAR_test_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/test_domain"
 TF_VAR_location = "fsn1"
-CLOUDFLARE_API_TOKEN = "op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token"
 TF_VAR_cloudflare_api_token = "op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token"
+
+# CNPG B2 backup credentials (resolved by op run — NOT the 1Password Operator)
+CNPG_B2_KEY_ID = "op://K3s Service Cluster/BackBlaze CNPG B2 Bucket/s3_key_id"
+CNPG_B2_APP_KEY = "op://K3s Service Cluster/BackBlaze CNPG B2 Bucket/s3_application_key"
+VELERO_B2_KEY_ID = "op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_key_id"
+VELERO_B2_APP_KEY = "op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_application_key"
+
+[tools]
+"velero" = "latest"
 
 [tasks.drill]
 description = "Provision test cluster, restore CNPG and Velero backups, validate data integrity"
@@ -21,7 +30,7 @@ echo "==> Phase 2: Bootstrap K3s (Ansible)..."
 cd "$MISE_PROJECT_ROOT"/bootstrap/ansible
 ansible-galaxy collection install -r requirements.yml -q
 ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
-  -i inventory/hcloud-test.yml \
+  -i inventory/test/hcloud.yml \
   playbooks/k3s-cluster.yml \
   -e hcloud_project_label=k3s-service-cluster-test \
   -e k3s_cluster_init_node=k3s-test-node-01
@@ -43,16 +52,13 @@ helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts --force-up
 echo ""
 
 echo "==> Phase 4: Restore CNPG database from B2..."
-# Create namespace and B2 backup secret
 kubectl create ns database --dry-run=client -o yaml | kubectl apply -f -
-CNPG_KEY_ID=*** read "op://K3s Service Cluster/BackBlaze CNPG B2 Bucket/s3_key_id")
-CNPG_APP_KEY=*** read "op://K3s Service Cluster/BackBlaze CNPG B2 Bucket/s3_application_key")
 kubectl -n database create secret generic cnpg-backup-secret \
-  --from-literal=s3_key_id="$CNPG_KEY_ID" \
-  --from-literal=s3_application_key="$CNPG_APP_KEY" \
+  --from-literal=s3_key_id="$CNPG_B2_KEY_ID" \
+  --from-literal=s3_application_key="$CNPG_B2_APP_KEY" \
   --dry-run=client -o yaml | kubectl apply -f - --validate=false
 
-# ObjectStore
+# ObjectStore CR
 cat <<'OBJEOF' | kubectl apply -f -
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
@@ -73,7 +79,7 @@ spec:
   retentionPolicy: "30d"
 OBJEOF
 
-# Recovery cluster
+# Recovery cluster CR
 cat <<'CLUEOF' | kubectl apply -f -
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -107,15 +113,13 @@ spec:
     storageClass: hcloud-volumes
 CLUEOF
 
-echo "==> Waiting for CNPG recovery (up to 15 min)..."
+echo "Waiting for CNPG recovery (up to 15 min)..."
 kubectl -n database wait --for=condition=Ready cluster/main-db --timeout=900s || \
   echo "Timed out — check: kubectl -n database get pods"
 echo ""
 
 echo "==> Phase 5: Restore Velero PVCs from B2..."
 # Install Velero with B2 credentials
-VELERO_KEY_ID=*** read "op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_key_id")
-VELERO_APP_KEY=*** read "op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_application_key")
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.10.0 \
@@ -124,8 +128,8 @@ velero install \
   --backup-location-config region=us-west-004,s3ForcePathStyle=true,s3Url=https://s3.us-west-004.backblazeb2.com \
   --secret-file <(cat <<SECRETS
 [default]
-aws_access_key_id=$VELERO_KEY_ID
-aws_secret_access_key=$VELERO_APP_KEY
+aws_access_key_id=$VELERO_B2_KEY_ID
+aws_secret_access_key=$VELERO_B2_APP_KEY
 SECRETS
   ) \
   --use-node-agent \
@@ -133,20 +137,35 @@ SECRETS
   --namespace velero \
   --wait
 
+# Restore PVCs from the latest backup
+LATEST=$(velero get backups -o json 2>/dev/null | python3 -c "import sys,json; b=json.load(sys.stdin).get('items',[]); print(b[0]['metadata']['name'] if b else '')" 2>/dev/null || echo "")
+if [ -n "$LATEST" ]; then
+  echo "Restoring from backup: $LATEST"
+  velero restore create --from-backup "$LATEST" \
+    --include-resources persistentvolumeclaims,persistentvolumes \
+    --exclude-namespaces database,cnpg-system \
+    --wait
+else
+  echo "No backups found. Check velero get backups"
+fi
 echo ""
+
 echo "==> Phase 6: Data validation..."
 echo "---"
 echo "=== Database check ==="
-kubectl -n database exec main-db-1 -c postgres -- 2>/dev/null \
-  psql -U postgres -c "\\l" || echo "Database not ready yet"
+kubectl -n database exec main-db-1 -c postgres -- psql -U postgres -c "\\l" 2>/dev/null || echo "Database not ready yet"
 echo "---"
-echo "=== Velero backups available ==="
+echo "=== Velero backup status ==="
 velero get backups 2>/dev/null || echo "Velero not ready"
+echo "=== Velero restore status ==="
+velero get restores 2>/dev/null || echo "No restores yet"
+echo "=== PVC status ==="
+kubectl get pvc --all-namespaces 2>/dev/null || echo "No PVCs"
 echo ""
-echo "Drill complete. Next: review output above or run:"
-echo "  kubectl -n database get pods"
+echo "Drill complete. Validate further with:"
+echo "  kubectl -n database exec main-db-1 -c postgres -- psql -U postgres -c \"\\l\""
+echo "  kubectl -n database exec main-db-1 -c postgres -- psql -U postgres -d authentik -c \"\\dt\""
 echo "  kubectl get pvc --all-namespaces"
-echo "  velero get backups"
 '
 """
 
