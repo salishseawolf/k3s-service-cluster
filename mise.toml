@@ -91,7 +91,11 @@ description = "Provision + bootstrap a temporary test cluster for backup restore
 env = {
   TF_VAR_location = 'fsn1',
   TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/test_domain",
-  GIT_ARGOCD_TOKEN = "op://K3s Service Cluster/ArgoCD Github Token/password"
+  GIT_ARGOCD_TOKEN="op://K3s Service Cluster/ArgoCD Github Token/password",
+  CLOUDFLARE_API_TOKEN="op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token",
+  TF_VAR_cloudflare_api_token="op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token",
+  OP_CONNECT_JWT="op://K3s Service Cluster/K3s Service Cluster Environment Credentials File/1password-credentials.json",
+  OP_OPERATOR_TOKEN="op://K3s Service Cluster/K3s Service Cluster 1Password Connect Access/token",
 }
 run = """
 op run -- bash -c '
@@ -115,8 +119,9 @@ ANSIBLE_CONFIG=ansible.cfg ansible-playbook \\
   -e k3s_cluster_init_node=k3s-test-node-01
 echo ""
 echo "==> Installing cert-manager..."
+helm repo add jetstack https://charts.jetstack.io --force-update
 helm upgrade --install cert-manager jetstack/cert-manager \
-  --repo https://charts.jetstack.io --version v1.17.2 \
+  --version v1.21.0 \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true --wait
 echo ""
@@ -132,9 +137,42 @@ kubectl -n argocd create secret generic cluster-repo \
   --from-literal=url=https://github.com/salishseawolf/k3s-service-cluster.git \
   --from-literal=password="$GIT_ARGOCD_TOKEN" \
   --from-literal=username=git \
-  --dry-run=client -o yaml | kubectl label -f - --local \
-    argocd.argoproj.io/secret-type=repository | kubectl apply -f - --validate=false
+  --dry-run=client -o yaml > /tmp/repo-secret.yaml
+kubectl label -f /tmp/repo-secret.yaml --local \
+  argocd.argoproj.io/secret-type=repository -o yaml > /tmp/repo-labeled.yaml
+kubectl apply -f /tmp/repo-labeled.yaml --validate=false
 kubectl apply -f "$MISE_PROJECT_ROOT"/platform/argocd/root/projects/
+echo ""
+echo "==> Configuring cert-manager issuer..."
+kubectl -n cert-manager create secret generic cloudflare-api-token \
+  --from-literal=api-token="$CLOUDFLARE_API_TOKEN" \
+  --dry-run=client -o yaml | kubectl apply -f - --validate=false
+cat <<'EOF' | kubectl apply -f - --validate=false
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+spec:
+  acme:
+    email: admin@salishseawolf.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+EOF
+echo ""
+echo "==> Installing 1Password Connect + Operator..."
+helm repo add 1password https://1password.github.io/connect-helm-charts --force-update
+helm upgrade --install onepassword-connect 1password/connect \
+  --namespace 1password --create-namespace --wait \
+  --set connect.credentials_base64="$(echo -n "$OP_CONNECT_JWT" | base64 -w0)" \
+  --set operator.create=true \
+  --set operator.token.value="$OP_OPERATOR_TOKEN"
 echo ""
 echo "==> Deploying platform apps (test branch)..."
 cd "$MISE_PROJECT_ROOT"
