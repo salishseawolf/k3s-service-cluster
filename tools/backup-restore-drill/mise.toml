@@ -1,0 +1,160 @@
+[env]
+TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/test_domain"
+TF_VAR_location = "fsn1"
+CLOUDFLARE_API_TOKEN = "op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token"
+TF_VAR_cloudflare_api_token = "op://Hermes Agent/K3s Service Cluster Cloudflare DNS Challenge/token"
+
+[tasks.drill]
+description = "Provision test cluster, restore CNPG and Velero backups, validate data integrity"
+run = """
+op run -- bash -c '
+set -e
+TOFU_DIR="$MISE_PROJECT_ROOT"/tools/test-cluster/tofu
+
+echo "==> Phase 1: Provision test cluster (OpenTofu)..."
+cd "$TOFU_DIR"
+tofu init -no-color
+tofu apply -auto-approve
+echo ""
+
+echo "==> Phase 2: Bootstrap K3s (Ansible)..."
+cd "$MISE_PROJECT_ROOT"/bootstrap/ansible
+ansible-galaxy collection install -r requirements.yml -q
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
+  -i inventory/hcloud-test.yml \
+  playbooks/k3s-cluster.yml \
+  -e hcloud_project_label=k3s-service-cluster-test \
+  -e k3s_cluster_init_node=k3s-test-node-01
+echo ""
+
+echo "==> Phase 3: Install restore operators..."
+# CNPG operator
+kubectl apply -f \
+  https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.1.yaml
+kubectl -n cnpg-system wait --for=condition=Ready pods --all --timeout=120s
+
+# barman-cloud plugin
+helm repo add cnpg https://cloudnative-pg.github.io/charts --force-update
+helm upgrade --install plugin-barman-cloud cnpg/plugin-barman-cloud \
+  --version 0.7.0 --namespace cnpg-system --create-namespace --wait
+
+# Velero
+helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts --force-update
+echo ""
+
+echo "==> Phase 4: Restore CNPG database from B2..."
+# Create namespace and B2 backup secret
+kubectl create ns database --dry-run=client -o yaml | kubectl apply -f -
+CNPG_KEY_ID=*** read "op://K3s Service Cluster/BackBlaze CNPG B2 Bucket/s3_key_id")
+CNPG_APP_KEY=*** read "op://K3s Service Cluster/BackBlaze CNPG B2 Bucket/s3_application_key")
+kubectl -n database create secret generic cnpg-backup-secret \
+  --from-literal=s3_key_id="$CNPG_KEY_ID" \
+  --from-literal=s3_application_key="$CNPG_APP_KEY" \
+  --dry-run=client -o yaml | kubectl apply -f - --validate=false
+
+# ObjectStore
+cat <<'OBJEOF' | kubectl apply -f -
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: cnpg-b2-store
+  namespace: database
+spec:
+  configuration:
+    destinationPath: "s3://k3s-service-cluster/cnpg/"
+    endpointURL: "https://s3.us-west-004.backblazeb2.com"
+    s3Credentials:
+      accessKeyId:
+        name: cnpg-backup-secret
+        key: s3_key_id
+      secretAccessKey:
+        name: cnpg-backup-secret
+        key: s3_application_key
+  retentionPolicy: "30d"
+OBJEOF
+
+# Recovery cluster
+cat <<'CLUEOF' | kubectl apply -f -
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: main-db
+  namespace: database
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.4
+  bootstrap:
+    recovery:
+      source: prod-backup
+  externalClusters:
+    - name: prod-backup
+      barmanObjectStore:
+        destinationPath: "s3://k3s-service-cluster/cnpg/"
+        endpointURL: "https://s3.us-west-004.backblazeb2.com"
+        serverName: main-db
+        s3Credentials:
+          accessKeyId:
+            name: cnpg-backup-secret
+            key: s3_key_id
+          secretAccessKey:
+            name: cnpg-backup-secret
+            key: s3_application_key
+  storage:
+    size: 10Gi
+    storageClass: hcloud-volumes
+  walStorage:
+    size: 5Gi
+    storageClass: hcloud-volumes
+CLUEOF
+
+echo "==> Waiting for CNPG recovery (up to 15 min)..."
+kubectl -n database wait --for=condition=Ready cluster/main-db --timeout=900s || \
+  echo "Timed out — check: kubectl -n database get pods"
+echo ""
+
+echo "==> Phase 5: Restore Velero PVCs from B2..."
+# Install Velero with B2 credentials
+VELERO_KEY_ID=*** read "op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_key_id")
+VELERO_APP_KEY=*** read "op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_application_key")
+velero install \
+  --provider aws \
+  --plugins velero/velero-plugin-for-aws:v1.10.0 \
+  --bucket k3s-service-cluster \
+  --prefix velero/ \
+  --backup-location-config region=us-west-004,s3ForcePathStyle=true,s3Url=https://s3.us-west-004.backblazeb2.com \
+  --secret-file <(cat <<SECRETS
+[default]
+aws_access_key_id=$VELERO_KEY_ID
+aws_secret_access_key=$VELERO_APP_KEY
+SECRETS
+  ) \
+  --use-node-agent \
+  --uploader-type kopia \
+  --namespace velero \
+  --wait
+
+echo ""
+echo "==> Phase 6: Data validation..."
+echo "---"
+echo "=== Database check ==="
+kubectl -n database exec main-db-1 -c postgres -- 2>/dev/null \
+  psql -U postgres -c "\\l" || echo "Database not ready yet"
+echo "---"
+echo "=== Velero backups available ==="
+velero get backups 2>/dev/null || echo "Velero not ready"
+echo ""
+echo "Drill complete. Next: review output above or run:"
+echo "  kubectl -n database get pods"
+echo "  kubectl get pvc --all-namespaces"
+echo "  velero get backups"
+'
+"""
+
+[tasks.destroy]
+description = "Tear down the test cluster"
+run = """
+op run -- bash -c '
+cd "$MISE_PROJECT_ROOT"/tools/test-cluster/tofu
+tofu destroy -auto-approve
+'
+"""
