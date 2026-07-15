@@ -5,6 +5,7 @@ config_roots = [
     "infrastructure/*",
     "bootstrap/ansible",
     "bootstrap/node-tooling",
+    "tools/backup-restore-drill",
 ]
 
 [env]
