@@ -1,2 +1,34 @@
 ---
 ansible_user: root
+ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+# Project metadata
+project_name: k3s_service_cluster
+project_phase: 1
+
+# Network configuration
+private_network_range: 10.0.0.0/16
+private_subnet_range: 10.0.1.0/24
+
+# K3s cluster configuration
+k3s_cluster_init_node: k3s-test-node-01
+k3s_version: "v1.31.4+k3s1"
+
+# Hetzner Cloud Controller Manager
+hcloud_ccm_version: "v1.29.0"
+hcloud_location: "fsn1"
+
+# Hetzner CSI Driver
+hcloud_csi_version: "2.13.0"
+
+# Domain (from 1Password via TF_VAR_domain)
+domain: "{{ lookup('env', 'TF_VAR_domain') }}"
+
+# cert-manager configuration
+cert_manager_version: "v1.17.2"
+
+# System settings
+timezone: UTC
+
+# Package management
+apt_update_cache_valid_time: 3600

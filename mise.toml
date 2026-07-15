@@ -88,7 +88,11 @@ run = "mise run //infrastructure/tofu:destroy"
 
 [tasks."test-cluster:drill"]
 description = "Provision + bootstrap a temporary test cluster for backup restore validation"
-env = { TF_VAR_location = 'fsn1' }
+env = {
+  TF_VAR_location = 'fsn1',
+  TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/test_domain",
+  GIT_ARGOCD_TOKEN = "op://K3s Service Cluster/ArgoCD Github Token/password"
+}
 run = """
 op run -- bash -c '
 set -e
@@ -110,10 +114,39 @@ ANSIBLE_CONFIG=ansible.cfg ansible-playbook \\
   -e hcloud_project_label=k3s-service-cluster-test \\
   -e k3s_cluster_init_node=k3s-test-node-01
 echo ""
+echo "==> Installing cert-manager..."
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --repo https://charts.jetstack.io --version v1.17.2 \
+  --namespace cert-manager --create-namespace \
+  --set crds.enabled=true --wait
+echo ""
+echo "==> Installing ArgoCD..."
+helm upgrade --install argocd argo-cd \
+  --repo https://argoproj.github.io/argo-helm --version 7.7.11 \
+  --namespace argocd --create-namespace \
+  --values "$MISE_PROJECT_ROOT"/platform/argocd/self/values.yaml --wait
+echo ""
+echo "==> Configuring ArgoCD repo and projects..."
+kubectl -n argocd create secret generic cluster-repo \
+  --from-literal=type=git \
+  --from-literal=url=https://github.com/salishseawolf/k3s-service-cluster.git \
+  --from-literal=password="$GIT_ARGOCD_TOKEN" \
+  --from-literal=username=git \
+  --dry-run=client -o yaml | kubectl label -f - --local \
+    argocd.argoproj.io/secret-type=repository | kubectl apply -f - --validate=false
+kubectl apply -f "$MISE_PROJECT_ROOT"/platform/argocd/root/projects/
+echo ""
+echo "==> Deploying platform apps (test branch)..."
+cd "$MISE_PROJECT_ROOT"
+for f in platform/argocd/root/apps/*.yaml; do
+  sed "s/targetRevision: main/targetRevision: test-full-cluster-restore/" "$f" | \
+    kubectl apply -f - --validate=false
+done
+echo ""
 echo "Drill infrastructure ready:"
-echo "  Apps:  *.salishseawolf.bid"
+echo "  Apps:  *.${TF_VAR_domain}"
 echo "  SSH:   k3s-test-node-01 (see tofu output for IP)"
-echo "  Next:  follow docs/BACKUP-TESTING-FULL-CLUSTER-RESTORE.md Phase 2"
+echo "  Next:  follow docs/BACKUP-TESTING-FULL-CLUSTER-RESTORE.md Phase 3"
 '
 """
 

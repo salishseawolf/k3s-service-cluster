@@ -23,7 +23,7 @@ compose:
   ansible_host: ipv4_address
 
 groups:
-  k3s_nodes: hcloud_labels.role == "k3s-node"
+  k3s_nodes: hcloud_labels.role == "k3s-node" and hcloud_labels.project == "k3s-service-cluster-test"
   k3s_init_node: inventory_hostname == "k3s-test-node-01"
   test: hcloud_labels.environment == "test"
 
