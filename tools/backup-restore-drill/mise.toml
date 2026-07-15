@@ -28,7 +28,7 @@ echo ""
 
 echo "==> Phase 2: Bootstrap K3s (Ansible)..."
 cd "$MISE_PROJECT_ROOT"/../../bootstrap/ansible
-ansible-galaxy collection install -r requirements.yml -q
+ansible-galaxy collection install -r requirements.yml
 ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
   -i inventory/test/hcloud.yml \
   playbooks/k3s-cluster.yml \
