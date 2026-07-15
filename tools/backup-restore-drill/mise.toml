@@ -38,7 +38,7 @@ echo ""
 
 echo "==> Phase 3: Install restore operators..."
 # CNPG operator
-kubectl apply -f \
+kubectl apply --server-side --force-conflicts -f \
   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.1.yaml
 kubectl -n cnpg-system wait --for=condition=Ready pods --all --timeout=120s
 
