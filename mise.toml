@@ -45,6 +45,8 @@ K3S_ETCD_SECRET = "op://K3s Service Cluster/K3s Service Cluster/etcd_secret"
 "kube-linter" = "latest"
 "yq" = "latest"
 "mc" = "latest"
+"node" = "23.1.0"
+"npm:bash-language-server" = "latest"
 
 # ── There is no `deploy` task anymore. Deploying is a property of `main`:
 #    merged == deployed (Argo reconciles continuously). The only imperative
