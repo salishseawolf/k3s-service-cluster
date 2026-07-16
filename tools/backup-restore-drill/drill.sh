@@ -105,7 +105,7 @@ metadata:
   namespace: database
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:17
+  imageName: ghcr.io/cloudnative-pg/postgresql:18
   bootstrap:
     recovery:
       source: prod-backup
