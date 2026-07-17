@@ -137,7 +137,7 @@ it empty) so SeaweedFS starts fresh; VolSync then repopulates every
 seaweedfs-backed PVC at the file level.
 
 For each backed-up PVC (gitea-data, homarr-data, paperless-data,
-paperless-media, gitea-runner-data, copyparty-data), scale the consuming
+paperless-media, copyparty-data), scale the consuming
 workload to 0, then restore into the (empty, Argo-recreated) PVC with a
 ReplicationDestination using the same `volsync-b2-<pvc>` secret:
 

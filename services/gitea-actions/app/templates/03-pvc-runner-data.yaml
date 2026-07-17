@@ -4,6 +4,9 @@ metadata:
   annotations:
     # PVCs are never pruned: a manifest rename must not delete a volume.
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  # Deliberately NOT backed up by VolSync: runner state is tool/build cache
+  # the runner rebuilds on first use; hourly restic passes over it would be
+  # the highest-churn, lowest-value repo in B2.
   name: 'gitea-runner-data'
   namespace: 'gitea-actions'
 spec:

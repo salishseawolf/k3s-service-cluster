@@ -27,7 +27,7 @@ Rebrand or domain cutover = a one-file PR.
 | Gitea Secrets | `password`, `db_password`, `internal_token`, `secret_key`, `jwt_secret`, `oidc_key`, `oidc_secret`, `actions_token`, `admin_user`, `admin_password` | **oidc_key=** OIDC client ID (use `gitea`), **oidc_secret=** OIDC client secret, **actions_token=** runner registration token, **admin_user/admin_password=** Gitea admin login (no longer the db password) |
 | Homarr Secrets | `password`, `oidc_client`, `oidc_secret` | `password` doubles as its db password (basic-auth) |
 | Paperless Secrets | `secret_key`, `db_password`, `oidc_client`, `oidc_secret` | |
-| VolSync B2 &lt;pvc&gt; (×6: gitea-data, homarr-data, paperless-data, paperless-media, gitea-runner-data, copyparty-data) | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | restic env verbatim, one item **per PVC** (repos must not be shared).<br>`RESTIC_REPOSITORY` = `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
+| VolSync B2 &lt;pvc&gt; (×5: gitea-data, homarr-data, paperless-data, paperless-media, copyparty-data) | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | restic env verbatim, one item **per PVC** (repos must not be shared).<br>`RESTIC_REPOSITORY` = `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
 | Authentik Deployment Secrets | `secret_key`, `db_password`, `bootstrap_email`, `bootstrap_password` | verify |
 | SeaweedFS Secrets | `db_password`, `backup_access_key`, `backup_secret_key` | verify |
 | Gatus Secrets | `password` | doubles as its db password |
