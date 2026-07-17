@@ -137,18 +137,21 @@ echo ""
 
 echo "==> Phase 5: Restore Velero PVCs from B2..."
 # Install Velero with B2 credentials
+# Use op inject to reliably resolve secret references — env-var expansion
+# via heredocs is fragile with op run + mise interplay.
+op inject -i /dev/stdin -o /tmp/velero-credentials.txt <<'INJEOF'
+[default]
+aws_access_key_id=op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_key_id
+aws_secret_access_key=op://K3s Service Cluster/BackBlaze Velero B2 Bucket/s3_application_key
+INJEOF
+
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.10.0 \
   --bucket k3s-service-cluster \
   --prefix velero/ \
   --backup-location-config region=us-west-004,s3ForcePathStyle=true,s3Url=https://s3.us-west-004.backblazeb2.com \
-  --secret-file <(cat <<SECRETS
-[default]
-aws_access_key_id=$VELERO_B2_KEY_ID
-aws_secret_access_key=$VELERO_B2_APP_KEY
-SECRETS
-  ) \
+  --secret-file /tmp/velero-credentials.txt \
   --use-node-agent \
   --uploader-type kopia \
   --namespace velero \
@@ -158,10 +161,136 @@ SECRETS
 LATEST=$(velero get backups -o json 2>/dev/null | python3 -c "import sys,json; b=json.load(sys.stdin).get('items',[]); print(b[0]['metadata']['name'] if b else '')" 2>/dev/null || echo "")
 if [ -n "$LATEST" ]; then
   echo "Restoring from backup: $LATEST"
-  velero restore create --from-backup "$LATEST" \
-    --include-resources persistentvolumeclaims,persistentvolumes \
-    --exclude-namespaces database,cnpg-system \
-    --wait
+
+  # Discover and create decoy StorageClasses for all SCs in restored PVCs
+  # (Velero restores PVCs with their original StorageClass names; the test
+  # cluster doesn't have them, so we create stand-ins backed by Hetzner CSI)
+  ALL_SCS=$(kubectl get pvc --all-namespaces -o jsonpath='{.items[*].spec.storageClassName}' \
+    2>/dev/null | tr ' ' '\\n' | sort -u | grep -v '^$' || echo "")
+  for sc in $ALL_SCS; do
+    kubectl delete sc "$sc" --ignore-not-found 2>/dev/null || true
+    kubectl apply -f - <<SCEOF 2>/dev/null
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: $sc
+provisioner: hcloud.csi.hetzner.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+SCEOF
+  done
+
+  # Create Velero Restore CR for PVCs (exclude database — handled by CNPG)
+  kubectl apply -f - <<RSEOF
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: pvc-restore
+  namespace: velero
+spec:
+  backupName: LATEST_PLACEHOLDER
+  excludedNamespaces:
+  - database
+  - cnpg-system
+  - kube-system
+  - velero
+  - default
+  includedResources:
+  - persistentvolumeclaims
+  restorePVs: true
+  preserveNodePorts: false
+RSEOF
+  kubectl -n velero patch restore pvc-restore --type=json \
+    -p='[{"op":"replace","path":"/spec/backupName","value":"'"$LATEST"'"}]'
+
+  # Wait for PVCs to appear (Velero creates them asynchronously)
+  echo "Waiting for PVCs to be restored..."
+  for i in $(seq 1 30); do
+    PVC_COUNT=$(kubectl get pvc --all-namespaces --ignore-not-found \
+      2>/dev/null | tail -n+2 | wc -l)
+    [ "$PVC_COUNT" -gt 0 ] && break
+    sleep 5
+  done
+
+  # Strip volumeName from all restored PVCs so Hetzner CSI can provision
+  TEST_NODE=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "k3s-test-node-01")
+  echo "Stripping volumeName from restored PVCs..."
+  for claim in $(kubectl get pvc --all-namespaces -o json 2>/dev/null | \
+    python3 -c "import sys,json; [print(f'{p[\"metadata\"][\"namespace\"]}/{p[\"metadata\"][\"name\"]}') for p in json.load(sys.stdin).get('items',[]) if p['metadata']['namespace'] not in ('database','velero','kube-system','default','cnpg-system')]" 2>/dev/null || true); do
+    ns=$(echo "$claim" | cut -d/ -f1)
+    name=$(echo "$claim" | cut -d/ -f2)
+    kubectl -n "$ns" patch pvc "$name" --type=json \
+      -p='[{"op":"remove","path":"/spec/volumeName"}]' 2>/dev/null || true
+  done
+
+  # Create debug pods to trigger PVC binding (WaitForFirstConsumer) + Kopia restore
+  for pvc in $(kubectl get pvc --all-namespaces -o json 2>/dev/null | \
+    python3 -c "import sys,json; items=json.load(sys.stdin).get('items',[]); exclude={'database','velero','kube-system','default','cnpg-system'}; seen=set(); [print(f'{i[\"metadata\"][\"namespace\"]}:{i[\"metadata\"][\"name\"]}') for i in items if i['metadata']['namespace'] not in exclude and i['metadata']['namespace'] not in seen and not seen.add(i['metadata']['namespace'])]" 2>/dev/null || true); do
+    ns=$(echo "$pvc" | cut -d: -f1)
+    echo "Creating debug pod in namespace: $ns"
+
+    # Build volume mounts dynamically from PVCs in this namespace
+    VOLUMES=""
+    MOUNTS=""
+    idx=0
+    for pvc_name in $(kubectl get pvc -n "$ns" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+      VOLUMES="$VOLUMES,{\"name\":\"vol$idx\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc_name\"}}"
+      MOUNTS="$MOUNTS,{\"name\":\"vol$idx\",\"mountPath\":\"/data/$pvc_name\"}"
+      idx=$((idx + 1))
+    done
+    VOLUMES="[${VOLUMES:1}]"
+    MOUNTS="[${MOUNTS:1}]"
+
+    # Spa a PSA-compliant debug pod that sleeps so user can exec in
+    kubectl run backup-debug -n "$ns" --image=alpine:3.21 --restart=Never --overrides='{
+      "spec":{
+        "nodeSelector":{"kubernetes.io/hostname":"'"$TEST_NODE"'"},
+        "containers":[{
+          "name":"backup-debug",
+          "image":"alpine:3.21",
+          "command":["sleep","infinity"],
+          "securityContext":{
+            "allowPrivilegeEscalation":false,
+            "capabilities":{"drop":["ALL"]},
+            "runAsNonRoot":true,
+            "runAsUser":1000,
+            "runAsGroup":1000,
+            "seccompProfile":{"type":"RuntimeDefault"}
+          },
+          "volumeMounts":'"$MOUNTS"'
+        }],
+        "volumes":'"$VOLUMES"'
+      }
+    }' 2>/dev/null || echo "  WARNING: could not create debug pod in $ns"
+  done
+
+  # Wait for debug pods to be Ready (triggers CSI binding + Kopia restore)
+  echo "Waiting for PVC binding and Kopia restore..."
+  for ns in $(kubectl get pods --all-namespaces -l run=backup-debug \
+    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+    echo "  Waiting for $ns..."
+    kubectl -n "$ns" wait --for=condition=Ready pod/backup-debug --timeout=300s 2>/dev/null && \
+      echo "  $ns: Ready" || \
+      echo "  WARNING: $ns: not Ready within 5m (check kubectl -n $ns describe pod/backup-debug)"
+  done
+
+  # Verify Kopia restore completion via node-agent logs
+  echo "=== Kopia restore status ==="
+  kubectl -n velero logs daemonset/node-agent --tail=5 2>/dev/null | \
+    grep -E 'restore|completed|error|failed' | tail -3 || echo "  No restore events in node-agent logs yet"
+  echo ""
+  echo "=== Manual verification available ==="
+  for ns in $(kubectl get pods --all-namespaces -l run=backup-debug \
+    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+    echo "  kubectl exec -it -n $ns backup-debug -- sh"
+  done
+  echo ""
+  echo "File counts per namespace:"
+  for ns in $(kubectl get pods --all-namespaces -l run=backup-debug \
+    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+    count=$(kubectl -n "$ns" exec backup-debug -- find /data -type f 2>/dev/null | wc -l)
+    echo "  $ns: $count files"
+  done
 else
   echo "No backups found. Check velero get backups"
 fi
@@ -176,6 +305,10 @@ echo "=== Velero backup status ==="
 velero get backups 2>/dev/null || echo "Velero not ready"
 echo "=== Velero restore status ==="
 velero get restores 2>/dev/null || echo "No restores yet"
+echo "=== Restored PVCs ==="
+kubectl get pvc --all-namespaces --ignore-not-found 2>/dev/null || echo "No PVCs"
+echo "=== Debug pods ==="
+kubectl get pods --all-namespaces -l run=backup-debug -o wide 2>/dev/null | tail -n+2 | awk '{print $1"/"$2": "$3}' || echo "No debug pods"
 echo "=== PVC status ==="
 kubectl get pvc --all-namespaces 2>/dev/null || echo "No PVCs"
 echo ""
