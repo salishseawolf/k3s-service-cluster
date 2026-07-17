@@ -382,29 +382,60 @@ data:
 
 
       # ============================================================
-      # Grafana (monitoring dashboard) — auth at the edge
+      # Grafana (monitoring dashboard) — OIDC auth (per integration standard)
       # ============================================================
-      - model: authentik_providers_proxy.proxyprovider
+      - model: authentik_providers_oauth2.oauth2provider
         state: present
-        id: provider-grafana-fwd
+        id: provider-grafana-oidc
         identifiers:
-          name: Grafana Forward Auth
+          name: Grafana OIDC
         attrs:
           authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
           invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
-          mode: forward_single
-          external_host: "https://monitor.{{ .Values.domain }}"
+          client_type: confidential
+          client_id: !KeyOf $op://K3s Service Cluster/Grafana OIDC Client/oidc_client
+          client_secret: !KeyOf $op://K3s Service Cluster/Grafana OIDC Client/password
+          redirect_uris: "https://monitor.{{ .Values.domain }}/login/generic_oauth"
+          logout_uris: "https://monitor.{{ .Values.domain }}/logout"
+          logout_method: frontchannel
+          include_claims_in_id_token: true
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
 
       - model: authentik_core.application
         state: present
-        id: app-grafana-fwd
+        id: app-grafana-oidc
         identifiers:
-          slug: grafana-forward-auth
+          slug: grafana
         attrs:
           name: Grafana
-          provider: !KeyOf provider-grafana-fwd
+          provider: !KeyOf provider-grafana-oidc
           meta_launch_url: "https://monitor.{{ .Values.domain }}/"
           policy_engine_mode: any
+
+      # Grafana role entitlements
+      - model: authentik_enterprise.entitlement
+        state: present
+        id: entitlement-grafana-admin
+        identifiers:
+          name: Grafana Admins
+        attrs:
+          application: !KeyOf app-grafana-oidc
+
+      - model: authentik_enterprise.entitlement
+        state: present
+        id: entitlement-grafana-editor
+        identifiers:
+          name: Grafana Editors
+        attrs:
+          application: !KeyOf app-grafana-oidc
+
+      - model: authentik_enterprise.entitlement
+        state: present
+        id: entitlement-grafana-viewer
+        identifiers:
+          name: Grafana Viewers
+        attrs:
+          application: !KeyOf app-grafana-oidc
 
 
       # ============================================================
