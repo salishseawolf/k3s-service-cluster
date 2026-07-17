@@ -79,6 +79,17 @@ kps:
         mountPath: /etc/secrets
         secretName: grafana-oidc-creds
         readOnly: true
+    env:
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID:
+        valueFrom:
+          secretKeyRef:
+            name: grafana-oidc-creds
+            key: oidc_client
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+        valueFrom:
+          secretKeyRef:
+            name: grafana-oidc-creds
+            key: password
     datasources:
       datasources.yaml:
         apiVersion: 1
@@ -103,8 +114,6 @@ kps:
       auth.generic_oauth:
         enabled: true
         name: authentik
-        client_id: $__file{/etc/secrets/oidc_client}
-        client_secret: $__file{/etc/secrets/password}
         scopes: openid profile email
         auth_url: https://auth.salishseawolf.com/application/o/authorize/
         token_url: https://auth.salishseawolf.com/application/o/token/
