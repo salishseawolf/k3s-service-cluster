@@ -71,6 +71,9 @@ kps:
       passwordKey: password
     ingress:
       enabled: false
+    sidecar:
+      datasources:
+        defaultDatasourceEnabled: false
     datasources:
       datasources.yaml:
         apiVersion: 1
@@ -164,6 +167,10 @@ loki:
             prefix: loki_index_
             period: 24h
   deploymentMode: SingleBinary
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
   singleBinary:
     replicas: 1
     persistence:
