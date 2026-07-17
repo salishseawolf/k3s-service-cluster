@@ -46,3 +46,5 @@ spec:
     # store being restored.
     cacheCapacity: 2Gi
     cacheStorageClassName: local-path
+    moverSecurityContext:
+      runAsUser: 0
