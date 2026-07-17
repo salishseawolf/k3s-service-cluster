@@ -103,7 +103,7 @@ metadata:
   namespace: database
 spec:
   instances: 3
-  imageName: ghcr.io/cloudnative-pg/postgresql:17.4
+  imageName: ghcr.io/cloudnative-pg/postgresql:18
   storage:
     size: 20Gi
     storageClass: hcloud-volumes
