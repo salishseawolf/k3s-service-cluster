@@ -108,9 +108,9 @@ kps:
 
   nodeExporter:
     enabled: true
+
+  prometheus-node-exporter:
     hostNetwork: false
-    hostPID: true
-    hostPort: 0
 
   # Default rules and dashboards — keep them
   defaultRules:
