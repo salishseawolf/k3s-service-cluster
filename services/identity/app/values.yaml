@@ -66,6 +66,10 @@ authentik:
         valueFrom: {secretKeyRef: {name: argocd-oidc, key: oidc_client}}
       - name: AUTHENTIK_ARGOCD_CLIENT_SECRET
         valueFrom: {secretKeyRef: {name: argocd-oidc, key: password}}
+      - name: AUTHENTIK_GRAFANA_OIDC_CLIENT_ID
+        valueFrom: {secretKeyRef: {name: grafana-oidc-creds, key: oidc_client}}
+      - name: AUTHENTIK_GRAFANA_OIDC_CLIENT_SECRET
+        valueFrom: {secretKeyRef: {name: grafana-oidc-creds, key: password}}
 
   server:
     volumes:
