@@ -16,7 +16,7 @@ kps:
       enabled: false
     prometheusSpec:
       retention: 30d
-      retentionSize: 45Gi
+      retentionSize: 45GiB
       scrapeInterval: 60s
       externalLabels:
         cluster: salishseawolf
