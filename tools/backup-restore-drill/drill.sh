@@ -138,8 +138,8 @@ echo ""
 echo "==> Phase 5: Restore Velero PVCs from B2..."
 # Idempotency: clean up from any previous run
 echo "  Cleaning up prior run resources..."
-kubectl -n velero delete restore -l velero.io/backup 2>/dev/null || true
-for ns in $(kubectl get pods --all-namespaces -l run=backup-debug -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+kubectl -n velero delete restore pvc-restore --ignore-not-found 2>/dev/null || true
+for ns in $(kubectl get pods --all-namespaces -l run=backup-debug -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null); do
   kubectl -n "$ns" delete pod backup-debug --ignore-not-found --now 2>/dev/null || true
 done
 # Remove stale PVCs from previous runs (except database — handled by CNPG)
@@ -182,7 +182,7 @@ if [ -n "$LATEST" ]; then
   # (Velero restores PVCs with their original StorageClass names; the test
   # cluster doesn't have them, so we create stand-ins backed by Hetzner CSI)
   ALL_SCS=$(kubectl get pvc --all-namespaces -o jsonpath='{.items[*].spec.storageClassName}' \
-    2>/dev/null | tr ' ' '\\n' | sort -u | grep -v '^$' || echo "")
+    2>/dev/null  | grep -v '^$' || echo "")
   for sc in $ALL_SCS; do
     kubectl delete sc "$sc" --ignore-not-found 2>/dev/null || true
     kubectl apply -f - <<SCEOF 2>/dev/null
@@ -222,8 +222,8 @@ RSEOF
   # Wait for PVCs to appear (Velero creates them asynchronously)
   echo "Waiting for PVCs to be restored..."
   for i in $(seq 1 30); do
-    PVC_COUNT=$(kubectl get pvc --all-namespaces --ignore-not-found \
-      2>/dev/null | tail -n+2 | wc -l)
+    PVC_COUNT=$(kubectl get pvc --all-namespaces -o json 2>/dev/null | \
+      python3 -c "import sys,json; exclude={'database','velero','kube-system','default','cnpg-system'}; print(len([i for i in json.load(sys.stdin).get('items',[]) if i['metadata']['namespace'] not in exclude]))" 2>/dev/null || echo "0")
     [ "$PVC_COUNT" -gt 0 ] && break
     sleep 5
   done
@@ -283,7 +283,7 @@ RSEOF
   # Wait for debug pods to be Ready (triggers CSI binding + Kopia restore)
   echo "Waiting for PVC binding and Kopia restore..."
   for ns in $(kubectl get pods --all-namespaces -l run=backup-debug \
-    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null ); do
     echo "  Waiting for $ns..."
     kubectl -n "$ns" wait --for=condition=Ready pod/backup-debug --timeout=300s 2>/dev/null && \
       echo "  $ns: Ready" || \
@@ -297,13 +297,13 @@ RSEOF
   echo ""
   echo "=== Manual verification available ==="
   for ns in $(kubectl get pods --all-namespaces -l run=backup-debug \
-    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null ); do
     echo "  kubectl exec -it -n $ns backup-debug -- sh"
   done
   echo ""
   echo "File counts per namespace:"
   for ns in $(kubectl get pods --all-namespaces -l run=backup-debug \
-    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+    -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null ); do
     count=$(kubectl -n "$ns" exec backup-debug -- find /data -type f 2>/dev/null | wc -l)
     echo "  $ns: $count files"
   done
