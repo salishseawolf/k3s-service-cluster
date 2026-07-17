@@ -382,6 +382,32 @@ data:
 
 
       # ============================================================
+      # Grafana (monitoring dashboard) — auth at the edge
+      # ============================================================
+      - model: authentik_providers_proxy.proxyprovider
+        state: present
+        id: provider-grafana-fwd
+        identifiers:
+          name: Grafana Forward Auth
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          mode: forward_single
+          external_host: "https://monitor.{{ .Values.domain }}"
+
+      - model: authentik_core.application
+        state: present
+        id: app-grafana-fwd
+        identifiers:
+          slug: grafana-forward-auth
+        attrs:
+          name: Grafana
+          provider: !KeyOf provider-grafana-fwd
+          meta_launch_url: "https://monitor.{{ .Values.domain }}/"
+          policy_engine_mode: any
+
+
+      # ============================================================
       # Gatus (health dashboard) — internal tool, auth at the edge
       # ============================================================
       - model: authentik_providers_proxy.proxyprovider
