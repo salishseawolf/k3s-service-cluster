@@ -1,0 +1,18 @@
+apiVersion: v2
+name: monitoring
+description: Monitoring stack — Prometheus, Loki, Alloy, Grafana
+type: application
+version: 0.1.0
+appVersion: 1.0.0
+
+dependencies:
+  - name: kube-prometheus-stack
+    version: "82.x"
+    repository: https://prometheus-community.github.io/helm-charts
+    alias: kps
+  - name: loki
+    version: "6.x"
+    repository: https://grafana.github.io/helm-charts
+  - name: alloy
+    version: "1.x"
+    repository: https://grafana.github.io/helm-charts

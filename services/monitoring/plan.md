@@ -51,9 +51,9 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 
 | Sub-component | Purpose |
 |---------------|---------|
-| Prometheus | Metrics collection, 30d retention, PVC: `50Gi hcloud-volumes` |
+| Prometheus | Metrics collection, 30d retention, PVC: `50Gi seaweedfs-storage` |
 | Grafana | Visualization, datasources + dashboards pre-provisioned via ConfigMap, admin password via 1Password Operator |
-| Alertmanager | Alert routing (default: noop), PVC: `10Gi hcloud-volumes` for persistence |
+| Alertmanager | Alert routing (default: noop), PVC: `10Gi seaweedfs-storage` for persistence |
 | kube-state-metrics | Cluster resource metrics |
 | node-exporter | Node-level metrics (DaemonSet) |
 
@@ -63,7 +63,7 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
   - Prometheus: `50Gi seaweedfs-storage`
   - Alertmanager: `10Gi seaweedfs-storage` (saved silences/state)
 - **Retention:** time-based 30d + size-based cap 45Gi
-- **Scrape interval:** 60s (4x TiDB default; gentler on SeaweedFS-backed workloads)
+- **Scrape interval:** 60s (4× Prometheus default; gentler on SeaweedFS-backed workloads)
 - **External labels:** `cluster: salishseawolf`, `environment: production`
 - **PSP/PodMonitor:** enable PodMonitor for CNPG's existing `enablePodMonitor: true`
 - **Grafana:**
@@ -119,8 +119,8 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 
 ## PVC Summary
 
-| PVC | Size | StorageClass | Component | Prune annotation |
-|-----|------|-------------|-----------|-----------------|
+| PVC | Size | StorageClass | Component | Prune annotation | Backup |
+|-----|------|-------------|-----------|-----------------|--------|
 | `prometheus-main-db` | 50Gi | seaweedfs-storage | Prometheus TSDB | ✅ | VolSync hourly |
 | `alertmanager-db` | 10Gi | seaweedfs-storage | Alertmanager state | ✅ | VolSync hourly |
 | `loki-data` | 10Gi | seaweedfs-storage | Loki index + chunks | ✅ | VolSync hourly |
@@ -144,11 +144,11 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 ## Deployment Order
 
 1. `platform/monitoring-crd/` — Prometheus operator CRDs (Argo wave 0)
-2. Namespace + PSA + NetworkPolicy + ResourceQuota + LimitRange
-3. kube-prometheus-stack (Prometheus + Grafana + Alertmanager + ksm + node-exporter)
-4. Loki
-5. Alloy (needs Loki endpoint to exist)
-6. IngressRoute + 1Password items (step 2-6 in Argo wave 10+)
+2. Namespace + PSA + NetworkPolicy + ResourceQuota + LimitRange (Argo wave 1)
+3. kube-prometheus-stack (Prometheus + Grafana + Alertmanager + ksm + node-exporter) (Argo wave 10+)
+4. Loki (Argo wave 10+)
+5. Alloy — needs Loki endpoint to exist (Argo wave 10+)
+6. IngressRoute + 1Password items (Argo wave 10+)
 
 ## PVC Backups (VolSync Restic)
 

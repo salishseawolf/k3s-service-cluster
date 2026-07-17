@@ -1,0 +1,22 @@
+# CRD-only install for the monitoring stack
+kube-prometheus-stack:
+  enabled: true
+
+  # Only deploy CRDs and cluster-scoped RBAC — no deployments
+  prometheusOperator:
+    createCustomResource: true
+    enabled: false
+    admissionWebhooks:
+      enabled: false
+
+  # Disable all sub-chart deployments
+  grafana:
+    enabled: false
+  kubeStateMetrics:
+    enabled: false
+  nodeExporter:
+    enabled: false
+  prometheus:
+    enabled: false
+  alertmanager:
+    enabled: false

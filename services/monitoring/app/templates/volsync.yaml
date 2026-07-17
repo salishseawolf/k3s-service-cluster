@@ -1,0 +1,35 @@
+# VolSync restic backups of monitoring PVCs (hourly; staggered schedules).
+# Shared B2 key scoped to volsync/monitoring/; each PVC gets its own repo.
+{{- range $pvc, $minute := dict
+  "prometheus-main-db"  "5"
+  "alertmanager-db"     "20"
+  "loki-data"           "35" }}
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: volsync-b2-{{ $pvc }}
+  namespace: 'monitoring'
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 {{ $pvc }}"
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: {{ $pvc }}
+  namespace: 'monitoring'
+spec:
+  sourcePVC: {{ $pvc }}
+  trigger:
+    schedule: "{{ $minute }} * * * *"
+  restic:
+    repository: volsync-b2-{{ $pvc }}
+    copyMethod: Direct
+    pruneIntervalDays: 7
+    retain:
+      daily: 30
+    cacheCapacity: 2Gi
+    cacheStorageClassName: local-path
+    moverSecurityContext:
+      runAsUser: 0
+{{- end }}

@@ -1,0 +1,215 @@
+# kube-prometheus-stack — workloads only (CRDs are in platform/monitoring-crd)
+kps:
+  fullnameOverride: prometheus
+
+  prometheusOperator:
+    enabled: true
+    createCustomResource: false  # CRDs managed by platform app
+    admissionWebhooks:
+      enabled: false
+    tls:
+      enabled: false
+
+  prometheus:
+    enabled: true
+    ingress:
+      enabled: false
+    prometheusSpec:
+      retention: 30d
+      retentionSize: 45Gi
+      scrapeInterval: 60s
+      externalLabels:
+        cluster: salishseawolf
+        environment: production
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: seaweedfs-storage
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+      podMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorSelectorNilUsesHelmValues: false
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          cpu: 2
+          memory: 8Gi
+
+  alertmanager:
+    enabled: true
+    ingress:
+      enabled: false
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: seaweedfs-storage
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+
+  grafana:
+    enabled: true
+    forceDeployDatasources: true
+    forceDeployDashboard: true
+    adminPassword: ""
+    admin:
+      existingSecret: grafana-admin-password
+    ingress:
+      enabled: false
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            url: http://prometheus-prometheus.monitoring:9090
+            access: proxy
+            isDefault: true
+          - name: Loki
+            type: loki
+            url: http://monitoring-loki.monitoring:3100
+            access: proxy
+    grafana.ini:
+      server:
+        root_url: https://monitor.salishseawolf.com
+        serve_from_sub_path: false
+      auth:
+        disable_login_form: false
+      auth.anonymous:
+        enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+  kubeStateMetrics:
+    enabled: true
+
+  nodeExporter:
+    enabled: true
+
+  # Default rules and dashboards — keep them
+  defaultRules:
+    create: true
+    rules:
+      alertmanager: true
+      etcd: false
+      configReloaders: true
+      general: true
+      k8s: true
+      kubeApiserverAvailability: true
+      kubeApiserverBurnrate: true
+      kubeApiserverHistogram: true
+      kubeApiserverSlos: true
+      kubelet: true
+      kubeProxy: false
+      kubePrometheusGeneral: true
+      kubePrometheusNodeRecording: true
+      kubernetesApps: true
+      kubernetesResources: true
+      kubernetesStorage: true
+      kubernetesSystem: true
+      kubeScheduler: false
+      network: true
+      node: true
+      nodeExporterAlerting: true
+      nodeExporterRecording: true
+      prometheus: true
+      prometheusOperator: true
+
+  global:
+    rbac:
+      create: true
+      pspEnable: false
+# Loki
+loki:
+  enabled: true
+  fullnameOverride: monitoring-loki
+  loki:
+    commonConfig:
+      replication_factor: 1
+    limits_config:
+      retention_period: 4320h  # 180 days
+      max_entries_limit_per_query: 5000
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2025-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+  singleBinary:
+    replicas: 1
+    persistence:
+      storageClass: seaweedfs-storage
+      size: 10Gi
+  test:
+    enabled: false
+  monitoring:
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
+  # Loki doesn't need a lot of resources for 3 nodes
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+# Alloy
+alloy:
+  enabled: true
+  fullnameOverride: monitoring-alloy
+  alloy:
+    configMap:
+      create: true
+      content: |
+        logging {
+          level = "warn"
+        }
+        loki.write "default" {
+          endpoint {
+            url = "http://monitoring-loki.monitoring:3100/loki/api/v1/push"
+          }
+        }
+        loki.source.file "pod_logs" {
+          targets = [
+            {__path__ = "/var/log/pods/*/*/*.log"},
+            {__path__ = "/var/log/pods/*/*/*/*.log"},
+          ]
+          forward_to = [loki.write.default.receiver]
+        }
+    mounts:
+      varlog: true
+      dockercontainers: false
+  controller:
+    type: daemonset
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
