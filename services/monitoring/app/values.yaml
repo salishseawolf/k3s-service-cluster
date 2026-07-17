@@ -81,15 +81,13 @@ kps:
         readOnly: true
     envValueFrom:
       - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
-        valueFrom:
-          secretKeyRef:
-            name: grafana-oidc-creds
-            key: oidc_client
+        secretKeyRef:
+          name: grafana-oidc-creds
+          key: oidc_client
       - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: grafana-oidc-creds
-            key: password
+        secretKeyRef:
+          name: grafana-oidc-creds
+          key: password
     datasources:
       datasources.yaml:
         apiVersion: 1
