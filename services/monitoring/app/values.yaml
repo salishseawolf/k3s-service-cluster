@@ -79,7 +79,7 @@ kps:
         mountPath: /etc/secrets
         secretName: grafana-oidc-creds
         readOnly: true
-    env:
+    envValueFrom:
       - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
         valueFrom:
           secretKeyRef:
