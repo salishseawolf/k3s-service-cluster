@@ -11,7 +11,7 @@ restoring persistent data from Backblaze B2 backups.
 |---|---|---|---|
 | CNPG PostgreSQL (6 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
-| All PVCs (Gitea, Paperless, Homarr, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (nightly) | 24h |
+| All PVCs (Gitea, Paperless, Homarr, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (hourly; retain 12h/5d/4w/2m/1y) | ~1h |
 | SeaweedFS blob store (`seaweedfs-data`) | Not backed up directly | Reconstructed by per-PVC VolSync restores into a fresh SeaweedFS | — |
 | Secrets | 1Password vault | Operator re-creates from vault | N/A (git) |
 | Cluster config (CRDs, Argo, etc.) | Git | Argo CD re-deploys | N/A (git) |
@@ -164,6 +164,18 @@ ReplicationDestination:
 kubectl -n <ns> get replicationdestination restore-<pvc> -w
 kubectl -n <ns> delete replicationdestination restore-<pvc>
 ```
+
+Restore options worth knowing:
+- **Point-in-time**: add `spec.restic.restoreAsOf: <RFC-3339>` (day/hour
+  separated by `T`) to restore the newest snapshot at or before that time,
+  or `spec.restic.previous: <n>` to step back n snapshots.
+- **Non-empty target PVC**: restic restore does not remove files that are
+  absent from the snapshot unless `spec.restic.enableFileDeletion: true`
+  is set. Argo-recreated PVCs are empty so this normally doesn't matter,
+  but set it when re-restoring over a partial/failed restore.
+- **Stale repo lock** (e.g. a mover killed mid-backup): set
+  `spec.restic.unlock: <any-new-string>` on the ReplicationSource; the next
+  scheduled backup runs `restic unlock` first.
 
 ### Phase 4 — Re-enable Argo CD management
 ```bash

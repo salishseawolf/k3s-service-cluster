@@ -1,5 +1,5 @@
-# VolSync restic backup of copyparty-data (nightly; schedules are staggered
-# across services so the movers don't all hit SeaweedFS/B2 at midnight).
+# VolSync restic backup of copyparty-data (hourly; minutes are staggered
+# across services so the movers don't all hit SeaweedFS/B2 at the top of the hour).
 #
 # The 1P item carries the restic env verbatim (the operator cannot template,
 # so the vault does): RESTIC_REPOSITORY, RESTIC_PASSWORD, AWS_ACCESS_KEY_ID,
@@ -22,15 +22,22 @@ metadata:
 spec:
   sourcePVC: 'copyparty-data'
   trigger:
-    schedule: "0 0 * * *"
+    schedule: "0 * * * *"
   restic:
     repository: volsync-b2-copyparty-data
-    # Direct: neither hcloud-csi nor seaweedfs-csi supports VolumeSnapshots,
-    # so the mover mounts the live PVC (file-level crash consistency).
+    # Direct: hcloud-csi has no snapshot support (no Hetzner volume-snapshot
+    # API) and seaweedfs-csi implements neither CSI snapshots nor cloning (no
+    # csi-snapshotter sidecar, no snapshot-controller/CRDs in-cluster), so
+    # Clone/Snapshot PiT copies are impossible here. The mover mounts the
+    # live PVC (file-level crash consistency; databases have Barman).
     copyMethod: Direct
     pruneIntervalDays: 7
     retain:
-      daily: 30  # parity with Velero's 720h TTL
+      hourly: 12
+      daily: 5
+      weekly: 4
+      monthly: 2
+      yearly: 1
     # Restic cache on node-local storage: hcloud-volumes has a 10Gi minimum
     # and caching on seaweedfs-storage would make restores depend on the very
     # store being restored.
