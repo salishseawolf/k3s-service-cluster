@@ -105,11 +105,9 @@ kps:
 
   nodeExporter:
     enabled: true
-    hostNetwork: true
+    hostNetwork: false
     hostPID: true
     hostPort: 0
-    ports:
-      http-metrics: 9100  # container port, not host port
 
   # Default rules and dashboards — keep them
   defaultRules:
