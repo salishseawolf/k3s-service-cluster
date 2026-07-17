@@ -10,7 +10,18 @@ argo-cd:
 
   configs:
     cm:
-      create: false
+      create: true
+      # -- Argo CD external URL (the URL users visit in the browser)
+      url: "https://argocd.salishseawolf.com"
+      admin.enabled: "true"
+      oidc.config: |
+        name: Authentik
+        issuer: https://auth.salishseawolf.com/application/o/argocd/
+        clientID: $argocd-oidc:oidc_client
+        clientSecret: $argocd-oidc:password
+        requestedScopes: ["openid", "profile", "email"]
+        requestedIDTokenClaims: {"groups": {"essential": true}}
+        logoutURL: https://auth.salishseawolf.com/application/o/argocd/end-session/
     params:
       # TLS terminates at Traefik; Argo serves plain HTTP behind it.
       server.insecure: true

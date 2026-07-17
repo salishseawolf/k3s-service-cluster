@@ -1,3 +1,4 @@
+{{- if not (index .Values "argo-cd").configs.cm.create }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,3 +15,4 @@ data:
     requestedScopes: ["openid", "profile", "email"]
     requestedIDTokenClaims: {"groups": {"essential": true}}
     logoutURL: https://auth.{{ .Values.domain }}/application/o/argocd/end-session/
+{{- end }}

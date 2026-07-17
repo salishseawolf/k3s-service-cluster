@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   name: gitea
   labels:
-    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce: baseline
     app.kubernetes.io/managed-by: argocd
