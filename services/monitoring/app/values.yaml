@@ -80,11 +80,11 @@ kps:
         secretName: grafana-oidc-creds
         readOnly: true
     envValueFrom:
-      - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID:
         secretKeyRef:
           name: grafana-oidc-creds
           key: oidc_client
-      - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
         secretKeyRef:
           name: grafana-oidc-creds
           key: password
