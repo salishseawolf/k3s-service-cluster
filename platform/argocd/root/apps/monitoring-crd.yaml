@@ -21,12 +21,17 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/warn: baseline
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - Replace=true
     retry:
       limit: 5
       backoff: {duration: 20s, factor: 2, maxDuration: 5m}
