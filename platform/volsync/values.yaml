@@ -1,0 +1,9 @@
+volsync:
+  manageCRDs: true
+  replicaCount: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
+  # Movers run in the PVC's namespace (baseline PSA is sufficient — restic
+  # movers need root to read all files, which baseline permits, but nothing
+  # privileged). No node-agent DaemonSet: movers are per-sync Jobs.

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: volsync-system
+  labels:
+    # Unlike Velero's node-agent, the VolSync controller needs no host access.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
+    pod-security.kubernetes.io/warn-version: latest
+    app.kubernetes.io/managed-by: argocd

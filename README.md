@@ -26,13 +26,13 @@ kubectl -n argocd get applications -w    # watch the cascade
 ```
 infrastructure/     OpenTofu (human-run) — servers, network, LB, DNS
 bootstrap/          Ansible (runs ~once) — K3s, 1Password, secret_zero, Argo
-platform/           Argo CD — cert-manager, step-ca, velero, argocd, storage
+platform/           Argo CD — cert-manager, step-ca, volsync, argocd, storage
 services/*/app/     Argo CD — application Helm charts
 ```
 
 Argo reconciles in waves: 0 (argocd self, cnpg, cert-manager CRDs) → 10
 (database, redis, cert-manager config, step-ca) → 20 (seaweedfs, identity) →
-30 (seaweedfs-csi, velero — PVC canary gate) → 40 (everything else).
+30 (seaweedfs-csi, volsync — PVC canary gate) → 40 (everything else).
 
 ## Day-to-day
 

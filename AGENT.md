@@ -99,12 +99,12 @@ export KUBECONFIG=<repo-root>/kubeconfig
 kubectl get nodes                        # 3 nodes Ready
 mise run //platform/charts/cert-manager:apply
 mise run //platform/charts/step-ca:apply
-mise run //platform/charts/velero:apply
+mise run //platform/charts/volsync:apply
 ```
 
 **Gate 3:** 3 Ready nodes; wildcard Certificate reaches `Ready=True`
-(`kubectl get certificate -A` — DNS-01 can take a few minutes); Velero BSL
-`Available` (`kubectl -n velero get backupstoragelocation`).
+(`kubectl get certificate -A` — DNS-01 can take a few minutes); VolSync
+operator `Available` (`kubectl -n volsync-system get deploy/volsync`).
 
 ## Stage 4 — NetworkPolicy enforcement canary (MANDATORY, before any service)
 

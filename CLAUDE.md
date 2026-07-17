@@ -26,7 +26,7 @@ platform/                   Argo CD — cluster-scoped or shared services
   argocd/self/               Argo manages its own chart
   cert-manager/              config + CRD charts
   step-ca/                   config + CRD charts
-  velero/                    Umbrella chart (Backblaze B2)
+  volsync/                   Umbrella chart — VolSync operator (restic movers → B2)
   storage/                   seaweedfs + seaweedfs-csi charts
 services/*/app/             Argo CD — application Helm charts
   database/                  CNPG cluster with managed roles for all app principals
@@ -54,7 +54,7 @@ mise run destroy      tofu destroy
 
 Argo waves: 0 (argocd self, cert-manager-crd, cnpg-operator) → 10
 (cert-manager-config, step-ca, database, redis) → 20 (seaweedfs, identity) →
-30 (seaweedfs-csi, velero — PVC canary gate) → 40 (services ApplicationSet).
+30 (seaweedfs-csi, volsync — PVC canary gate) → 40 (services ApplicationSet).
 
 If wave 30's canary fails, wave 40 never starts.
 
@@ -82,7 +82,7 @@ TF_VAR_domain = "op://K3s Service Cluster/Cloudflare DNS Challenge/domain"
 
 Key items: `ArgoCD Github Token`, `Gitea Secrets` (10 fields including
 oidc_key/secret, actions_token, admin_user/password), `Homarr Secrets`,
-`Paperless Secrets`, `BackBlaze Velero B2 Bucket` (with `cloud` field),
+`Paperless Secrets`, `VolSync B2 <pvc>` (one item per backed-up PVC, restic env fields),
 `Authentik Deployment Secrets`, `Cloudflare DNS Challenge`, `Redis Password`,
 `StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`.
 

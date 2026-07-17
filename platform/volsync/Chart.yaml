@@ -1,0 +1,12 @@
+apiVersion: v2
+name: volsync
+description: >-
+  PVC backup operator (restic movers -> B2). Per-PVC ReplicationSources live
+  in each service's chart, next to the PVC they protect; repository
+  credentials arrive pre-formatted from 1P (restic env vars verbatim).
+type: application
+version: 0.1.0
+dependencies:
+  - name: volsync
+    version: "0.16.0"
+    repository: https://backube.github.io/helm-charts

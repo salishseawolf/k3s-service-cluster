@@ -1,0 +1,39 @@
+# VolSync restic backup of homarr-data (nightly; schedules are staggered
+# across services so the movers don't all hit SeaweedFS/B2 at midnight).
+#
+# The 1P item carries the restic env verbatim (the operator cannot template,
+# so the vault does): RESTIC_REPOSITORY, RESTIC_PASSWORD, AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY. Each PVC gets its OWN item/repository — restic
+# repositories must never be shared between ReplicationSources.
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: volsync-b2-homarr-data
+  namespace: 'homarr'
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 homarr-data"
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: homarr-data
+  namespace: 'homarr'
+spec:
+  sourcePVC: homarr-data
+  trigger:
+    schedule: "45 0 * * *"
+  restic:
+    repository: volsync-b2-homarr-data
+    # Direct: neither hcloud-csi nor seaweedfs-csi supports VolumeSnapshots,
+    # so the mover mounts the live PVC (file-level crash consistency; the
+    # databases have their own Barman backups).
+    copyMethod: Direct
+    pruneIntervalDays: 7
+    retain:
+      daily: 30  # parity with Velero's 720h TTL
+    # Restic cache on node-local storage: hcloud-volumes has a 10Gi minimum
+    # and caching on seaweedfs-storage would make restores depend on the very
+    # store being restored.
+    cacheCapacity: 2Gi
+    cacheStorageClassName: local-path

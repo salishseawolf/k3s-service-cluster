@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: velero
+  name: volsync
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "30"
@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
       targetRevision: main
-      path: platform/velero
+      path: platform/volsync
       helm:
         valueFiles:
           - $values/platform/argocd/root/cluster-values.yaml
@@ -19,7 +19,7 @@ spec:
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: velero
+    namespace: volsync-system
   syncPolicy:
     automated:
       prune: true

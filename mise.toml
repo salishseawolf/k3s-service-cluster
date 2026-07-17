@@ -54,7 +54,7 @@ run = [
   "yamllint -c .yamllint.yaml infrastructure/ bootstrap/ platform/ services/",
   "mise run //infrastructure/tofu:check",
   "mise run //bootstrap/ansible:lint",
-  "bash -c 'set -e; for c in services/*/app platform/storage/seaweedfs platform/storage/seaweedfs-csi platform/cert-manager/config platform/cert-manager/crd platform/step-ca/config platform/step-ca/crd platform/velero platform/argocd/self; do [ -f \"$c/Chart.yaml\" ] || continue; echo \"==> helm template $c\"; helm template test \"$c\" --set domain=example.test >/dev/null; done'",
+  "bash -c 'set -e; for c in services/*/app platform/storage/seaweedfs platform/storage/seaweedfs-csi platform/cert-manager/config platform/cert-manager/crd platform/step-ca/config platform/step-ca/crd platform/volsync platform/argocd/self; do [ -f \"$c/Chart.yaml\" ] || continue; echo \"==> helm template $c\"; helm template test \"$c\" --set domain=example.test >/dev/null; done'",
 ]
 
 [tasks.bootstrap]

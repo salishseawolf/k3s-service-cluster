@@ -11,7 +11,8 @@ restoring persistent data from Backblaze B2 backups.
 |---|---|---|---|
 | CNPG PostgreSQL (6 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
-| All PVCs (Gitea, Paperless, Homarr, SeaweedFS volumes, etc.) | B2 velero/ prefix | Velero kopia (daily) | 24h |
+| All PVCs (Gitea, Paperless, Homarr, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (nightly) | 24h |
+| SeaweedFS blob store (`seaweedfs-data`) | Not backed up directly | Reconstructed by per-PVC VolSync restores into a fresh SeaweedFS | — |
 | Secrets | 1Password vault | Operator re-creates from vault | N/A (git) |
 | Cluster config (CRDs, Argo, etc.) | Git | Argo CD re-deploys | N/A (git) |
 | Certificates | N/A | cert-manager auto-renew | N/A (git) |
@@ -127,19 +128,41 @@ spec:
 EOF
 ```
 
-### Phase 3 — Restore Velero backups
-Once CNPG is restored, SeaweedFS will start with its metadata intact. Then
-restore PVC data from Velero:
+### Phase 3 — Restore PVC data with VolSync
+
+**Note on SeaweedFS after total loss:** the blob store is gone, so the
+restored `seaweedfs_filer` database would reference blobs that no longer
+exist. Exclude `seaweedfs_filer` from the CNPG restore (or drop and recreate
+it empty) so SeaweedFS starts fresh; VolSync then repopulates every
+seaweedfs-backed PVC at the file level.
+
+For each backed-up PVC (gitea-data, homarr-data, paperless-data,
+paperless-media, gitea-runner-data, copyparty-data), scale the consuming
+workload to 0, then restore into the (empty, Argo-recreated) PVC with a
+ReplicationDestination using the same `volsync-b2-<pvc>` secret:
+
+```yaml
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination
+metadata:
+  name: restore-<pvc>
+  namespace: <ns>
+spec:
+  trigger:
+    manual: restore-once
+  restic:
+    repository: volsync-b2-<pvc>
+    destinationPVC: <pvc>       # write directly into the existing claim
+    copyMethod: Direct
+    cacheCapacity: 2Gi
+    cacheStorageClassName: local-path
+```
+
+Watch completion, then scale the workload back up and delete the
+ReplicationDestination:
 ```bash
-# List available backups
-velero get backups
-
-# Find the latest successful backup and restore
-velero restore create --from-backup <latest-backup-name> --wait
-
-# Exclude CNPG namespaces to avoid overwriting the just-restored databases
-velero restore create --from-backup <latest-backup-name> \
-  --exclude-namespaces database,cnpg-system --wait
+kubectl -n <ns> get replicationdestination restore-<pvc> -w
+kubectl -n <ns> delete replicationdestination restore-<pvc>
 ```
 
 ### Phase 4 — Re-enable Argo CD management
@@ -176,7 +199,7 @@ monthly:
 | Item | 1Password Vault |
 |---|---|
 | B2 CNPG backup | `BackBlaze CNPG B2 Bucket` |
-| B2 Velero backup | `BackBlaze Velero B2 Bucket` |
+| B2 VolSync restic repos | `VolSync B2 <pvc>` (one item per PVC) |
 | SeaweedFS root credentials | `SeaweedFS Secrets` |
 | Argo CD admin login | `argocd-initial-admin-secret` (K8s secret) |
 | Authentik admin login | `akadmin` (bootstrap user) |

@@ -6,7 +6,7 @@ ignore:
   - "platform/*/config/templates/*.yaml"
   - "platform/*/crd/templates/*.yaml"
   - "platform/storage/*/templates/*.yaml"
-  - "platform/velero/templates/*.yaml"
+  - "platform/volsync/templates/*.yaml"
   - "services/*/app/templates/*.yaml"
   - "bootstrap/ansible/roles/secret_zero/defaults/main.yml"
   - "infrastructure/tofu/*.yaml"

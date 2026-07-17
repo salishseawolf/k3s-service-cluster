@@ -1,9 +1,0 @@
-apiVersion: v2
-name: velero
-description: Cluster backup (kopia + B2). Credentials arrive pre-formatted from 1P.
-type: application
-version: 0.1.0
-dependencies:
-  - name: velero
-    version: "8.5.0"
-    repository: https://vmware-tanzu.github.io/helm-charts

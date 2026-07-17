@@ -27,7 +27,7 @@ Rebrand or domain cutover = a one-file PR.
 | Gitea Secrets | `password`, `db_password`, `internal_token`, `secret_key`, `jwt_secret`, `oidc_key`, `oidc_secret`, `actions_token`, `admin_user`, `admin_password` | **oidc_key=** OIDC client ID (use `gitea`), **oidc_secret=** OIDC client secret, **actions_token=** runner registration token, **admin_user/admin_password=** Gitea admin login (no longer the db password) |
 | Homarr Secrets | `password`, `oidc_client`, `oidc_secret` | `password` doubles as its db password (basic-auth) |
 | Paperless Secrets | `secret_key`, `db_password`, `oidc_client`, `oidc_secret` | |
-| BackBlaze Velero B2 Bucket | `s3_key_id`, `s3_application_key`, `cloud` | `cloud` = the AWS INI block verbatim:<br>`[default]`<br>`aws_access_key_id = …`<br>`aws_secret_access_key = …` |
+| VolSync B2 &lt;pvc&gt; (×6: gitea-data, homarr-data, paperless-data, paperless-media, gitea-runner-data, copyparty-data) | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | restic env verbatim, one item **per PVC** (repos must not be shared).<br>`RESTIC_REPOSITORY` = `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
 | Authentik Deployment Secrets | `secret_key`, `db_password`, `bootstrap_email`, `bootstrap_password` | verify |
 | SeaweedFS Secrets | `db_password`, `backup_access_key`, `backup_secret_key` | verify |
 | Gatus Secrets | `password` | doubles as its db password |
@@ -56,7 +56,7 @@ see `bootstrap/ansible/roles/secret_zero/`), installs Argo CD, and applies
 | 0 | argocd (self), cert-manager-crd, cnpg-operator | operator health |
 | 10 | cert-manager-config, step-ca, database, redis | CNPG cluster healthy |
 | 20 | seaweedfs, identity | filer + authentik up |
-| 30 | seaweedfs-csi, velero | **PVC canary Job must bind+mount a real volume** |
+| 30 | seaweedfs-csi, volsync | **PVC canary Job must bind+mount a real volume** |
 | 40 | services ApplicationSet (everything else) | — |
 
 If wave 30's canary fails, wave 40 never starts: no consumer ever deploys

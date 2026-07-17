@@ -41,7 +41,7 @@ jobs:
           for chart in platform/storage/seaweedfs platform/storage/seaweedfs-csi \
                        platform/cert-manager/config platform/cert-manager/crd \
                        platform/step-ca/config platform/step-ca/crd \
-                       platform/velero platform/argocd/self; do
+                       platform/volsync platform/argocd/self; do
             [ -f "$chart/Chart.yaml" ] || continue
             echo "==> $chart"
             grep -q "^dependencies:" "$chart/Chart.yaml" && ./helm dependency update "$chart"
