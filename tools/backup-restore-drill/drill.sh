@@ -136,6 +136,22 @@ kubectl -n database wait --for=condition=Ready cluster/main-db --timeout=900s ||
 echo ""
 
 echo "==> Phase 5: Restore Velero PVCs from B2..."
+# Idempotency: clean up from any previous run
+echo "  Cleaning up prior run resources..."
+kubectl -n velero delete restore -l velero.io/backup 2>/dev/null || true
+for ns in $(kubectl get pods --all-namespaces -l run=backup-debug -o jsonpath='{.items[*].metadata.namespace}' 2>/dev/null | tr ' ' '\\n' | sort -u); do
+  kubectl -n "$ns" delete pod backup-debug --ignore-not-found --now 2>/dev/null || true
+done
+# Remove stale PVCs from previous runs (except database — handled by CNPG)
+for claim in $(kubectl get pvc --all-namespaces -o json 2>/dev/null | python3 -c "
+import sys,json; exclude={'database','velero','kube-system','default','cnpg-system'};
+[print(f'{i[\"metadata\"][\"namespace\"]}/{i[\"metadata\"][\"name\"]}') for i in json.load(sys.stdin).get('items',[]) if i['metadata']['namespace'] not in exclude]
+" 2>/dev/null || true); do
+  ns=$(echo "$claim" | cut -d/ -f1)
+  name=$(echo "$claim" | cut -d/ -f2)
+  kubectl -n "$ns" delete pvc "$name" --ignore-not-found --wait=false 2>/dev/null || true
+done
+
 # Install Velero with B2 credentials
 # Use op inject to reliably resolve secret references — env-var expansion
 # via heredocs is fragile with op run + mise interplay.
