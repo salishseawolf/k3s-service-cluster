@@ -382,11 +382,6 @@ data:
             - refresh_token
           include_claims_in_id_token: true
           property_mappings:
-            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
-            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
-            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'email'"]]
-            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: Application Entitlements"]]
-          scope_set:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
