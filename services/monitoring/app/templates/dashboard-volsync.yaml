@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-volsync
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  volsync-dashboard.json: |
+    {{- .Files.Get "dashboards/volsync-dashboard.json" | nindent 4 }}
