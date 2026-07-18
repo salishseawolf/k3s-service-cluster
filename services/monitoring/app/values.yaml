@@ -107,6 +107,7 @@ kps:
         serve_from_sub_path: false
       auth:
         disable_login_form: false
+        oauth_auto_login: true
       auth.anonymous:
         enabled: false
       auth.generic_oauth:
