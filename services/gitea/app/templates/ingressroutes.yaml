@@ -25,4 +25,4 @@ spec:
     - match: HostSNI(`*`)
       services:
         - name: gitea-ssh
-          port: 2222
+          port: ssh
