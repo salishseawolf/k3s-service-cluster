@@ -16,6 +16,9 @@
 - [ ] Gitea OIDC resolves with production LE cert
 - [ ] Database syncs cleanly with managed roles + quota
 
+## Diagnose
+- [ ] Gitea SSH connections failing
+
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
 - [ ] m6: Poorly named paperless deployment files
