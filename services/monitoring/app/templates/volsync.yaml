@@ -1,29 +1,32 @@
 # VolSync restic backups of monitoring PVCs (hourly; staggered schedules).
 # Shared B2 key scoped to volsync/monitoring/; each PVC gets its own repo.
-{{- range $pvc, $minute := dict
-  "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0"  "5"
-  "alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0"  "20"
-  "storage-monitoring-loki-0"  "35" }}
+# The actual PVC names from kube-prometheus-stack StatefulSets are long;
+# we keep the 1Password items named after the short names so they remain human-friendly.
+{{- $pvcMapping := dict
+  "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0"            "prometheus-main-db"
+  "alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0"     "alertmanager-db"
+  "storage-monitoring-loki-0"                                                          "loki-data" }}
+{{- range $actualPvc, $shortName := $pvcMapping }}
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
 metadata:
-  name: volsync-b2-{{ $pvc }}
+  name: volsync-b2-{{ $shortName }}
   namespace: 'monitoring'
 spec:
-  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 {{ $pvc }}"
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 {{ $shortName }}"
 ---
 apiVersion: volsync.backube/v1alpha1
 kind: ReplicationSource
 metadata:
-  name: {{ $pvc }}
+  name: {{ $shortName }}
   namespace: 'monitoring'
 spec:
-  sourcePVC: {{ $pvc }}
+  sourcePVC: {{ $actualPvc }}
   trigger:
-    schedule: "{{ $minute }} * * * *"
+    schedule: "{{ if eq $shortName \"prometheus-main-db\" }}5{{ else if eq $shortName \"alertmanager-db\" }}20{{ else }}35{{ end }} * * * *"
   restic:
-    repository: volsync-b2-{{ $pvc }}
+    repository: volsync-b2-{{ $shortName }}
     copyMethod: Direct
     pruneIntervalDays: 7
     retain:
