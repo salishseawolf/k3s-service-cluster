@@ -17,7 +17,7 @@
 - [ ] Database syncs cleanly with managed roles + quota
 
 ## Diagnose
-- [ ] Gitea SSH connections failing
+- [x] Gitea SSH connections failing
 
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
