@@ -398,29 +398,29 @@ data:
           meta_launch_url: "https://monitor.{{ .Values.domain }}/"
           policy_engine_mode: any
 
-      - model: authentik_enterprise.entitlement
+      - model: authentik_core.applicationentitlement
         state: present
         id: entitlement-grafana-admin
         identifiers:
           name: Grafana Admins
         attrs:
-          application: !KeyOf app-grafana-oidc
+          app: !KeyOf app-grafana-oidc
 
-      - model: authentik_enterprise.entitlement
+      - model: authentik_core.applicationentitlement
         state: present
         id: entitlement-grafana-editor
         identifiers:
           name: Grafana Editors
         attrs:
-          application: !KeyOf app-grafana-oidc
+          app: !KeyOf app-grafana-oidc
 
-      - model: authentik_enterprise.entitlement
+      - model: authentik_core.applicationentitlement
         state: present
         id: entitlement-grafana-viewer
         identifiers:
           name: Grafana Viewers
         attrs:
-          application: !KeyOf app-grafana-oidc
+          app: !KeyOf app-grafana-oidc
 
       - model: authentik_policies.policybinding
         state: present
