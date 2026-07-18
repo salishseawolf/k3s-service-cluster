@@ -355,27 +355,6 @@ data:
         blueprints.goauthentik.io/instantiate: "true"
     entries:
       # ============================================================
-      # Property mapping: map user entitlements to OIDC 'entitlements' claim.
-      # Must come BEFORE the OAuth provider that references it.
-      # ============================================================
-      - model: authentik_core.propertymapping
-        state: present
-        id: property-mapping-oauth-entitlements
-        identifiers:
-          name: "authentik default OAuth Mapping: OpenID 'entitlements'"
-        attrs:
-          expression: |
-            # Return the list of entitlement names the current user has,
-            # resolving through group→entitlement policy bindings.
-            names = []
-            try:
-                for e in request.user.ak_entitlements.all():
-                    names.append(e.name)
-            except Exception:
-                pass
-            return names
-
-      # ============================================================
       # Grafana (monitoring dashboard) — OIDC auth (per integration standard)
       # ============================================================
       - model: authentik_providers_oauth2.oauth2provider
@@ -406,10 +385,12 @@ data:
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'email'"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: Application Entitlements"]]
           scope_set:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, entitlements]]
 
       - model: authentik_core.application
         state: present
