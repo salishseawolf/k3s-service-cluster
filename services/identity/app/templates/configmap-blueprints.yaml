@@ -385,10 +385,12 @@ data:
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'email'"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'entitlements'"]]
           scope_set:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, entitlements]]
 
       - model: authentik_core.application
         state: present
@@ -401,11 +403,44 @@ data:
           meta_launch_url: "https://monitor.{{ .Values.domain }}/"
           policy_engine_mode: any
 
+      - model: authentik_enterprise.entitlement
+        state: present
+        id: entitlement-grafana-admin
+        identifiers:
+          name: Grafana Admins
+        attrs:
+          application: !KeyOf app-grafana-oidc
+
+      - model: authentik_enterprise.entitlement
+        state: present
+        id: entitlement-grafana-editor
+        identifiers:
+          name: Grafana Editors
+        attrs:
+          application: !KeyOf app-grafana-oidc
+
+      - model: authentik_enterprise.entitlement
+        state: present
+        id: entitlement-grafana-viewer
+        identifiers:
+          name: Grafana Viewers
+        attrs:
+          application: !KeyOf app-grafana-oidc
+
       - model: authentik_policies.policybinding
         state: present
         id: policybinding-grafana-infra
         identifiers:
           target: !KeyOf app-grafana-oidc
+        attrs:
+          group: !Find [authentik_core.group, [name, infrastructure]]
+          order: 0
+
+      - model: authentik_policies.policybinding
+        state: present
+        id: policybinding-grafana-entitlement-admin
+        identifiers:
+          target: !KeyOf entitlement-grafana-admin
         attrs:
           group: !Find [authentik_core.group, [name, infrastructure]]
           order: 0
