@@ -374,6 +374,13 @@ data:
             - matching_mode: strict
               url: "https://monitor.{{ .Values.domain }}/login/generic_oauth"
           signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          sub_mode: hashed_user_id
+          access_code_validity: minutes=1
+          access_token_validity: hours=24
+          grant_types:
+            - authorization_code
+            - refresh_token
+          include_claims_in_id_token: true
           property_mappings:
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
             - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
