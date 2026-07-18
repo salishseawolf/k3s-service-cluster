@@ -93,6 +93,7 @@ kps:
         apiVersion: 1
         datasources:
           - name: Prometheus
+            uid: prometheus
             type: prometheus
             url: http://prometheus-prometheus.monitoring:9090
             access: proxy
