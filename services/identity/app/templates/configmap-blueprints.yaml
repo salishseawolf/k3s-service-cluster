@@ -401,6 +401,15 @@ data:
           meta_launch_url: "https://monitor.{{ .Values.domain }}/"
           policy_engine_mode: any
 
+      - model: authentik_policies.policybinding
+        state: present
+        id: policybinding-grafana-infra
+        identifiers:
+          target: !KeyOf app-grafana-oidc
+        attrs:
+          group: !Find [authentik_core.group, [name, infrastructure]]
+          order: 0
+
   blueprint-forward-auth-apps.yaml: |
     # Forward-auth proxy providers for applications behind Traefik.
     # All forward-auth providers must be listed here so the embedded outpost
