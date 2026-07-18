@@ -1,9 +1,9 @@
 # VolSync restic backups of monitoring PVCs (hourly; staggered schedules).
 # Shared B2 key scoped to volsync/monitoring/; each PVC gets its own repo.
 {{- range $pvc, $minute := dict
-  "prometheus-main-db"  "5"
-  "alertmanager-db"     "20"
-  "loki-data"           "35" }}
+  "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0"  "5"
+  "alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0"  "20"
+  "storage-monitoring-loki-0"  "35" }}
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
