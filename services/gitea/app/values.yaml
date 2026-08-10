@@ -62,6 +62,11 @@ gitea:
     runAsNonRoot: true
     seccompProfile: {type: RuntimeDefault}
 
+  valkey:
+    enabled: false
+  postgresql:
+    enabled: false
+  
   gitea:
     admin:
       existingSecret: gitea-admin
