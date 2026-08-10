@@ -1,4 +1,4 @@
-experimental_monorepo_root = true
+monorepo_root = true
 
 [monorepo]
 config_roots = [
@@ -8,7 +8,6 @@ config_roots = [
 ]
 
 [env]
-MISE_EXPERIMENTAL = 1
 _.file = [".secrets.env", "/tmp/.secrets.env.agent"]
 KUBECONFIG = "{{ config_root }}/kubeconfig"
 TF_VAR_cloudflare_zone_id = "op://K3s Service Cluster/Cloudflare DNS Challenge/zone_id"
