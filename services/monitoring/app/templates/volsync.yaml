@@ -34,4 +34,5 @@ spec:
     cacheStorageClassName: local-path
     moverSecurityContext:
       runAsUser: 0
+    unlock: "prometheus-2026-08-10"
 {{- end }}
