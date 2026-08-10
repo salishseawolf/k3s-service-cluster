@@ -64,6 +64,8 @@ gitea:
 
   valkey:
     enabled: false
+  valkey-cluster:
+    enabled: false
   postgresql:
     enabled: false
   
