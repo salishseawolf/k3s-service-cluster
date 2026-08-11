@@ -47,4 +47,5 @@ spec:
     # store being restored.
     cacheCapacity: 2Gi
     cacheStorageClassName: local-path
+    unlock: "stale-lock-20260811"
 {{- end }}
