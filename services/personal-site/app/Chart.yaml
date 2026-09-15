@@ -1,0 +1,9 @@
+apiVersion: v2
+name: personal-site
+description: >-
+  Personal site (mightbeawolf/personal-site), served at the apex domain.
+  Static Astro build baked into an nginx image at publish time — stateless,
+  no secrets, no persistence.
+type: application
+version: 0.1.0
+appVersion: "5a81219"

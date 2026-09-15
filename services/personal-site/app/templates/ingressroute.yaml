@@ -1,0 +1,25 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: personal-site
+  namespace: personal-site
+  labels:
+    app.kubernetes.io/name: personal-site
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # Apex host, public — no forward-auth. Explicit low priority so this
+    # catch-all can never outrank the Traefik dashboard's more specific
+    # Host(domain) && PathPrefix(/dashboard|/api) route on the same host
+    # (bootstrap/ansible/roles/k3s_server/templates/traefik-config.yaml.j2).
+    # That route's priority isn't settable through the upstream Traefik
+    # chart's values surface, so the guarantee is enforced from this side.
+    - match: "Host(`{{ .Values.domain }}`)"
+      kind: Rule
+      priority: 1
+      services:
+        - kind: Service
+          name: personal-site
+          port: {{ .Values.port }}
+  tls: {}

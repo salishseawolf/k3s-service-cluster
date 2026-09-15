@@ -177,6 +177,14 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+      - name: Personal Site
+        group: services
+        url: "https://{{ .Values.domain }}"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        failures: 3
+        success: 2
       - name: Gatus (self)
         group: internal
         url: "http://gatus.gatus.svc.cluster.local:{{ .Values.port }}/health"

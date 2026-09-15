@@ -1,0 +1,19 @@
+# Injected by the root ApplicationSet as a Helm parameter (single source of
+# truth for the cluster domain lives in platform/argocd).
+domain: ""
+
+image:
+  repository: ghcr.io/mightbeawolf/personal-site
+  # Pinned to a git-sha tag published by personal-site's publish.yml, not
+  # :latest — bump this deliberately in a PR to ship a new build.
+  tag: "5a81219"
+
+port: 80
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
