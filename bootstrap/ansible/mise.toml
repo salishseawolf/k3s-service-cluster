@@ -56,6 +56,10 @@ run = "op run -- ansible-playbook playbooks/update-known-hosts.yml"
 description = "Uninstall K3s from all nodes"
 run = "op run -- ansible-playbook playbooks/uninstall-k3s.yml"
 
+[tasks."harden-apiserver"]
+description = "Day-2: apply anonymous-auth=false to an already-running cluster, one node at a time"
+run = "op run -- ansible-playbook playbooks/apply-kube-apiserver-hardening.yml"
+
 [tasks."clear-cache"]
 description = "Clear cached Ansible facts"
 run = "rm -rf /tmp/ansible_facts"

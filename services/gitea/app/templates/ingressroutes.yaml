@@ -14,6 +14,21 @@ spec:
           port: 3000
   tls: {}
 ---
+# Restricts SSH git access to the admin's own network, matching the intent
+# already applied to direct node access by infrastructure/tofu's Hetzner
+# firewall (which only governs direct-to-node traffic, not traffic arriving
+# via the Load Balancer — this middleware is what actually enforces it for
+# the LB-fronted path).
+apiVersion: traefik.io/v1alpha1
+kind: MiddlewareTCP
+metadata:
+  name: gitea-ssh-allowlist
+  namespace: gitea
+spec:
+  ipAllowList:
+    sourceRange:
+      {{- toYaml .Values.adminSourceRanges | nindent 6 }}
+---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRouteTCP
 metadata:
@@ -23,6 +38,8 @@ spec:
   entryPoints: [ssh]
   routes:
     - match: HostSNI(`*`)
+      middlewares:
+        - name: gitea-ssh-allowlist
       services:
         - name: gitea-ssh
           port: ssh

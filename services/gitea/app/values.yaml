@@ -1,5 +1,8 @@
 domain: ""
 
+# Injected by the root ApplicationSet from platform/argocd/root/cluster-values.yaml
+adminSourceRanges: []
+
 gitea:
   global:
     storageClass: seaweedfs-storage

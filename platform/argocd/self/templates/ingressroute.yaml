@@ -6,8 +6,24 @@ metadata:
 spec:
   entryPoints: [websecure]
   routes:
+    # UI paths: gated by Authentik forward-auth, same as Homarr/Gatus/Grafana.
+    - kind: Rule
+      match: "Host(`argocd.{{ .Values.domain }}`) && !PathPrefix(`/api`)"
+      priority: 100
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: identity
+      services:
+        - name: argocd-server
+          port: 80
+    # /api: left ungated so `argocd login --auth-token` / CLI and automation
+    # keep working — direct OIDC doesn't support `argocd login --sso`
+    # (docs/ARGOCD-AUTHENTIK-SSO.md), so token-based CLI auth is the
+    # documented path and forward-auth's cookie flow would break it.
+    # Argo CD still enforces its own auth on every API call.
     - kind: Rule
       match: "Host(`argocd.{{ .Values.domain }}`)"
+      priority: 50
       services:
         - name: argocd-server
           port: 80

@@ -3,6 +3,17 @@
 # domain cutover = a one-file PR. Nothing else in the repo names the domain.
 domain: "salishseawolf.com"
 
+# Source ranges trusted for admin-only, network-level access controls (e.g.
+# Traefik IPAllowList/MiddlewareTCP). Deliberately NOT the same mechanism as
+# infrastructure/tofu's allowed_admin_cidr, which is supplied at `tofu apply`
+# time via TF_VAR_allowed_admin_cidr specifically so a stale IP can't silently
+# ship — GitOps manifests have no equivalent apply-time injection, so this
+# value has to live in git to be reconciled by Argo. Keep both in sync when
+# the admin IP changes.
+adminSourceRanges:
+  - "73.97.54.81/32"
+  - "192.168.0.0/16"
+
 # gitea oauth registration lives here (not in services/gitea/app/values.yaml)
 # because autoDiscoverUrl is domain-dependent and Helm values files cannot
 # template themselves.
