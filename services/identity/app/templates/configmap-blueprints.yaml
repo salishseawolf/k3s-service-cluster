@@ -529,6 +529,61 @@ data:
           policy_engine_mode: any
 
       # ============================================================
+      # Argo CD — UI paths only (Traefik excludes /api so
+      # `argocd login --auth-token` keeps working; see
+      # platform/argocd/self/templates/ingressroute.yaml). Distinct from
+      # provider-argocd/app-argocd (blueprint-argocd.yaml), which is Argo
+      # CD's own native OIDC login — this is the edge gate in front of it.
+      # ============================================================
+      - model: authentik_providers_proxy.proxyprovider
+        state: present
+        id: provider-argocd-fwd
+        identifiers:
+          name: Argo CD Forward Auth
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          mode: forward_single
+          external_host: "https://argocd.{{ .Values.domain }}"
+
+      - model: authentik_core.application
+        state: present
+        id: app-argocd-fwd
+        identifiers:
+          slug: argocd-forward-auth
+        attrs:
+          name: Argo CD (edge auth)
+          provider: !KeyOf provider-argocd-fwd
+          meta_launch_url: "https://argocd.{{ .Values.domain }}/"
+          policy_engine_mode: any
+
+      # ============================================================
+      # Grafana — edge gate in front of its own OIDC login (distinct
+      # from provider-grafana-oidc/app-grafana-oidc above).
+      # ============================================================
+      - model: authentik_providers_proxy.proxyprovider
+        state: present
+        id: provider-grafana-fwd
+        identifiers:
+          name: Grafana Forward Auth
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          mode: forward_single
+          external_host: "https://monitor.{{ .Values.domain }}"
+
+      - model: authentik_core.application
+        state: present
+        id: app-grafana-fwd
+        identifiers:
+          slug: grafana-forward-auth
+        attrs:
+          name: Grafana (edge auth)
+          provider: !KeyOf provider-grafana-fwd
+          meta_launch_url: "https://monitor.{{ .Values.domain }}/"
+          policy_engine_mode: any
+
+      # ============================================================
       # Tenancy groups (docs/PLAN.md H2.4)
       # 'internal' gates staff-only tools at the edge. Client access
       # is modeled as client-<name> groups bound per application.
@@ -563,6 +618,22 @@ data:
         attrs:
           group: !KeyOf group-internal
 
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 10
+          target: !KeyOf app-argocd-fwd
+        attrs:
+          group: !KeyOf group-internal
+
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 10
+          target: !KeyOf app-grafana-fwd
+        attrs:
+          group: !KeyOf group-internal
+
       # ============================================================
       # Embedded Outpost (all forward-auth providers)
       # ============================================================
@@ -577,6 +648,8 @@ data:
             - !Find [authentik_providers_proxy.proxyprovider, [name, "Traefik Dashboard"]]
             - !Find [authentik_providers_proxy.proxyprovider, [name, "Gatus Forward Auth"]]
             - !Find [authentik_providers_proxy.proxyprovider, [name, "Homarr Forward Auth"]]
+            - !Find [authentik_providers_proxy.proxyprovider, [name, "Argo CD Forward Auth"]]
+            - !Find [authentik_providers_proxy.proxyprovider, [name, "Grafana Forward Auth"]]
           config:
             authentik_host: "https://auth.{{ .Values.domain }}"
   blueprint-gitea.yaml: |
