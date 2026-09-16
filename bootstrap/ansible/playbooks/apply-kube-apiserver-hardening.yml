@@ -43,20 +43,23 @@
         state: restarted
       when: k3s_config_overlay is changed
 
-    - name: Wait for this node's apiserver to come back healthy
-      ansible.builtin.uri:
-        url: "https://127.0.0.1:6443/livez"
-        validate_certs: false
-        status_code: 200
-      register: apiserver_health
-      retries: 30
-      delay: 5
-      until: apiserver_health.status == 200
-      when: k3s_config_overlay is changed
-
+    # NOT a plain unauthenticated GET to /livez — anonymous-auth=false makes
+    # the apiserver reject unauthenticated requests outright (401), even to
+    # /livez, so that would fail regardless of whether the node is healthy.
+    # `k3s kubectl` uses this node's own admin kubeconfig (client-cert auth,
+    # unaffected by anonymous-auth), matching the pattern already used in
+    # roles/k3s_server/tasks/init.yml and join.yml.
+    #
+    # Deliberately NOT gated behind `k3s_config_overlay is changed`: this is
+    # the safety gate before serial:1 moves to the next node, so it must run
+    # (and actually prove Ready) even on a re-run where this node's overlay
+    # is already in place and reports no change.
     - name: Wait for node to report Ready again
       ansible.builtin.command: >-
         k3s kubectl wait --for=condition=Ready
-        node/{{ inventory_hostname }} --timeout=120s
+        node/{{ inventory_hostname }} --timeout=180s
       changed_when: false
-      when: k3s_config_overlay is changed
+      retries: 5
+      delay: 10
+      register: node_ready_again
+      until: node_ready_again is success
