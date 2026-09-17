@@ -252,16 +252,35 @@ umami:
   # -- Internal init containers
   initContainers:
     waitForDatabase:
-      # -- Wait for the database socket before starting Umami
-      enabled: true
-      # -- Container image used to check database connectivity
-      image: docker.io/library/busybox:1.37
-      # -- Image pull policy for the database wait container
-      pullPolicy: IfNotPresent
+      # -- Disabled: the chart's built-in wait-for-db container has no
+      # securityContext of its own (allowPrivilegeEscalation/capabilities
+      # aren't inherited from podSecurityContext), so it fails admission
+      # under the umami namespace's restricted PSA. Replaced below via
+      # extraInitContainers with an identical container plus the missing
+      # securityContext.
+      enabled: false
 
   extraVolumes: []
   extraVolumeMounts: []
-  extraInitContainers: []
+  extraInitContainers:
+    - name: wait-for-db
+      image: docker.io/library/busybox:1.37
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for database at main-db-rw.database.svc.cluster.local:5432..."
+          until nc -z -w2 main-db-rw.database.svc.cluster.local 5432; do
+            echo "Database not ready, retrying in 2s..."
+            sleep 2
+          done
+          echo "Database is ready."
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
 
   # -- Extra manifests to deploy alongside the chart
   extraManifests: []
