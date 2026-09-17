@@ -9,11 +9,32 @@ spec:
   entryPoints:
     - websecure
   routes:
+    # Public tracking surface: anonymous visitor browsers hit these with no
+    # Authentik session, so they must bypass forward-auth or the tracker/
+    # replay scripts and their data get redirected to the login flow instead
+    # of served/accepted. Scoped to exact paths so nothing else on this host
+    # (dashboard, admin API) is exposed unauthenticated.
     - kind: Rule
+      priority: 10
+      match: >-
+        Host(`umami.{{ .Values.domain }}`) &&
+        (
+          Path(`/info.js`) ||
+          Path(`/recorder.js`) ||
+          Path(`/api/send`) ||
+          Path(`/api/record`) ||
+          PathRegexp(`^/api/websites/[^/]+/recorder$`)
+        )
+      services:
+        - kind: Service
+          name: umami
+          port: {{ .Values.umami.service.port }}
+    # Everything else (dashboard, login, admin API) — Authentik's 'internal'
+    # group gates this before traffic reaches the pod.
+    - kind: Rule
+      priority: 1
       match: "Host(`umami.{{ .Values.domain }}`)"
       middlewares:
-        # Auth at the edge Authentik's 'internal' group gates this application
-        # before traffic reaches the pod.
         - name: authentik-forward-auth
           namespace: identity
       services:
