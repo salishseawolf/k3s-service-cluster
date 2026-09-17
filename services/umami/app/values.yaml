@@ -49,7 +49,7 @@ umami:
     # -- Force Strict-Transport-Security responses from Umami. Enable only when public access is HTTPS.
     forceSSL: false
     # -- HTTP header used to determine client IP behind reverse proxies
-    clientIpHeader: ""
+    clientIpHeader: "X-Forwarded-For"
     # -- Custom collection endpoint to avoid ad blockers. Defaults to Umami upstream behavior when empty.
     collectApiEndpoint: ""
     # -- CORS preflight max age in seconds. Empty uses upstream default.
@@ -59,7 +59,7 @@ umami:
     # -- Debug namespaces, for example umami:prisma or umami:middleware
     debug: ""
     # -- Custom tracker script name (for ad-blocker bypass)
-    trackerScriptName: ""
+    trackerScriptName: "info.js"
     # -- Extra environment variables for the container
     # -- @default -- `[]`
     extraEnv: []
