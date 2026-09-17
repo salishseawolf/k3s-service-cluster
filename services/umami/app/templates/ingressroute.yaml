@@ -16,7 +16,7 @@ spec:
     # (dashboard, admin API) is exposed unauthenticated.
     - kind: Rule
       priority: 10
-      match: "Host(`umami.{{ .Values.domain }}`) && (Path(`/info.js`) || Path(`/recorder.js`) || Path(`/api/send`) || Path(`/api/record`) || PathRegexp(`^/api/websites/[^/]+/recorder$`))"
+      match: "Host(`umami.{{ .Values.domain }}`) && (Path(`/info.js`) || Path(`/recorder.js`) || Path(`/api/send`) || Path(`/api/record`) || Path(`/api/websites/{id:[^/]+}/recorder`))"
       services:
         - kind: Service
           name: umami
