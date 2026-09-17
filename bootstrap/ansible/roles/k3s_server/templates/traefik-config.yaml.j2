@@ -70,7 +70,7 @@ spec:
     ingressRoute:
       dashboard:
         enabled: true
-        matchRule: Host(`{{ domain }}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`))
+        matchRule: Host(`traefik.{{ domain }}`)
         entryPoints:
           - websecure
         middlewares:
