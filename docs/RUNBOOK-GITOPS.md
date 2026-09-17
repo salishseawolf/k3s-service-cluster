@@ -31,6 +31,7 @@ Rebrand or domain cutover = a one-file PR.
 | Authentik Deployment Secrets | `secret_key`, `db_password`, `bootstrap_email`, `bootstrap_password` | verify |
 | SeaweedFS Secrets | `db_password`, `backup_access_key`, `backup_secret_key` | verify |
 | Gatus Secrets | `password` | doubles as its db password |
+| Umami Secrets | `db_password`, `app_secret` | `app_secret` is Umami's `APP_SECRET` hashing key; `db_password` is also consumed by bootstrap secret_zero for `umami-db-user-auth` |
 | StepCA Secrets | `ca_password`, `provisioner_password`, `root_ca_crt`, `intermediate_ca_crt`, `intermediate_ca_key`, `ca_json`, `defaults_json`, `ssh_host_ca_key`, `ssh_user_ca_key` | consumed by bootstrap secret_zero |
 | Cloudflare DNS Challenge | `password` (API token), `domain`, `zone_id`, `email` | issuer reads key `password` |
 | Redis Password | `password` | alphanumeric only (embeds in redis:// URLs) |
@@ -47,7 +48,7 @@ kubectl -n argocd get applications -w     # watch the cascade
 Bootstrap Ansible does exactly four things beyond K3s itself: installs
 1Password Connect+Operator (the helm values carry the Connect credential —
 this IS secret-zero delivery), creates the typed secrets the operator cannot
-emit (CNPG `kubernetes.io/basic-auth` ×6, step-ca `smallstep.com/*` ×5 —
+emit (CNPG `kubernetes.io/basic-auth` ×7, step-ca `smallstep.com/*` ×5 —
 see `bootstrap/ansible/roles/secret_zero/`), installs Argo CD, and applies
 `platform/argocd/root/`. Everything after that is the reconciler:
 

@@ -38,6 +38,7 @@ services/*/app/             Argo CD — application Helm charts
   homarr/                    Dashboard (edge-gated forward-auth)
   paperless/                 Document management (OIDC)
   gatus/                     Health monitoring (edge-gated)
+  umami/                     Privacy-first web analytics
   developer-tooling/         (under bootstrap/
 ```
 
@@ -84,7 +85,7 @@ Key items: `ArgoCD Github Token`, `Gitea Secrets` (10 fields including
 oidc_key/secret, actions_token, admin_user/password), `Homarr Secrets`,
 `Paperless Secrets`, `VolSync B2 <pvc>` (one item per backed-up PVC, restic env fields),
 `Authentik Deployment Secrets`, `Cloudflare DNS Challenge`, `Redis Password`,
-`StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`.
+`StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`, `Umami Secrets`.
 
 ## Essential Commands
 

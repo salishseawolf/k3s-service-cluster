@@ -12,6 +12,7 @@ PAPERLESS_DB_PASSWORD = "op://K3s Service Cluster/Paperless Secrets/db_password"
 HOMARR_DB_PASSWORD = "op://K3s Service Cluster/Homarr Secrets/db_password"
 SEAWEEDFS_DB_PASSWORD = "op://K3s Service Cluster/SeaweedFS Secrets/db_password"
 GATUS_DB_PASSWORD = "op://K3s Service Cluster/Gatus Secrets/db_password"
+UMAMI_DB_PASSWORD = "op://K3s Service Cluster/Umami Secrets/db_password"
 # step-ca CA material
 STEP_CA_PASSWORD = "op://K3s Service Cluster/StepCA Secrets/ca_password"
 STEP_CA_PROVISIONER_PASSWORD = "op://K3s Service Cluster/StepCA Secrets/provisioner_password"

@@ -1,0 +1,276 @@
+# SPDX-License-Identifier: Apache-2.0
+umami:
+  # =============================================================================
+  # Umami Helm Chart - Default Values
+  # =============================================================================
+  # Focus: privacy-first web analytics with PostgreSQL backend
+
+  nameOverride: ""
+  fullnameOverride: "umami"
+  commonLabels: {}
+
+  # -- Number of Umami application replicas. Use external PostgreSQL before scaling above one.
+  replicaCount: 1
+
+  # =============================================================================
+  # Image
+  # =============================================================================
+
+  image:
+    # -- Umami container image
+    repository: ghcr.io/umami-software/umami
+    # -- Image tag
+    tag: "3.3.1"
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  # =============================================================================
+  # Umami Configuration
+  # =============================================================================
+
+  umami:
+    # -- Application port
+    port: 3000
+    # -- Secret used for hashing (auto-generated if empty)
+    appSecret: ""
+    # -- Existing secret containing the APP_SECRET key
+    existingSecret: "umami-secrets"
+    # -- Key in the existing secret
+    existingSecretKey: app_secret
+    # -- Disable telemetry
+    disableTelemetry: true
+    # -- Disable upstream update checks
+    disableUpdates: true
+    # -- Disable bot detection. Leave false for normal analytics accuracy.
+    disableBotCheck: false
+    # -- Disable users, teams, and websites settings pages for managed/cloud-style deployments
+    cloudMode: false
+    # -- Force Strict-Transport-Security responses from Umami. Enable only when public access is HTTPS.
+    forceSSL: false
+    # -- HTTP header used to determine client IP behind reverse proxies
+    clientIpHeader: ""
+    # -- Custom collection endpoint to avoid ad blockers. Defaults to Umami upstream behavior when empty.
+    collectApiEndpoint: ""
+    # -- CORS preflight max age in seconds. Empty uses upstream default.
+    corsMaxAge: ""
+    # -- Space-delimited URLs allowed to frame Umami. Prefer explicit origins.
+    allowedFrameUrls: ""
+    # -- Debug namespaces, for example umami:prisma or umami:middleware
+    debug: ""
+    # -- Custom tracker script name (for ad-blocker bypass)
+    trackerScriptName: ""
+    # -- Extra environment variables for the container
+    # -- @default -- `[]`
+    extraEnv: []
+      # - name: ALLOWED_FRAME_URLS
+      #   value: "https://example.com"
+
+  # =============================================================================
+  # Database
+  # =============================================================================
+
+  database:
+    # -- External PostgreSQL configuration (used when postgresql subchart is disabled)
+    external:
+      host: "main-db-rw.database.svc.cluster.local"
+      port: "5432"
+      name: umami
+      username: umami
+      password: ""
+      existingSecret: "umami-secrets" # define from ./manifests/onepassworditem-db.yaml
+      existingSecretPasswordKey: db_password
+
+  # =============================================================================
+  # Service Account
+  # =============================================================================
+
+  serviceAccount:
+    # -- Create a ServiceAccount
+    create: false
+    # -- ServiceAccount name
+    name: ""
+    # -- Annotations for the ServiceAccount
+    annotations: {}
+    # -- Mount Kubernetes API credentials into Umami and backup pods
+    automountServiceAccountToken: false
+
+  # =============================================================================
+  # Service
+  # =============================================================================
+
+  service:
+    # -- Service type
+    type: ClusterIP
+    # -- HTTP service port
+    port: 80
+    # -- Annotations for the Service
+    annotations: {}
+    # -- Service IP family policy: SingleStack | PreferDualStack | RequireDualStack. Empty uses cluster default.
+    ipFamilyPolicy: ""
+    # -- Ordered Service IP families: IPv4 | IPv6. Empty uses cluster default.
+    ipFamilies: []
+
+  # =============================================================================
+  # Ingress
+  # =============================================================================
+
+  ingress:
+    # -- Enable ingress for Umami
+    # We need to set this as false, as we'll be defining our own ingress via
+    # ./templates/ingressroute.yaml that will respect our conventions.
+    enabled: false
+
+  # =============================================================================
+  # Gateway API
+  # =============================================================================
+
+  gatewayAPI:
+    # -- Render Gateway API HTTPRoute resources
+    enabled: false
+    # -- HTTPRoute parentRefs
+    parentRefs: []
+      # - name: public-gateway
+      #   namespace: gateway-system
+    # -- Hostnames routed to Umami
+    hostnames: []
+      # - analytics.example.com
+    # -- Additional HTTPRoute annotations
+    annotations: {}
+    # -- Path matches for the HTTPRoute
+    matches:
+      - path:
+          type: PathPrefix
+          value: /
+    # -- Optional HTTPRoute filters
+    filters: []
+
+  # =============================================================================
+  # Probes
+  # =============================================================================
+
+  probes:
+    startup:
+      enabled: true
+      path: /api/heartbeat
+      initialDelaySeconds: 30
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 30
+    liveness:
+      enabled: true
+      path: /api/heartbeat
+      initialDelaySeconds: 0
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      enabled: true
+      path: /api/heartbeat
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+  # =============================================================================
+  # Resources and Security
+  # =============================================================================
+
+  resources: {}
+
+  podSecurityContext:
+    runAsUser: 1001
+    runAsGroup: 65533
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+      - ALL
+
+  # =============================================================================
+  # NetworkPolicy
+  # =============================================================================
+
+  networkPolicy:
+    # -- Enable NetworkPolicy resources
+    enabled: false
+    ingress:
+      # -- Allow HTTP ingress from pods in the same namespace
+      allowSameNamespace: true
+      # -- Additional NetworkPolicy ingress peers for HTTP traffic, for example Gateway controller namespaces
+      extraFrom: []
+    egress:
+      # -- Enable egress policy rules. Disabled by default to avoid blocking unknown database, OIDC, or backup endpoints.
+      enabled: false
+      # -- Allow DNS egress to kube-system
+      allowDNS: true
+      # -- Allow egress to same-namespace PostgreSQL pods
+      allowSameNamespaceDatabase: true
+      # -- Database port allowed when allowSameNamespaceDatabase=true
+      databasePort: 5432
+      # -- Allow HTTPS egress to public internet for integrations, update checks when enabled, and S3 HTTPS endpoints
+      allowHTTPS: true
+      # -- Allow HTTP egress to public internet for non-TLS S3 endpoints or internal integrations
+      allowHTTP: false
+      # -- Additional NetworkPolicy egress peers
+      extraTo: []
+
+  # =============================================================================
+  # Disruption Budget
+  # =============================================================================
+
+  pdb:
+    # -- Create a PodDisruptionBudget. Useful when replicaCount is increased with an external PostgreSQL backend.
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: ""
+
+
+  # =============================================================================
+  # Scheduling
+  # =============================================================================
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  priorityClassName: ""
+  terminationGracePeriodSeconds: 30
+
+  podLabels: {}
+  podAnnotations: {}
+
+  # =============================================================================
+  # Extra
+  # =============================================================================
+
+  # -- Internal init containers
+  initContainers:
+    waitForDatabase:
+      # -- Wait for the database socket before starting Umami
+      enabled: true
+      # -- Container image used to check database connectivity
+      image: docker.io/library/busybox:1.37
+      # -- Image pull policy for the database wait container
+      pullPolicy: IfNotPresent
+
+  extraVolumes: []
+  extraVolumeMounts: []
+  extraInitContainers: []
+
+  # -- Extra manifests to deploy alongside the chart
+  extraManifests: []
+
+  # =============================================================================
+  # Subcharts
+  # =============================================================================
+
+  postgresql:
+    # -- Deploy PostgreSQL as a subchart
+    enabled: false
+

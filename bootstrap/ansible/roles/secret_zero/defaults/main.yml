@@ -10,3 +10,4 @@ cnpg_basic_auth_secrets:
   - {name: homarr-db-user-auth,     username: homarr_user,    env: HOMARR_DB_PASSWORD}
   - {name: seaweedfs-db-user-auth,  username: seaweedfs_user, env: SEAWEEDFS_DB_PASSWORD}
   - {name: gatus-db-user-auth,      username: gatus_user,     env: GATUS_DB_PASSWORD}
+  - {name: umami-db-user-auth,      username: umami,          env: UMAMI_DB_PASSWORD}

@@ -72,6 +72,13 @@ spec:
         inherit: true
         passwordSecret:
           name: gatus-db-user-auth
+      - name: umami
+        ensure: present
+        login: true
+        connectionLimit: -1
+        inherit: true
+        passwordSecret:
+          name: umami-db-user-auth
 
   # Backup via Barman Cloud Plugin -> Backblaze B2
   plugins:

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: umami
+type: application
+version: 0.1.0
+dependencies:
+  - name: umami
+    version: "2.3.3"
+    repository: "https://repo.helmforge.dev"
+

@@ -64,3 +64,15 @@ spec:
   owner: gatus_user
   cluster:
     name: {{ .Values.clusterName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: umami
+  namespace: database
+spec:
+  name: umami
+  owner: umami
+  cluster:
+    name: {{ .Values.clusterName }}
+---
