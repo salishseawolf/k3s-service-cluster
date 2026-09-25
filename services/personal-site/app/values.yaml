@@ -4,9 +4,7 @@ domain: ""
 
 image:
   repository: ghcr.io/mightbeawolf/personal-site
-  # Pinned to a git-sha tag published by personal-site's publish.yml, not
-  # :latest — bump this deliberately in a PR to ship a new build.
-  tag: "a387668"
+  tag: "fc97564"
 
 port: 80
 
