@@ -4,7 +4,7 @@ domain: ""
 
 image:
   repository: ghcr.io/mightbeawolf/personal-site
-  tag: "fc97564"
+  tag: "1761ca6"
 
 port: 80
 
