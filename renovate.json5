@@ -7,6 +7,14 @@
   schedule: ["before 6am on saturday"],
   dependencyDashboard: true,
 
+  // GitHub App bot identity (an app cannot look itself up via /user).
+  // 338865941 = id of the salishseawolf-renovate[bot] user, looked up with
+  // (no auth needed; %5B/%5D are the URL-encoded brackets):
+  //   curl -s https://api.github.com/users/salishseawolf-renovate%5Bbot%5D | jq .id
+  // If the app is renamed or recreated, rerun with the new slug and update
+  // both the id and the name below.
+  gitAuthor: "salishseawolf-renovate[bot] <338865941+salishseawolf-renovate[bot]@users.noreply.github.com>",
+
   // Personal GitHub account: no branch protection, so Renovate is the gate.
   // A PR is only opened once validate-services passes on the renovate/**
   // branch, and nothing merges itself (merged == deployed via Argo).

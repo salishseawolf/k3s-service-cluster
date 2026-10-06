@@ -61,6 +61,17 @@ run = [
   "bash -c 'set -e; for c in services/*/app platform/storage/seaweedfs platform/storage/seaweedfs-csi platform/cert-manager/config platform/cert-manager/crd platform/step-ca/config platform/step-ca/crd platform/volsync platform/argocd/self; do [ -f \"$c/Chart.yaml\" ] || continue; echo \"==> helm template $c\"; helm template test \"$c\" --set domain=example.test >/dev/null; done'",
 ]
 
+[tasks."check:renovate"]
+description = "Validate renovate.json5 as a repo config (stricter than global)"
+# keep-id maps your uid to the image's ubuntu user (12021) so it can read the
+# checkout; :z is the shared SELinux label (:Z would lock out other containers).
+run = """
+podman run --rm \
+  --userns=keep-id:uid=12021,gid=12021 \
+  -v "{{config_root}}:/repo:ro,z" -w /repo \
+  ghcr.io/renovatebot/renovate:latest renovate-config-validator
+"""
+
 [tasks.bootstrap]
 description = "Bootstrap a cluster: tofu + K3s + secret zero + Argo CD. Argo does the rest."
 run = """
