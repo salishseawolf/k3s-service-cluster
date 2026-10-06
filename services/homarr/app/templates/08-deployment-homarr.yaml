@@ -5,6 +5,15 @@ metadata:
   namespace: 'homarr'
   labels:
     app: homarr
+  annotations:
+    # Deliberate exceptions; namespace is PSA baseline for the same reason.
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      Homarr image entrypoint starts as root, then fixes ownership and drops
+      privileges (needs CHOWN/SETUID/SETGID; all other caps dropped). init-nginx
+      chmods the nginx emptyDirs as root.
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      Image writes outside the mounted volumes at runtime (write paths not yet
+      mapped); revisit with a podman --read-only test.
 spec:
   replicas: 1
   revisionHistoryLimit: 2
