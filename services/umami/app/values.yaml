@@ -190,7 +190,7 @@ umami:
     readOnlyRootFilesystem: true
     capabilities:
       drop:
-      - ALL
+        - ALL
 
   # =============================================================================
   # NetworkPolicy
@@ -205,7 +205,8 @@ umami:
       # -- Additional NetworkPolicy ingress peers for HTTP traffic, for example Gateway controller namespaces
       extraFrom: []
     egress:
-      # -- Enable egress policy rules. Disabled by default to avoid blocking unknown database, OIDC, or backup endpoints.
+      # -- Enable egress policy rules. Disabled by default to avoid blocking unknown
+      # database, OIDC, or backup endpoints.
       enabled: false
       # -- Allow DNS egress to kube-system
       allowDNS: true
@@ -229,7 +230,6 @@ umami:
     enabled: false
     minAvailable: 1
     maxUnavailable: ""
-
 
   # =============================================================================
   # Scheduling
@@ -280,7 +280,7 @@ umami:
         allowPrivilegeEscalation: false
         capabilities:
           drop:
-          - ALL
+            - ALL
 
   # -- Extra manifests to deploy alongside the chart
   extraManifests: []
@@ -292,4 +292,3 @@ umami:
   postgresql:
     # -- Deploy PostgreSQL as a subchart
     enabled: false
-

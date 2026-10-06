@@ -6,4 +6,3 @@ dependencies:
   - name: umami
     version: "2.3.3"
     repository: "https://repo.helmforge.dev"
-

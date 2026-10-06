@@ -119,7 +119,9 @@ kps:
         token_url: https://auth.salishseawolf.com/application/o/token/
         api_url: https://auth.salishseawolf.com/application/o/userinfo/
         signout_redirect_url: https://auth.salishseawolf.com/application/o/grafana/end-session/
-        role_attribute_path: contains(entitlements[*], 'Grafana Admins') && 'Admin' || contains(entitlements[*], 'Grafana Editors') && 'Editor' || 'Viewer'
+        role_attribute_path: >-
+          contains(entitlements[*], 'Grafana Admins') && 'Admin' ||
+          contains(entitlements[*], 'Grafana Editors') && 'Editor' || 'Viewer'
     resources:
       requests:
         cpu: 100m
