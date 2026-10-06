@@ -1,3 +1,4 @@
+---
 # kube-linter config, picked up automatically from the repo root by CI
 # (.github/workflows/validate-services.yaml) and local runs.
 checks:

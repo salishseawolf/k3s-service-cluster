@@ -1,3 +1,4 @@
+---
 apiVersion: v2
 name: redis
 description: Shared Redis (sessions/cache) with requirepass from 1Password.

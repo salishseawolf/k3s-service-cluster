@@ -1,3 +1,4 @@
+---
 apiVersion: v2
 name: copyparty
 description: File sharing behind an Authentik-managed proxy outpost.

@@ -1,3 +1,4 @@
+---
 domain: ""
 image: "redis:7-alpine"
 port: 6379

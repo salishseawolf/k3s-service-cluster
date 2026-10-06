@@ -1,3 +1,4 @@
+---
 # CRD-only install for the monitoring stack
 # Values are at top level — this chart is used as a direct chart source,
 # not as a Helm dependency.

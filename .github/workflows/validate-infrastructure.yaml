@@ -1,3 +1,4 @@
+---
 name: validate-infrastructure
 on:
   pull_request:

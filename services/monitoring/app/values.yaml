@@ -1,3 +1,4 @@
+---
 # kube-prometheus-stack — workloads only (CRDs are in platform/monitoring-crd)
 kps:
   fullnameOverride: prometheus

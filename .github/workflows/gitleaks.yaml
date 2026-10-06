@@ -1,3 +1,4 @@
+---
 # Backstops the pre-commit hook — pre-commit only protects machines that
 # installed it; CI protects the repo.
 name: gitleaks

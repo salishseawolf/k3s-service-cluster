@@ -1,3 +1,4 @@
+---
 # Injected by the root ApplicationSet as a Helm parameter (single source of
 # truth for the cluster domain lives in platform/argocd).
 domain: ""

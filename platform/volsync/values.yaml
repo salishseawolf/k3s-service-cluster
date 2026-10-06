@@ -1,3 +1,4 @@
+---
 volsync:
   manageCRDs: true
   replicaCount: 1

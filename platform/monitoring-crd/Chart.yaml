@@ -1,3 +1,4 @@
+---
 apiVersion: v2
 name: monitoring-crd
 description: Prometheus operator CRDs for the monitoring stack

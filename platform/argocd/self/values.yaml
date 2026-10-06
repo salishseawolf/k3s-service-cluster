@@ -1,3 +1,4 @@
+---
 argo-cd:
   # Injected by root ApplicationSet from cluster-values.yaml
   domain: ""

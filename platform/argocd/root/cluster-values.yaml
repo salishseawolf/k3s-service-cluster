@@ -1,3 +1,4 @@
+---
 # ─── THE single domain-bearing file ──────────────────────────────────────
 # Every Application pulls this via a multi-source $values ref. Rebrand or
 # domain cutover = a one-file PR. Nothing else in the repo names the domain.

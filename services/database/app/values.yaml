@@ -1,3 +1,4 @@
+---
 domain: ""
 clusterName: main-db
 instances: 3   # HA; barman plugin re-enabled

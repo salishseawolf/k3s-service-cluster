@@ -1,3 +1,4 @@
+---
 apiVersion: v2
 name: paperless
 description: Document management; OIDC via inverted credentials; PVCs on seaweedfs-storage.

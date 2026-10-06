@@ -1,3 +1,4 @@
+---
 name: validate-platform
 on:
   pull_request:
