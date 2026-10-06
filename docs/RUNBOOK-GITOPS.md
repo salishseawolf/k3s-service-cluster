@@ -8,12 +8,13 @@ per cluster life), everything under `platform/` and `services/` = Argo CD
 ## 0. One-time setup before first bootstrap
 
 ### Repo pointer
-Argo pulls from the **GitHub push-mirror**, not in-cluster Gitea (that break
-in the circular dependency is what makes Gitea an ordinary app and lets a
-dead cluster rebuild without its own Gitea). Replace every
-`https://github.com/CHANGEME/k3s-service-cluster.git` (root apps, appset,
-bootstrap mise) with the real mirror URL — one `sed`, committed once. Set the
-mirror up in Gitea: Settings → Repository → Push mirror.
+The repo of record is **GitHub**
+(`https://github.com/salishseawolf/k3s-service-cluster.git`). Changes land
+there by PR, and Argo pulls from it. In-cluster Gitea is not in the GitOps
+path, which keeps Gitea an ordinary app and lets a dead cluster rebuild
+without its own Gitea existing first. The URL appears in the root apps, the
+appset, and `bootstrap/ansible/mise.toml` (`ARGOCD_REPO_URL`); keep them in
+sync if the repo ever moves.
 
 ### The single domain file
 `platform/argocd/root/cluster-values.yaml` is the only file in the repo that
@@ -23,7 +24,7 @@ Rebrand or domain cutover = a one-file PR.
 ### Vault items (1Password) — create/verify before bootstrap
 | Item | Fields | Notes |
 |---|---|---|
-| ArgoCD Github Token | `username`, `password` | read-only PAT for the GitHub mirror |
+| ArgoCD Github Token | `username`, `password` | read-only PAT for the GitHub repo Argo tracks |
 | Gitea Secrets | `password`, `db_password`, `internal_token`, `secret_key`, `jwt_secret`, `oidc_key`, `oidc_secret`, `actions_token`, `admin_user`, `admin_password` | **oidc_key=** OIDC client ID (use `gitea`), **oidc_secret=** OIDC client secret, **actions_token=** runner registration token, **admin_user/admin_password=** Gitea admin login (no longer the db password) |
 | Homarr Secrets | `password`, `oidc_client`, `oidc_secret` | `password` doubles as its db password (basic-auth) |
 | Paperless Secrets | `secret_key`, `db_password`, `oidc_client`, `oidc_secret` | |

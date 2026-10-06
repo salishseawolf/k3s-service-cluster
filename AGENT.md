@@ -142,14 +142,14 @@ authenticated.
 
 ## Stage 6 — GitOps activation
 
-1. Push this repository to Gitea (`git remote add gitea
-   https://git.<domain>/salish/cluster.git && git push gitea main`).
-   Creating the Gitea org/repo and the read-only token for the
-   `ArgoCD Repo Credentials` 1P item is a human step — request it, wait.
-2. Ask the human which repo Argo should track: in-cluster Gitea (default) or
-   the GitHub push-mirror (recommended for DR — breaks the bootstrap cycle).
-   Set `argocd_repo_url` in `platform/argocd/ansible/roles/argocd/defaults/`
-   accordingly if they choose the mirror.
+1. Push this repository to GitHub, the repo of record
+   (`https://github.com/salishseawolf/k3s-service-cluster.git`).
+   Creating the read-only PAT for the `ArgoCD Github Token` 1P item is a
+   human step: request it, wait.
+2. Argo tracks the GitHub repo, not in-cluster Gitea (this breaks the
+   bootstrap cycle and lets a dead cluster rebuild). The URL is
+   `ARGOCD_REPO_URL` in `bootstrap/ansible/mise.toml`, read by
+   `argocd_repo_url` in `bootstrap/ansible/roles/argocd/defaults/main.yml`.
 3. `mise run deploy:gitops`
 4. Gatus cutover per RUNBOOK.md §6: `helm -n gatus uninstall gatus` (this is
    a destructive op — confirm first), then watch the Argo Application reach

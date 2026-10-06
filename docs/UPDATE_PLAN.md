@@ -120,7 +120,7 @@ One ApplicationSet with a directory generator over `services/*/app` gives per-se
 One service per sitting: gatus first (stateless, low risk), then homarr, copyparty, paperless, then the stateful/privileged ones (seaweedfs, velero, gitea-actions) once the pattern is proven. Each migration: convert Ansible-templated manifests to plain manifests or Helm values, add the NetworkPolicy (H2.1), delete the service from the mise deploy chain.
 
 **R3.4 — Disaster-recovery mirror.**
-Gitea push-mirror the monorepo to GitHub (or any external host). The repo that defines the cluster must survive the cluster. Also document the bootstrap-from-zero runbook: tofu apply → ansible bootstrap → Argo syncs the rest.
+*(Superseded: GitHub is the repo of record and Argo pulls from it directly; there is no Gitea push-mirror.)* ~~Gitea push-mirror the monorepo to GitHub (or any external host).~~ The repo that defines the cluster must survive the cluster. Also document the bootstrap-from-zero runbook: tofu apply → ansible bootstrap → Argo syncs the rest.
 
 ### Phase R4 — CI granularity
 

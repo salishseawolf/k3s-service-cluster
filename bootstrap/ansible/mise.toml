@@ -23,7 +23,7 @@ STEP_CA_CA_JSON = "op://K3s Service Cluster/StepCA Secrets/ca_json"
 STEP_CA_DEFAULTS_JSON = "op://K3s Service Cluster/StepCA Secrets/defaults_json"
 STEP_CA_SSH_HOST_CA_KEY = "op://K3s Service Cluster/StepCA Secrets/ssh_host_ca_key"
 STEP_CA_SSH_USER_CA_KEY = "op://K3s Service Cluster/StepCA Secrets/ssh_user_ca_key"
-# Argo CD pulls from the GitHub push-mirror (set your mirror URL)
+# Argo CD pulls from the GitHub repo of record (not in-cluster Gitea)
 ARGOCD_REPO_URL = "https://github.com/salishseawolf/k3s-service-cluster.git"
 
 [tasks.init]

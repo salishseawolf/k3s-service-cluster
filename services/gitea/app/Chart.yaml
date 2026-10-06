@@ -2,7 +2,7 @@ apiVersion: v2
 name: gitea
 description: >-
   Gitea (umbrella). Deployed by Argo like any other app — Argo pulls from the
-  GitHub mirror, so Gitea is not a bootstrap dependency. Domain-dependent
+  GitHub repo of record, so Gitea is not a bootstrap dependency. Domain-dependent
   config via additionalConfigSources ConfigMap; secrets via 1P-synced env.
 type: application
 version: 0.1.0

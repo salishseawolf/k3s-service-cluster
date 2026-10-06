@@ -5,7 +5,7 @@ argocd_chart_repo: "https://argoproj.github.io/argo-helm"
 # platform/argocd/self app then converges to the version pinned in git.
 argocd_chart_version: "7.7.11"
 
-# Argo pulls from the GitHub push-mirror, NOT in-cluster Gitea: that break in
+# Argo pulls from the GitHub repo of record, NOT in-cluster Gitea: that break in
 # the circular dependency is what lets Gitea be an ordinary GitOps app and
 # lets a dead cluster rebuild without its own Gitea existing first.
 argocd_repo_url: "{{ lookup('env', 'ARGOCD_REPO_URL') }}"
