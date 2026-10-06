@@ -1,0 +1,52 @@
+# CI = validation only (docs/PLAN.md R4). CD belongs to Argo, so CI never
+# holds cluster credentials: these jobs run on GitHub-hosted runners with a
+# read-only token and nothing that can reach the cluster.
+name: validate-services
+on:
+  pull_request:
+    paths:
+      - "services/**"
+  push:
+    branches: [main]
+    paths:
+      - "services/**"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: yamllint
+        run: |
+          pipx install yamllint
+          yamllint -c .yamllint.yaml services/
+
+
+  charts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: helm template + kubeconform + kube-linter (GitOps-tier charts)
+        run: |
+          set -e
+          curl -sSL https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz | tar xz --strip-components=1 linux-amd64/helm
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz kubeconform
+          curl -sSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux.tar.gz \
+            | tar xz kube-linter
+          for chart in services/*/app; do
+            [ -f "$chart/Chart.yaml" ] || continue
+            echo "==> $chart"
+            # umbrella charts (identity, gitea) declare upstream dependencies
+            grep -q "^dependencies:" "$chart/Chart.yaml" && ./helm dependency update "$chart"
+            ./helm template test "$chart" --set domain=ci.example.com > /tmp/rendered.yaml
+            # CRDs (IngressRoute, OnePasswordItem, CNPG) aren't in upstream
+            # schemas — skip unknown kinds rather than vendoring schemas.
+            ./kubeconform -ignore-missing-schemas -strict -summary /tmp/rendered.yaml
+            ./kube-linter lint /tmp/rendered.yaml || exit 1
+          done

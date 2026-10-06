@@ -1,0 +1,52 @@
+name: validate-platform
+on:
+  pull_request:
+    paths:
+      - "platform/**"
+      - "bootstrap/**"
+  push:
+    branches: [main]
+    paths:
+      - "platform/**"
+      - "bootstrap/**"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: yamllint
+        run: |
+          pipx install yamllint
+          yamllint -c .yamllint.yaml platform/ bootstrap/
+
+      - name: ansible-lint
+        run: |
+          pipx install --include-deps ansible-lint
+          for d in bootstrap/ansible; do
+            [ -d "$d" ] || continue
+            echo "==> $d"
+            ansible-lint "$d" || exit 1
+          done
+
+  charts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: helm template platform charts
+        run: |
+          set -e
+          curl -sSL https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz | tar xz --strip-components=1 linux-amd64/helm
+          for chart in platform/storage/seaweedfs platform/storage/seaweedfs-csi \
+                       platform/cert-manager/config platform/cert-manager/crd \
+                       platform/step-ca/config platform/step-ca/crd \
+                       platform/volsync platform/argocd/self; do
+            [ -f "$chart/Chart.yaml" ] || continue
+            echo "==> $chart"
+            grep -q "^dependencies:" "$chart/Chart.yaml" && ./helm dependency update "$chart"
+            ./helm template test "$chart" --set domain=ci.example.com >/dev/null
+          done
