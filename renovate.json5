@@ -4,7 +4,9 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["config:recommended"],
   timezone: "America/Los_Angeles",
-  schedule: ["before 6am on saturday"],
+  // Daily 05:00-05:59 Pacific. Renovate only checks the hour (minutes must be
+  // "*"), so the runner has to fire inside this window or nothing happens.
+  schedule: ["* 5 * * *"],
   dependencyDashboard: true,
 
   // GitHub App bot identity (an app cannot look itself up via /user).

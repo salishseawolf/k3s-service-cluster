@@ -1,0 +1,11 @@
+apiVersion: v2
+name: renovate
+description: >-
+  Self-hosted Renovate as a daily CronJob against the GitHub repo of record.
+  Authenticates as the salishseawolf-renovate GitHub App: each run mints a
+  1-hour installation token from the app's private key (1P-synced), so no
+  long-lived GitHub token exists anywhere. Repo-side behaviour lives in
+  /renovate.json5.
+type: application
+version: 0.1.0
+appVersion: "44.141.0"

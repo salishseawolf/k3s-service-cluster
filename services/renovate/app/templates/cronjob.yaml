@@ -1,0 +1,111 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: renovate
+  namespace: renovate
+  labels:
+    app.kubernetes.io/name: renovate
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  timeZone: {{ .Values.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  # A run that cannot start within 30 min would land outside the
+  # renovate.json5 schedule window and do nothing useful; skip it.
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 2400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: renovate
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 12021  # the image's "ubuntu" user
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: renovate
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              # args (not command) keeps the image entrypoint, which loads
+              # containerbase's environment before exec'ing this.
+              args:
+                - bash
+                - -ec
+                - |
+                  RENOVATE_TOKEN="$(node /scripts/mint-token.js)"
+                  export RENOVATE_TOKEN
+                  exec renovate
+              env:
+                - name: RENOVATE_PLATFORM
+                  value: github
+                - name: RENOVATE_REPOSITORIES
+                  value: {{ .Values.repositories | quote }}
+                - name: RENOVATE_USERNAME
+                  value: {{ .Values.botUsername | quote }}
+                # The repo carries its own renovate.json5; never onboard, and
+                # do nothing if that file is ever removed.
+                - name: RENOVATE_ONBOARDING
+                  value: "false"
+                - name: RENOVATE_REQUIRE_CONFIG
+                  value: required
+                - name: RENOVATE_BASE_DIR
+                  value: /tmp/renovate
+                - name: LOG_LEVEL
+                  value: {{ .Values.logLevel | quote }}
+                - name: GITHUB_APP_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.secrets.githubApp.name }}
+                      key: {{ .Values.secrets.githubApp.appIdKey }}
+                - name: GITHUB_APP_INSTALLATION_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.secrets.githubApp.name }}
+                      key: {{ .Values.secrets.githubApp.installationIdKey }}
+                - name: GITHUB_APP_PRIVATE_KEY_FILE
+                  value: /secrets/github-app/private-key.pem
+              volumeMounts:
+                - name: mint-token
+                  mountPath: /scripts
+                  readOnly: true
+                - name: github-app
+                  mountPath: /secrets/github-app
+                  readOnly: true
+                # Writable scratch on a read-only root: clones, cache and
+                # any tools containerbase installs live under /tmp/renovate.
+                - name: tmp
+                  mountPath: /tmp
+                - name: home
+                  mountPath: /home/ubuntu
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+          volumes:
+            - name: mint-token
+              configMap:
+                name: renovate-mint-token
+            - name: github-app
+              secret:
+                secretName: {{ .Values.secrets.githubApp.name }}
+                defaultMode: 0400
+                items:
+                  - key: {{ .Values.secrets.githubApp.privateKeyKey }}
+                    path: private-key.pem
+            - name: tmp
+              emptyDir:
+                sizeLimit: 2Gi
+            - name: home
+              emptyDir:
+                sizeLimit: 256Mi

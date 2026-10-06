@@ -1,0 +1,34 @@
+# Injected by the root ApplicationSet as a Helm parameter (single source of
+# truth for the cluster domain lives in platform/argocd). Unused here.
+domain: ""
+
+image:
+  repository: ghcr.io/renovatebot/renovate
+  tag: "44.141.0"
+
+# Must fire inside the schedule window in /renovate.json5 (05:00-05:59
+# Pacific); outside it Renovate only refreshes the Dependency Dashboard.
+schedule: "15 5 * * *"
+timeZone: America/Los_Angeles
+
+repositories: salishseawolf/k3s-service-cluster
+botUsername: "salishseawolf-renovate[bot]"
+logLevel: info
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+secrets:
+  githubApp:
+    name: renovate-github-app
+    itemPath: "vaults/K3s Service Cluster/items/Renovate App Key"
+    # The operator turns field labels into Secret keys, replacing characters
+    # Kubernetes disallows: the 1P field "private key" becomes "private-key".
+    privateKeyKey: private-key
+    appIdKey: app_id
+    installationIdKey: installation_id
