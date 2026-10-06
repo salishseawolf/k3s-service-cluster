@@ -11,7 +11,12 @@ metadata:
     app.kubernetes.io/name: cert-manager
     app.kubernetes.io/instance: cert-manager
 spec:
-  maxUnavailable: 0
+  # Single replica: maxUnavailable 0 would make `kubectl drain` hang forever
+  # on this node. 1 lets a deliberate drain proceed; nodes' unattended
+  # reboots don't drain, so this never blocked those anyway.
+  maxUnavailable: 1
+  # Let a drain evict a crash-looping pod instead of waiting on it.
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels:
       app.kubernetes.io/name: cert-manager

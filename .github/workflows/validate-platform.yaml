@@ -5,11 +5,17 @@ on:
     paths:
       - "platform/**"
       - "bootstrap/**"
+      - ".kube-linter.yaml"
+      - "scripts/check-rendered-charts.sh"
+      - "mise.toml"
   push:
     branches: [main]
     paths:
       - "platform/**"
       - "bootstrap/**"
+      - ".kube-linter.yaml"
+      - "scripts/check-rendered-charts.sh"
+      - "mise.toml"
 
 permissions:
   contents: read
@@ -38,16 +44,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: helm template platform charts
+        with:
+          fetch-depth: 0  # --changed-since diffs against earlier commits
+
+      # Same tool pins as local runs (mise.toml); only what the check needs.
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: helm kubeconform kube-linter yq
+
+      # Same task `mise run check` uses locally: helm template from a temp
+      # copy (locked deps) -> kubeconform -> kube-linter (.kube-linter.yaml).
+      - name: Rendered platform charts
+        env:
+          MISE_TASK_RUN_AUTO_INSTALL: "false"
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          set -e
-          curl -sSL https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz | tar xz --strip-components=1 linux-amd64/helm
-          for chart in platform/storage/seaweedfs platform/storage/seaweedfs-csi \
-                       platform/cert-manager/config platform/cert-manager/crd \
-                       platform/step-ca/config platform/step-ca/crd \
-                       platform/volsync platform/argocd/self; do
-            [ -f "$chart/Chart.yaml" ] || continue
-            echo "==> $chart"
-            grep -q "^dependencies:" "$chart/Chart.yaml" && ./helm dependency update "$chart"
-            ./helm template test "$chart" --set domain=ci.example.com >/dev/null
-          done
+          # Only charts this change touches. Push to main: since the previous
+          # main. Branches (incl. renovate/**) and PRs: since their fork
+          # point from main. Lint config/script/tool changes check them all.
+          if [ "$EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ] \
+             && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base="$BEFORE"
+          else
+            base="$(git merge-base origin/main HEAD)"
+          fi
+          mise run check:rendered-charts -- --changed-since "$base" platform/

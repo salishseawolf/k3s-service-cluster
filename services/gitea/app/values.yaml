@@ -87,6 +87,9 @@ gitea:
     # cluster-values.yaml is the single domain-bearing file in the repo.
     config:
       server:
+        # Gitea's default, set explicitly: chart 12.6.0 renders the http
+        # Service's targetPort from this and emits null when it's unset.
+        HTTP_PORT: 3000
         SSH_PORT: 2222
         SSH_LISTEN_PORT: 2222
         OFFLINE_MODE: false

@@ -8,7 +8,12 @@ ignore:
   - "platform/*/crd/templates/*.yaml"
   - "platform/storage/*/templates/*.yaml"
   - "platform/volsync/templates/*.yaml"
+  - "platform/argocd/self/templates/*.yaml"  # two levels deep, missed by platform/*/templates
   - "services/*/app/templates/*.yaml"
+  # Upstream chart unpacked by `helm dependency build` (gitignored, not ours)
+  - "platform/argocd/self/charts/"
+  # ansible-lint's project-local collection cache (third-party, gitignored)
+  - "**/.ansible/"
   - "bootstrap/ansible/roles/secret_zero/defaults/main.yml"
   - "infrastructure/tofu/*.yaml"
 

@@ -37,7 +37,10 @@
             - "anonymous-auth=false"
       register: k3s_config_overlay
 
-    - name: Restart k3s to apply new apiserver args
+    # noqa no-handler: the restart must happen before "Wait for node to report
+    # Ready again" below; a handler would run after it (end of the serial
+    # batch), so the Ready gate would check a node that hasn't restarted yet.
+    - name: Restart k3s to apply new apiserver args  # noqa: no-handler
       ansible.builtin.systemd:
         name: k3s
         state: restarted

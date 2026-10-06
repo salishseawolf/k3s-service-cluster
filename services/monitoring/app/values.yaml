@@ -140,6 +140,18 @@ kps:
   prometheus-node-exporter:
     hostNetwork: false
 
+  # k3s runs these inside the k3s process, not as pods: the chart's Services
+  # would select nothing, Prometheus would scrape dead targets and TargetDown
+  # would fire for them. Their alert rules are disabled below as well.
+  kubeControllerManager:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeEtcd:
+    enabled: false
+  kubeProxy:
+    enabled: false
+
   # Default rules and dashboards — keep them
   defaultRules:
     create: true

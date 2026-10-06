@@ -7,6 +7,10 @@ on:
   pull_request:
     paths:
       - "services/**"
+      - ".kube-linter.yaml"
+      - "scripts/check-rendered-charts.sh"
+      - "mise.toml"
+      - "bootstrap/ansible/inventory/group_vars/all.yml"  # k3s version for kubeconform
   push:
     # renovate/** so Renovate's branches get checked before it opens a PR
     # (renovate.json5 prCreation: status-success). No branch protection on
@@ -14,6 +18,10 @@ on:
     branches: [main, "renovate/**"]
     paths:
       - "services/**"
+      - ".kube-linter.yaml"
+      - "scripts/check-rendered-charts.sh"
+      - "mise.toml"
+      - "bootstrap/ansible/inventory/group_vars/all.yml"  # k3s version for kubeconform
 
 permissions:
   contents: read
@@ -29,28 +37,33 @@ jobs:
           pipx install yamllint
           yamllint -c .yamllint.yaml services/
 
-
   charts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # --changed-since diffs against earlier commits
 
-      - name: helm template + kubeconform + kube-linter (GitOps-tier charts)
+      # Same tool pins as local runs (mise.toml); only what the check needs.
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: helm kubeconform kube-linter yq
+
+      # Same task `mise run check` uses locally: helm template from a temp
+      # copy (locked deps) -> kubeconform -> kube-linter (.kube-linter.yaml).
+      - name: Rendered service charts
+        env:
+          MISE_TASK_RUN_AUTO_INSTALL: "false"
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          set -e
-          curl -sSL https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz | tar xz --strip-components=1 linux-amd64/helm
-          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
-            | tar xz kubeconform
-          curl -sSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux.tar.gz \
-            | tar xz kube-linter
-          for chart in services/*/app; do
-            [ -f "$chart/Chart.yaml" ] || continue
-            echo "==> $chart"
-            # umbrella charts (identity, gitea) declare upstream dependencies
-            grep -q "^dependencies:" "$chart/Chart.yaml" && ./helm dependency update "$chart"
-            ./helm template test "$chart" --set domain=ci.example.com > /tmp/rendered.yaml
-            # CRDs (IngressRoute, OnePasswordItem, CNPG) aren't in upstream
-            # schemas — skip unknown kinds rather than vendoring schemas.
-            ./kubeconform -ignore-missing-schemas -strict -summary /tmp/rendered.yaml
-            ./kube-linter lint /tmp/rendered.yaml || exit 1
-          done
+          # Only charts this change touches. Push to main: since the previous
+          # main. Branches (incl. renovate/**) and PRs: since their fork
+          # point from main. Lint config/script/tool changes check them all.
+          if [ "$EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ] \
+             && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base="$BEFORE"
+          else
+            base="$(git merge-base origin/main HEAD)"
+          fi
+          mise run check:rendered-charts -- --changed-since "$base" services/

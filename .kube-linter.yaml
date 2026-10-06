@@ -8,7 +8,7 @@ checks:
     # requests/limits at admission, so a container without explicit
     # resources is still bounded. kube-linter only sees the rendered
     # manifests, not the LimitRange's effect, so these checks are noise here.
-    # Keep that true: a new chart must set resources or ship a LimitRange.
-    # Known gap: umami has neither (resources: {} and no LimitRange).
+    # Keep that true: a new chart must set resources or ship a LimitRange
+    # (redis sets explicit resources instead of shipping one).
     - unset-cpu-requirements
     - unset-memory-requirements

@@ -73,7 +73,20 @@ spec:
           connection_max_lifetime_seconds = 0
           createTable = 'CREATE TABLE IF NOT EXISTS "%s" (dirhash BIGINT NOT NULL, name VARCHAR(65535) NOT NULL, directory TEXT NOT NULL, meta BYTEA, PRIMARY KEY (dirhash, name))'
           EOF
+        # Only reads secret files (default mode 0644) and writes to the
+        # /shared emptyDir, so it needs neither root nor a writable root fs.
+        securityContext:
+          runAsUser: 65534
+          runAsGroup: 65534
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         volumeMounts:
+        - name: config-builder-tmp
+          mountPath: /tmp
         - name: root-creds
           mountPath: /secrets/root-creds
           readOnly: true
@@ -152,6 +165,9 @@ spec:
           claimName: seaweedfs-data
       - name: config-data
         emptyDir: {}
+      - name: config-builder-tmp
+        emptyDir:
+          sizeLimit: 16Mi
       - name: filer-config
         configMap:
           name: seaweedfs-filer-config

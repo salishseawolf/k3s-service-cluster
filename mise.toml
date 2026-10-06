@@ -34,8 +34,8 @@ RESTIC_PASSWORD="op://K3s Service Cluster/VolSync B2 paperless-media/RESTIC_PASS
 "hcloud" = "latest"
 "helm" = "3.14.4"
 "helm-diff" = "latest"
-"kubeconform" = "latest"
-"kube-linter" = "latest"
+"kubeconform" = "0.8.0"
+"kube-linter" = "0.8.3"
 "yq" = "latest"
 "mc" = "latest"
 "restic" = "latest"
@@ -53,13 +53,22 @@ run = [
 ]
 
 [tasks.check]
-description = "Validate everything: lint YAML/ansible, template every chart"
+description = "Validate everything: lint sources (YAML/tofu/ansible), then validate rendered charts"
 run = [
+  # 1. Non-template sources (Helm templates are ignored in .yamllint.yaml)
   "yamllint -c .yamllint.yaml infrastructure/ bootstrap/ platform/ services/",
   "mise run //infrastructure/tofu:check",
   "mise run //bootstrap/ansible:lint",
-  "bash -c 'set -e; for c in services/*/app platform/storage/seaweedfs platform/storage/seaweedfs-csi platform/cert-manager/config platform/cert-manager/crd platform/step-ca/config platform/step-ca/crd platform/volsync platform/argocd/self; do [ -f \"$c/Chart.yaml\" ] || continue; echo \"==> helm template $c\"; helm template test \"$c\" --set domain=example.test >/dev/null; done'",
+  # 2. What Argo actually applies
+  "mise run check:rendered-charts",
 ]
+
+[tasks."check:rendered-charts"]
+description = "helm template every chart, then kubeconform + kube-linter the output"
+# Also used by CI (.github/workflows/validate-*.yaml). Extra args pass through:
+#   mise run check:rendered-charts -- services/
+#   mise run check:rendered-charts -- --changed-since origin/main
+run = "bash scripts/check-rendered-charts.sh"
 
 [tasks."check:renovate"]
 description = "Validate renovate.json5 as a repo config (stricter than global)"
