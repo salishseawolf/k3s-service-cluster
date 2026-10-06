@@ -1,0 +1,30 @@
+// Renovate config. Initial scope is Homarr only (services/homarr/app);
+// widen by editing enabledManagers / includePaths / managerFilePatterns.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+  timezone: "America/Los_Angeles",
+  schedule: ["before 6am on saturday"],
+  dependencyDashboard: true,
+
+  // Personal GitHub account: no branch protection, so Renovate is the gate.
+  // A PR is only opened once validate-services passes on the renovate/**
+  // branch, and nothing merges itself (merged == deployed via Argo).
+  prCreation: "status-success",
+  automerge: false,
+
+  enabledManagers: ["kubernetes"],
+  includePaths: ["services/homarr/app/**"],
+  kubernetes: {
+    // images live in raw templates; the kubernetes manager has no default
+    // file patterns
+    managerFilePatterns: ["/^services/homarr/app/templates/.+\\.yaml$/"],
+  },
+
+  packageRules: [
+    {
+      matchUpdateTypes: ["major"],
+      dependencyDashboardApproval: true,
+    },
+  ],
+}

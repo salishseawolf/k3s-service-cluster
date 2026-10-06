@@ -7,7 +7,10 @@ on:
     paths:
       - "services/**"
   push:
-    branches: [main]
+    # renovate/** so Renovate's branches get checked before it opens a PR
+    # (renovate.json5 prCreation: status-success). No branch protection on
+    # this account, so that is the only pre-merge gate for bot updates.
+    branches: [main, "renovate/**"]
     paths:
       - "services/**"
 
@@ -18,7 +21,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: yamllint
         run: |
@@ -29,7 +32,7 @@ jobs:
   charts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: helm template + kubeconform + kube-linter (GitOps-tier charts)
         run: |
