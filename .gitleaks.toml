@@ -1,0 +1,12 @@
+# gitleaks config: default rules plus known false positives. Picked up
+# automatically from the repo root by both the CI job (.github/workflows/
+# gitleaks.yaml) and the pre-commit hook.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives"
+# Secret key *names* (secretKeyRef / CNPG s3Credentials), not secret values
+regexes = ['''^s3_application_key$''']
+# Upstream argo-cd chart docs/examples, vendored before charts/ was gitignored
+paths = ['''^platform/argocd/self/charts/''']
