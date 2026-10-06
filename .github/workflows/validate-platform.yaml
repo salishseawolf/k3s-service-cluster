@@ -32,13 +32,12 @@ jobs:
           yamllint -c .yamllint.yaml platform/ bootstrap/
 
       - name: ansible-lint
+        # Run from the project dir so bootstrap/ansible/.ansible-lint (skip_list,
+        # exclude_paths) applies, same as `mise run //bootstrap/ansible:lint`.
+        working-directory: bootstrap/ansible
         run: |
           pipx install --include-deps ansible-lint
-          for d in bootstrap/ansible; do
-            [ -d "$d" ] || continue
-            echo "==> $d"
-            ansible-lint "$d" || exit 1
-          done
+          ansible-lint
 
   charts:
     runs-on: ubuntu-latest
