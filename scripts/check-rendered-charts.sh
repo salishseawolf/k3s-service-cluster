@@ -37,8 +37,10 @@ ALL_CHARTS=(services/*/app
   platform/step-ca/config platform/step-ca/crd
   platform/volsync platform/argocd/self)
 
-# Files whose change can alter the result for every chart.
-GLOBAL_FILES='^(\.kube-linter\.yaml|scripts/check-rendered-charts\.sh|mise\.toml|bootstrap/ansible/inventory/group_vars/all\.yml)$'
+# Files whose change can alter the result for every chart. The validate
+# workflows are included so a CI-only change re-checks every chart under
+# that workflow's prefix instead of finding "No charts to check".
+GLOBAL_FILES='^(\.kube-linter\.yaml|scripts/check-rendered-charts\.sh|mise\.toml|bootstrap/ansible/inventory/group_vars/all\.yml|\.github/workflows/validate-(services|platform)\.yaml)$'
 
 changed_since=""
 prefixes=()

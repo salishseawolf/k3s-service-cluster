@@ -5,6 +5,7 @@ on:
     paths:
       - "platform/**"
       - "bootstrap/**"
+      - ".github/workflows/validate-platform.yaml"
       - ".kube-linter.yaml"
       - "scripts/check-rendered-charts.sh"
       - "mise.toml"
@@ -13,6 +14,7 @@ on:
     paths:
       - "platform/**"
       - "bootstrap/**"
+      - ".github/workflows/validate-platform.yaml"
       - ".kube-linter.yaml"
       - "scripts/check-rendered-charts.sh"
       - "mise.toml"

@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - "infrastructure/**"
+      - ".github/workflows/validate-infrastructure.yaml"
   push:
     branches: [main]
     paths:
       - "infrastructure/**"
+      - ".github/workflows/validate-infrastructure.yaml"
 
 permissions:
   contents: read
