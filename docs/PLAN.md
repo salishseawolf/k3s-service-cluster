@@ -47,7 +47,7 @@ Create groups now, while empty: `internal`, and a `client-<name>` pattern. Bind 
 ### Phase H3 — Go-live gate (before opening 80/443 to the world)
 
 **H3.1 — Backup story proven, not just deployed.**
-Velero BSL healthy, CNPG Barman backups landing in B2, and one actual CNPG restore drill into a scratch namespace. A backup that's never been restored is a hypothesis. Add Gatus checks for both backup paths so silent failure is impossible.
+VolSync restic backups landing in B2, CNPG Barman backups landing in B2, and one actual CNPG restore drill into a scratch namespace. A backup that's never been restored is a hypothesis. Add Gatus checks for both backup paths so silent failure is impossible.
 
 **H3.2 — Rate limit the Authentik login route.**
 Traefik's rateLimit middleware on `auth.<domain>` endpoints. The single endpoint worth brute-force protection; five lines of YAML.
@@ -63,7 +63,7 @@ No IngressRoute without an auth story (grep for routes missing middleware or app
 - **Granular firewalld inside the private network** — duplicates CNI-layer policy at node level; they will drift; near-zero added safety once NetworkPolicies enforce.
 - **Full WAF / mod-security** — overkill for this scale; Cloudflare proxying is the escape hatch if ever needed.
 - **Cluster-wide egress deny** — high maintenance, moderate payoff; egress control only on gitea-actions.
-- **Tightening privileged PSA namespaces** — seaweedfs-csi, velero, and gitea-actions genuinely need privilege; contain them with network policy instead.
+- **Tightening privileged PSA namespaces** — seaweedfs-csi and gitea-actions genuinely need privilege; contain them with network policy instead.
 - **Service mesh / mTLS** — three nodes, one operator; not the right tax bracket.
 
 ---
@@ -91,7 +91,7 @@ All renames are cheap now and painful later. Decide the new domain for Salish Se
 
 1. **Domain:** one variable (`TF_VAR_domain` via 1Password) — but remember the wildcard cert re-issues, OIDC redirect URIs in Authentik change, and Gitea's ROOT_URL and SSH host change. Budget a half-day, not five minutes.
 2. **1Password vault:** consider a new vault named for the LLC (or rename), then update `op://` paths across mise.toml files in one sweep. This is also the moment to separate business secrets from personal (`Employee/…`) items.
-3. **B2 bucket:** new bucket under an LLC-appropriate name; update Velero BSL and CNPG Barman config; let old backups age out.
+3. **B2 bucket:** new bucket under an LLC-appropriate name; update the VolSync restic repositories and CNPG Barman config; let old backups age out.
 4. **Labels:** `project=k3s-service-cluster` → keep or rename once, consistently across tofu, inventory filtering, and kubeconfig context names.
 5. **Hetzner:** server names, LB name, SSH key name if you want them to match the brand. Cosmetic; do it only if it doesn't force reprovisioning you don't want.
 
@@ -99,7 +99,7 @@ All renames are cheap now and painful later. Decide the new domain for Salish Se
 
 **R3.1 — Define the two tiers.**
 - *Bootstrap tier (stays Ansible/mise, rarely runs):* OpenTofu infra, K3s install, CCM/CSI, cert-manager, step-ca, 1Password Connect + Operator, CNPG operator, Redis, Authentik, Gitea, and Argo CD itself. This is the chicken-and-egg set: everything Argo needs to exist before it can pull from Gitea.
-- *GitOps tier (Argo-reconciled):* copyparty, paperless, gatus, homarr, seaweedfs, seaweedfs-csi, velero, gitea-actions, and every future service. Over time, migrate parts of the bootstrap tier in too (Authentik and Gitea config-as-manifests can move; their initial installation stays bootstrap), keeping the Ansible path as break-glass.
+- *GitOps tier (Argo-reconciled):* copyparty, paperless, gatus, homarr, seaweedfs, seaweedfs-csi, volsync, gitea-actions, and every future service. Over time, migrate parts of the bootstrap tier in too (Authentik and Gitea config-as-manifests can move; their initial installation stays bootstrap), keeping the Ansible path as break-glass.
 
 **R3.2 — Repo layout target.**
 
@@ -117,7 +117,7 @@ docs/
 One ApplicationSet with a directory generator over `services/*/app` gives per-service Applications nearly for free. Sync waves handle ordering where it matters (CSI before PVC consumers).
 
 **R3.3 — Migrate incrementally.**
-One service per sitting: gatus first (stateless, low risk), then homarr, copyparty, paperless, then the stateful/privileged ones (seaweedfs, velero, gitea-actions) once the pattern is proven. Each migration: convert Ansible-templated manifests to plain manifests or Helm values, add the NetworkPolicy (H2.1), delete the service from the mise deploy chain.
+One service per sitting: gatus first (stateless, low risk), then homarr, copyparty, paperless, then the stateful/privileged ones (seaweedfs, gitea-actions) once the pattern is proven. Each migration: convert Ansible-templated manifests to plain manifests or Helm values, add the NetworkPolicy (H2.1), delete the service from the mise deploy chain.
 
 **R3.4 — Disaster-recovery mirror.**
 *(Superseded: GitHub is the repo of record and Argo pulls from it directly; there is no Gitea push-mirror.)* ~~Gitea push-mirror the monorepo to GitHub (or any external host).~~ The repo that defines the cluster must survive the cluster. Also document the bootstrap-from-zero runbook: tofu apply → ansible bootstrap → Argo syncs the rest.

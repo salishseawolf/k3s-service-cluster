@@ -76,7 +76,7 @@ The live cluster keeps running from its current state throughout; Argo
    gitea-actions, seaweedfs, seaweedfs-csi, gatus, database CRs):
    ServerSideApply adoption is automatic — Argo takes ownership on first
    sync. Watch for immaterial diffs (field-manager churn) on first pass.
-4. Helm-deployed services (identity, gitea, velero, cert-manager, step-ca):
+4. Helm-deployed services (identity, gitea, cert-manager, step-ca):
    `helm uninstall <release> --keep-history` per service, then let the wave
    sync. **PVCs and CNPG volumes survive** (Prune=false everywhere, and helm
    uninstall does not delete PVCs). Do identity in a quiet window — sessions

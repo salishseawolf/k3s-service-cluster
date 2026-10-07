@@ -5,8 +5,8 @@
 # arrives with a NODE ip as source — matched via ipBlock on the private net
 # (192.168.0.0/16), not a podSelector. Kubelet probe traffic on some CNIs is
 # sourced from the cni0 bridge IP (pod CIDR); K3s' embedded policy controller
-# permits host-local probe traffic, but VERIFY on a canary namespace first —
-# see docs/RUNBOOK.md before rolling this out cluster-wide.
+# permits host-local probe traffic, but VERIFY on a canary namespace first
+# before rolling this out cluster-wide.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

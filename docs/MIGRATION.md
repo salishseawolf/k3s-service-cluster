@@ -2,7 +2,7 @@
 
 Gatus is the worked example (`services/gatus/app/`); this file generalizes it.
 One service per sitting. Order: homarr → copyparty → paperless → seaweedfs →
-seaweedfs-csi → velero → gitea-actions. Bootstrap tier (database, redis,
+seaweedfs-csi → gitea-actions. Bootstrap tier (database, redis,
 identity, gitea, cert-manager, step-ca, argocd) stays Ansible-delivered but
 should converge on the same declarative artifacts (see "gutting", below).
 
@@ -71,10 +71,10 @@ Walk the role's `tasks/main.yml` and classify every task:
   `authentik_host` staying on internal cluster DNS.
 - **paperless**: PVCs on seaweedfs-storage — Argo must never prune PVCs; add
   `argocd.argoproj.io/sync-options: Prune=false` on PVC manifests.
-- **velero / seaweedfs-csi / gitea-actions**: privileged namespaces; charts
+- **seaweedfs-csi / gitea-actions**: privileged namespaces; charts
   are mostly upstream Helm — use Argo's native Helm repo source (multi-source
   Application: upstream chart + values from this repo) instead of vendoring;
-  these three can be per-Application manifests in platform/argocd if the
+  these two can be per-Application manifests in platform/argocd if the
   directory generator doesn't fit.
 - **identity/gitea (bootstrap tier, gutting only)**: apply the same
   conversions in place — declarative principals, credential inversion,
