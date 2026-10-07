@@ -9,8 +9,8 @@ spec:
   schedule: {{ .Values.schedule | quote }}
   timeZone: {{ .Values.timeZone | quote }}
   concurrencyPolicy: Forbid
-  # A run that cannot start within 30 min would land outside the
-  # renovate.json5 schedule window and do nothing useful; skip it.
+  # Hourly runs: one that cannot start within 30 min is skipped rather than
+  # piling up behind the next.
   startingDeadlineSeconds: 1800
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

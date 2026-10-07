@@ -7,9 +7,11 @@ image:
   repository: ghcr.io/renovatebot/renovate
   tag: "44.141.0"
 
-# Must fire inside the schedule window in /renovate.json5 (05:00-05:59
-# Pacific); outside it Renovate only refreshes the Dependency Dashboard.
-schedule: "15 5 * * *"
+# Hourly: Renovate's working cadence (open PRs once CI passes, act on
+# Dependency Dashboard clicks, rebase, clean up merged branches). *New*
+# updates still only start inside the schedule window in /renovate.json5
+# (05:00-05:59 Pacific), which the 05:15 run falls into.
+schedule: "15 * * * *"
 timeZone: America/Los_Angeles
 
 repositories: salishseawolf/k3s-service-cluster
