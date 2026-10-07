@@ -1,0 +1,10 @@
+
+
+[tasks.manual-job]
+description = "Manually triggers a renovate run that ignores the normal schedule."
+run = '''
+kubectl -n renovate create job "manual-renovate-$(date --utc '+%Y-%m-%d-%H%M%S')" \
+    --from=cronjob/renovate --dry-run=client -o yaml \
+  | yq '.spec.template.spec.containers[0].env += [{"name": "RENOVATE_FORCE", "value": "{\"schedule\": [\"at any time\"]}"}]' \
+  | kubectl apply -f -
+'''
