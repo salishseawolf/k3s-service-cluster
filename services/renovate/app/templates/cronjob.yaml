@@ -28,6 +28,9 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 12021  # the image's "ubuntu" user
+            # Secret volume files are root-owned; fsGroup gives them this
+            # group so the 0440 key file below is readable by uid 12021.
+            fsGroup: 12021
             seccompProfile:
               type: RuntimeDefault
           containers:
@@ -99,7 +102,7 @@ spec:
             - name: github-app
               secret:
                 secretName: {{ .Values.secrets.githubApp.name }}
-                defaultMode: 0400
+                defaultMode: 0440  # owner root, group fsGroup (12021); nobody else
                 items:
                   - key: {{ .Values.secrets.githubApp.privateKeyKey }}
                     path: private-key.pem
