@@ -1,6 +1,6 @@
 ---
 domain: ""
-image: "redis:7-alpine"
+image: "redis:7.4.9-alpine"
 port: 6379
 maxmemory: 200mb
 credentialsSecret: redis-credentials

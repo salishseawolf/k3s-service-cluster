@@ -1,5 +1,7 @@
-// Renovate config. Initial scope is Homarr only (services/homarr/app);
-// widen by editing enabledManagers / includePaths / managerFilePatterns.
+// Renovate config. Scope: every services/*/app chart (images in templates and
+// values, chart dependencies), plus the monitoring-crd platform app so its CRDs
+// move in lockstep with kube-prometheus-stack in services/monitoring.
+// Widen by editing enabledManagers / includePaths / managerFilePatterns.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["config:recommended"],
@@ -32,18 +34,54 @@
   prCreation: "status-success",
   automerge: false,
 
-  enabledManagers: ["kubernetes"],
-  includePaths: ["services/homarr/app/**"],
+  enabledManagers: ["kubernetes", "helm-values", "helmv3", "argocd"],
+  includePaths: [
+    "services/*/app/**",
+    "platform/monitoring-crd/**",
+    "platform/argocd/root/apps/monitoring-crd.yaml",
+  ],
   kubernetes: {
     // images live in raw templates; the kubernetes manager has no default
     // file patterns
-    managerFilePatterns: ["/^services/homarr/app/templates/.+\\.yaml$/"],
+    managerFilePatterns: ["/^services/[^/]+/app/templates/.+\\.yaml$/"],
+  },
+  // helm-values (values.yaml images) and helmv3 (Chart.yaml dependencies) use
+  // their default file patterns.
+  helmv3: {
+    // gitea, identity and umami vendor their subchart .tgz next to Chart.lock;
+    // without this a bump would update the lock but leave the old archive.
+    postUpdateOptions: ["helmUpdateSubChartArchives"],
+  },
+  argocd: {
+    // Only the monitoring-crd app pulls a chart straight from a Helm repo
+    // that we manage here; the rest of platform/ is not in scope yet.
+    managerFilePatterns: ["/^platform/argocd/root/apps/monitoring-crd\\.yaml$/"],
   },
 
   packageRules: [
     {
       matchUpdateTypes: ["major"],
       dependencyDashboardApproval: true,
+    },
+    {
+      // Tagged with a git SHA by its own build; nothing for Renovate to compare.
+      matchPackageNames: ["ghcr.io/mightbeawolf/personal-site"],
+      enabled: false,
+    },
+    {
+      // Renovate releases almost daily; take its own updates once a week.
+      matchPackageNames: ["ghcr.io/renovatebot/renovate"],
+      schedule: ["* 5 * * 1"],
+    },
+    {
+      // CRDs (platform/monitoring-crd, wave 0) and workloads
+      // (services/monitoring) must stay on the same chart version.
+      matchPackageNames: ["kube-prometheus-stack"],
+      groupName: "kube-prometheus-stack",
+    },
+    {
+      matchPackageNames: ["busybox", "docker.io/library/busybox"],
+      groupName: "busybox",
     },
   ],
 }

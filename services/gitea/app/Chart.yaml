@@ -9,5 +9,5 @@ type: application
 version: 0.1.0
 dependencies:
   - name: gitea
-    version: ">=12.0.0"
+    version: "12.6.0"
     repository: https://dl.gitea.com/charts/
