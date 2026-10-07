@@ -5,6 +5,13 @@ metadata:
   namespace: 'seaweedfs-csi'
   labels:
     app.kubernetes.io/name: seaweedfs-csi-controller
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": CSI sidecars likely run read-only; test
+      (the PVC canary gates breakage).
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": CSI sidecars likely run non-root; test (the
+      PVC canary gates breakage).
 spec:
   replicas: 1
   selector:

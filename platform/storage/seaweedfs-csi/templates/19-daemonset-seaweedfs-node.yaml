@@ -5,6 +5,24 @@ metadata:
   namespace: 'seaweedfs-csi'
   labels:
     app.kubernetes.io/name: seaweedfs-node
+  annotations:
+    # Deliberate exceptions: a CSI node plugin must mount filesystems on the host.
+    ignore-check.kube-linter.io/privileged-container: >-
+      CSI node plugin: FUSE/bind mounts into the host's kubelet dirs need privileged.
+    ignore-check.kube-linter.io/privilege-escalation-container: >-
+      Implied by privileged; required for host mount propagation.
+    ignore-check.kube-linter.io/drop-net-raw-capability: >-
+      Moot for a privileged container, which has every capability.
+    ignore-check.kube-linter.io/host-pid: >-
+      CSI node plugin shares the host PID namespace to manage host-side mounts.
+    ignore-check.kube-linter.io/sensitive-host-mounts: >-
+      Needs /dev from the host for FUSE devices.
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      Root is required to mount on the host and to write the kubelet
+      plugin-registration socket (root-owned hostPath).
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      Upstream seaweedfs-csi images are not built for a read-only root;
+      revisit for the sidecars if upstream supports it.
 spec:
   updateStrategy:
     type: RollingUpdate

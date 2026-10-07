@@ -10,6 +10,11 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: >-
+      Argo's hook-delete-policy owns this Job's lifecycle; a TTL would race it.
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      Non-root writes to a fresh seaweedfs PVC depend on CSI fsGroup support,
+      and a failing canary blocks every wave-40 service.
 spec:
   backoffLimit: 2
   activeDeadlineSeconds: 300

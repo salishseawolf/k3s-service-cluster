@@ -1,0 +1,8 @@
+# kube-linter checks skipped for this whole chart (read by
+# scripts/check-rendered-charts.sh). Upstream charts only.
+
+# The upstream controller probes :8081 (--health-probe-bind-address) without
+# declaring it as a containerPort. Probes don't need declared ports, so this
+# works; the chart has no Deployment-annotations value to scope it.
+liveness-port
+readiness-port

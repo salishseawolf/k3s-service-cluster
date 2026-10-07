@@ -5,6 +5,13 @@ metadata:
   namespace: 'seaweedfs'
   labels:
     app.kubernetes.io/name: seaweedfs
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": map seaweedfs write paths outside /data,
+      then mount emptyDirs.
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": storage backend runs as root over
+      root-owned data; migrate ownership first.
 spec:
   replicas: 1
   strategy:

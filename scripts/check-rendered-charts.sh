@@ -119,10 +119,16 @@ for c in "${charts[@]}"; do
   mkdir -p "$(dirname "$tmp")"
   cp -a "$c" "$tmp"
   rendered="$WORK/rendered.yaml"
-  excludes=()
+  # A per-chart exclude list is merged into a copy of the repo config: the
+  # CLI's --exclude would replace the config's exclude list, not extend it.
+  linter_config="$ROOT/.kube-linter.yaml"
   if [ -f "$c/.kube-linter-exclude" ]; then
     checks="$(sed 's/#.*//; s/[[:space:]]//g; /^$/d' "$c/.kube-linter-exclude" | paste -sd, -)"
-    [ -n "$checks" ] && excludes=(--exclude "$checks")
+    if [ -n "$checks" ]; then
+      linter_config="$WORK/kube-linter.yaml"
+      EXTRA="$checks" yq '.checks.exclude += (strenv(EXTRA) | split(","))' \
+        "$ROOT/.kube-linter.yaml" >"$linter_config"
+    fi
   fi
   ok=1
   # --skip-tests: Argo CD never runs Helm test hooks, so don't lint them.
@@ -132,8 +138,7 @@ for c in "${charts[@]}"; do
     # never hide the other's. 2>&1 keeps each tool's summary in order.
     kubeconform -kubernetes-version "$K8S_VERSION" -ignore-missing-schemas -strict -summary \
       "$rendered" 2>&1 || ok=0
-    kube-linter lint --config "$ROOT/.kube-linter.yaml" ${excludes[@]+"${excludes[@]}"} \
-      "$rendered" 2>&1 || ok=0
+    kube-linter lint --config "$linter_config" "$rendered" 2>&1 || ok=0
   else
     ok=0
   fi

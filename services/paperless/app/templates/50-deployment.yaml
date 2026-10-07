@@ -5,6 +5,13 @@ metadata:
   namespace: paperless
   labels:
     app: paperless
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": map paperless write paths for a read-only
+      root; drop the fix-perms init.
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": fix-perms init (root) chmods an emptyDir
+      that is already 0777; verify for medium Memory, then remove it.
 spec:
   replicas: 1
   selector:

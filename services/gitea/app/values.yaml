@@ -9,6 +9,11 @@ gitea:
     storageClass: seaweedfs-storage
   replicaCount: 1
   deployment:
+    # kube-linter exception on the Deployment object only (no rollout).
+    annotations:
+      ignore-check.kube-linter.io/no-read-only-root-fs: >-
+        TODO(lint), see docs/todo.md "Fix linting issues": test
+        containerSecurityContext.readOnlyRootFilesystem (rootless image writes /data and /tmp).
     env:
       # Redis credentials for variable expansion in URLs below
       - name: REDIS_PASSWORD

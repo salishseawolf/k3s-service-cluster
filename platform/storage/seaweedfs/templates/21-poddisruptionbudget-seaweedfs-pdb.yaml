@@ -3,6 +3,13 @@ kind: PodDisruptionBudget
 metadata:
   name: seaweedfs-pdb
   namespace: 'seaweedfs'
+  annotations:
+    ignore-check.kube-linter.io/pdb-max-unavailable: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": decide: keep as a deliberate drain gate
+      (moving seaweedfs is an outage for every PVC) or set 1.
+    ignore-check.kube-linter.io/pdb-unhealthy-pod-eviction-policy: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": add unhealthyPodEvictionPolicy: AlwaysAllow
+      with that decision.
 spec:
   maxUnavailable: 0
   selector:

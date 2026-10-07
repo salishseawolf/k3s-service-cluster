@@ -5,6 +5,17 @@ metadata:
   namespace: 'gitea-actions'
   labels:
     app: gitea-runner
+  annotations:
+    # Deliberate exceptions: Docker-in-Docker runner. The namespace's egress
+    # policy (H2.2) is the containment for this, not the pod spec.
+    ignore-check.kube-linter.io/privileged-container: >-
+      gitea/runner:*-dind runs dockerd, which requires privileged.
+    ignore-check.kube-linter.io/privilege-escalation-container: >-
+      Implied by privileged (dockerd).
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      dockerd in the dind image runs as root.
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      dockerd writes image layers and state under the container's root fs.
 spec:
   replicas: 1
   selector:

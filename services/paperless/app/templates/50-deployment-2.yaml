@@ -6,6 +6,10 @@ metadata:
   namespace: paperless
   labels:
     app: tika
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": test tika with a read-only root plus an
+      emptyDir at /tmp.
 spec:
   replicas: 1
   selector:

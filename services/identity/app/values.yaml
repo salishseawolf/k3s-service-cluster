@@ -73,6 +73,11 @@ authentik:
         valueFrom: {secretKeyRef: {name: grafana-oidc-creds, key: password}}
 
   server:
+    # kube-linter exception on the Deployment object only (no rollout).
+    deploymentAnnotations:
+      ignore-check.kube-linter.io/no-read-only-root-fs: >-
+        TODO(lint), see docs/todo.md "Fix linting issues": authentik server is SSO for everything;
+        test a read-only root separately.
     volumes:
       - name: blueprints
         configMap: {name: authentik-blueprints}
@@ -92,6 +97,11 @@ authentik:
       capabilities: {drop: [ALL]}
 
   worker:
+    # kube-linter exception on the Deployment object only (no rollout).
+    deploymentAnnotations:
+      ignore-check.kube-linter.io/no-read-only-root-fs: >-
+        TODO(lint), see docs/todo.md "Fix linting issues": authentik worker is SSO for everything;
+        test a read-only root separately.
     volumes:
       - name: blueprints
         configMap: {name: authentik-blueprints}

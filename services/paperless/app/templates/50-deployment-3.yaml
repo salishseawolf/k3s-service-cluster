@@ -6,6 +6,10 @@ metadata:
   namespace: paperless
   labels:
     app: gotenberg
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": test gotenberg with a read-only root plus
+      an emptyDir at /tmp.
 spec:
   replicas: 1
   selector:

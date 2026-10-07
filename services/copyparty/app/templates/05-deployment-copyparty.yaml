@@ -5,6 +5,13 @@ metadata:
   namespace: 'copyparty'
   labels:
     app.kubernetes.io/name: copyparty
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": map copyparty write paths outside the PVC,
+      then mount emptyDirs.
+    ignore-check.kube-linter.io/run-as-non-root: >-
+      TODO(lint), see docs/todo.md "Fix linting issues": PVC data is root-owned; migrate ownership,
+      then run as uid 1000.
 spec:
   replicas: 1
   selector:

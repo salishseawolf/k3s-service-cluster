@@ -1,0 +1,9 @@
+# kube-linter checks skipped for this whole chart (read by
+# scripts/check-rendered-charts.sh). Upstream charts only: prefer per-object
+# annotations via chart values where the chart supports them.
+
+# False positives: these Services select pods that exist in the cluster but
+# not in this chart's output. alertmanager/prometheus pods are created by the
+# Prometheus operator from CRs; coredns pods are k3s's own (k8s-app=kube-dns).
+# The coredns Service template has no annotations value, hence chart-wide.
+dangling-service

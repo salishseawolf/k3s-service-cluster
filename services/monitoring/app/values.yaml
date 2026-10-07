@@ -63,6 +63,11 @@ kps:
 
   grafana:
     enabled: true
+    # kube-linter exception on the Deployment object only (no rollout).
+    annotations:
+      ignore-check.kube-linter.io/no-read-only-root-fs: >-
+        TODO(lint), see docs/todo.md "Fix linting issues": chart supports a read-only root; grafana
+        writes /var/lib/grafana and /tmp.
     forceDeployDatasources: true
     forceDeployDashboard: true
     adminPassword: ""
@@ -139,6 +144,13 @@ kps:
 
   prometheus-node-exporter:
     hostNetwork: false
+    # Deliberate kube-linter exceptions, on the DaemonSet object only (not the
+    # pod template, so no rollout): reading host metrics is its whole job.
+    daemonsetAnnotations:
+      ignore-check.kube-linter.io/host-pid: >-
+        node-exporter reads per-process host metrics via the host PID namespace.
+      ignore-check.kube-linter.io/sensitive-host-mounts: >-
+        Mounts /, /proc and /sys read-only to report host metrics.
 
   # k3s runs these inside the k3s process, not as pods: the chart's Services
   # would select nothing, Prometheus would scrape dead targets and TargetDown
@@ -265,6 +277,13 @@ alloy:
       dockercontainers: false
   controller:
     type: daemonset
+    # Deliberate kube-linter exception, on the DaemonSet object only.
+    extraAnnotations:
+      ignore-check.kube-linter.io/run-as-non-root: >-
+        Alloy tails every pod's logs from root-owned host paths (/var/log).
+      ignore-check.kube-linter.io/no-read-only-root-fs: >-
+        TODO(lint), see docs/todo.md "Fix linting issues": alloy keeps its WAL under /tmp/alloy;
+        mount an emptyDir and test.
   resources:
     requests:
       cpu: 100m
