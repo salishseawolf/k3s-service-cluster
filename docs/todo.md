@@ -6,10 +6,24 @@
 
 ## Backups
 - [x] kimai MariaDB: hourly `mariadb-dump` CronJob into the `kimai-db-dump` PVC, uploaded by VolSync; failure email via Alertmanager
-- [ ] kimai backups: confirm the first dump (:15) and both VolSync uploads (:25 kimai-data, :45 kimai-db-dump) succeed, since they're the first movers in a PSA `restricted` namespace (`moverSecurityContext` untested); send the `amtool` test alert; run one restore drill into a scratch database
-- [ ] alerting: decide which default kube-prometheus-stack alerts deserve `notify: email` too (e.g. `KubeJobFailed`, which currently goes nowhere, including for renovate)
-- [ ] alerting: once kube-prometheus-stack ships prometheus-operator ≥ v0.90 (which knows `force_implicit_tls`), optionally move Alertmanager from `smtp.resend.com:2587` (STARTTLS) to `:2465` + `force_implicit_tls: true` in `services/monitoring/app/values.yaml`. Until then the operator's strict parse rejects the field and silently keeps the last good config; check with `amtool config show` after any Alertmanager config change
+- [x] kimai backups: dump works (needed a connect-wait loop: K3s admits a new pod to the NetworkPolicy allow-sets a few seconds after start), kimai-data upload Successful under PSA `restricted`, `amtool` test email received
+- [ ] kimai backups: confirm a `kimai-db-dump` snapshot exists (`mise run //services/kimai:backup:db-dump:snapshots`); the 21:45 run on 2026-10-08 skipped an empty volume, so the first real upload came later
+- [ ] kimai backups: restore drill: restore `kimai-db-dump`, import `kimai.sql` into a scratch database, compare row counts (`kimai2_timesheet`, `kimai2_users`) with the live DB; this also tests the runbook's restore commands, which have never been run
+- [ ] kimai: delete the failed pre-fix Job `kimai-mariadb-dump-29858295` (keeps the built-in `KubeJobFailed` firing until removed)
+- [ ] VolSync cache: decide the restic cache StorageClass for all ReplicationSources (`seaweedfs-storage` / `hcloud-volumes` / keep `local-path` + alert). With `copyMethod: Direct` the mover must run on the app pod's node, but a `local-path` cache is pinned to the node of its first run, so a rescheduled app deadlocks its backup (homarr was stuck ~45h on 2026-10-06..08: "volume node affinity conflict"). Workaround until decided: delete the `volsync-src-<pvc>-cache` PVC and the stuck Job
+- [ ] storage: two StorageClasses are marked default (`hcloud-volumes` and K3s' `local-path`), so a PVC without a class lands on either. `local-path` must stay (VolSync caches use it), and K3s re-applies its manifest on start, so the fix is a bootstrap change (K3s `.skip` + own local-storage manifest with the annotation `"false"`)
 - [ ] step-ca: at the next fresh deploy, set `ca.db.storageClass: hcloud-volumes` in `platform/step-ca/crd/templates/helmchart.yaml`. Its PVC comes from the chart default (no class, so the cluster default), and StatefulSet `volumeClaimTemplates` are immutable, so it can't be pinned on the live cluster. Not backed up by choice (see docs/RECOVERY-RUNBOOK.md inventory)
+
+## Monitoring & alerting
+All default kube-prometheus-stack alerts go to the `null` receiver; only `notify: email` alerts are mailed (see `amtool alert query` for what's firing).
+- [ ] volsync-metrics `TargetDown` (firing since 2026-08-07): Prometheus can't scrape VolSync, so `volsync_volume_out_of_sync` is missing and `KimaiBackupNotUploaded` can never fire; the VolSync Grafana dashboard is empty. Start with the target's `lastError` (`/api/v1/targets`)
+- [ ] CNPG `TargetDown` for `database/main-db` (since 2026-08-07): likely the `database` NetworkPolicy doesn't admit Prometheus
+- [ ] decide which default alerts deserve `notify: email`: `KubeJobNotCompleted` (would have caught homarr's stuck backup), `KubeJobFailed`, `TargetDown` all flagged real problems while unrouted
+- [ ] `PrometheusOutOfOrderTimestamps` (~1.8 samples/s dropped): look for two ServiceMonitors scraping the same target (the custom volsync one next to an operator-created one?)
+- [ ] capacity: `KubeCPUOvercommit` / `KubeMemoryOvercommit`: the cluster can't fit all pod requests after losing a node (short ~0.89 CPU, ~779 MB since 2026-10-07). `KubeCPUQuotaOvercommit` / `KubeMemoryQuotaOvercommit` are expected (per-namespace quotas are ceilings); disable or tune
+- [ ] once kube-prometheus-stack ships prometheus-operator ≥ v0.90 (which knows `force_implicit_tls`), optionally move Alertmanager from `smtp.resend.com:2587` (STARTTLS) to `:2465` + `force_implicit_tls: true` in `services/monitoring/app/values.yaml`. Until then the operator's strict parse rejects the field and silently keeps the last good config; check with `amtool config show` after any Alertmanager config change
+- [ ] Grafana: add Alertmanager as a data source (`http://prometheus-alertmanager.monitoring:9093`, `implementation: prometheus`, `handleGrafanaManagedAlerts: false`) to see routing/silences there
+- [ ] mise: shorten monitoring's backup task names (`prometheus-main-db`/`alertmanager-db`/`loki-data` → `prometheus`/`alertmanager`/`loki`)
 
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
