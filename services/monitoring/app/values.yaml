@@ -81,10 +81,12 @@ kps:
             - to: admin@salishseawolf.com
               # Must be on the Resend-verified domain.
               from: alerts@salishseawolf.com
-              # Port 465, not the item's 2465: Alertmanager uses implicit TLS
-              # only when the port is exactly 465 (otherwise plaintext +
-              # STARTTLS, which Resend's SMTPS ports reject).
-              smarthost: smtp.resend.com:465
+              # Resend's alternate SMTPS port, as in the 1P item: Hetzner blocks
+              # outbound 465 (and 25). Alertmanager only defaults to implicit
+              # TLS on port 465, so force it here; without it, it would try
+              # plaintext + STARTTLS, which an SMTPS port doesn't speak.
+              smarthost: smtp.resend.com:2465
+              force_implicit_tls: true
               auth_username: resend
               auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/password
               send_resolved: true
