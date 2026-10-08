@@ -47,6 +47,29 @@ spec:
   policyTypes:
     - Ingress
 ---
+# Allow Alertmanager UI ingress from Traefik (same node-IP model as Grafana).
+# The operator labels Alertmanager pods app.kubernetes.io/name=alertmanager.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alertmanager-ingress
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.0/16
+        - ipBlock:
+            cidr: 10.42.0.0/16
+      ports:
+        - port: 9093
+          protocol: TCP
+  policyTypes:
+    - Ingress
+---
 # Prometheus needs to reach the Kubernetes API for service discovery,
 # kube-dns for name resolution, kubelet for node metrics, and all
 # scrape targets on the pod network (KSM, Alertmanager, exporters, etc.).

@@ -95,6 +95,11 @@ kps:
       templates:
         - '/etc/alertmanager/config/*.tmpl'
     alertmanagerSpec:
+      # Base for the links in alert emails (default is the in-cluster Service
+      # URL, unreachable from a browser). Served by the alertmanager
+      # IngressRoute behind Authentik forward-auth. Literal domain: values
+      # files can't template (same as grafana.ini root_url).
+      externalUrl: https://alertmanager.salishseawolf.com
       # Mounted at /etc/alertmanager/secrets/<name>/<key>.
       secrets:
         - alertmanager-smtp

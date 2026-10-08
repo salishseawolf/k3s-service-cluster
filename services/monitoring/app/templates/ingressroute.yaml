@@ -22,3 +22,27 @@ spec:
           port: 80  # Grafana serves on port 80 inside the chart (default grafana.ini server port)
   tls:
     secretName: wildcard-salishseawolf-com-tls
+---
+# Alertmanager UI (no login of its own): behind the same Authentik edge gate
+# ('internal' group). Alert emails link here via alertmanagerSpec.externalUrl.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`alertmanager.{{ .Values.domain }}`)
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: identity
+      services:
+        - kind: Service
+          name: prometheus-alertmanager
+          namespace: monitoring
+          port: 9093
+  tls:
+    secretName: wildcard-salishseawolf-com-tls
