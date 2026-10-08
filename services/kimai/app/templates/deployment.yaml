@@ -27,11 +27,15 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap-local.yaml") . | sha256sum }}
     spec:
       automountServiceAccountToken: false
+      # www-data (33): the image chowns /opt/kimai and php.ini to it at build
+      # time, and its entrypoint writes var/cache, var/installed, php.ini and
+      # config/packages/monolog.yaml. Any other uid (1001 was tried) cannot
+      # create the cache, so every request 500s. Still non-root for PSA.
       securityContext:
-        runAsUser: 1001
-        runAsGroup: 1001
+        runAsUser: 33
+        runAsGroup: 33
         runAsNonRoot: true
-        fsGroup: 1001
+        fsGroup: 33
         seccompProfile:
           type: RuntimeDefault
       containers:
