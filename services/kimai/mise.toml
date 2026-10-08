@@ -1,11 +1,5 @@
 [env]
 MARIADB_ROOT_PASSWORD = "op://K3s Service Cluster/Kimai Secrets/mariadb-root-password"
-# For the backups
-RESTIC_REPOSITORY = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/RESTIC_REPOSITORY"
-RESTIC_PASSWORD = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/RESTIC_PASSWORD"
-AWS_ACCESS_KEY_ID = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/AWS_ACCESS_KEY_ID"
-AWS_SECRET_ACCESS_KEY = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/AWS_SECRET_ACCESS_KEY"
-
 
 [tasks.dump]
 run = [
@@ -17,20 +11,57 @@ op run -- kubectl -n kimai exec kimai-mariadb-0 -- sh -c '\
 ''',
 ]
 
-[tasks."backup:mount"]
+# Inspect this service's VolSync backups in B2. Each task names its
+# "VolSync B2 <repo>" 1Password item; ../../scripts/volsync-restic.sh
+# resolves the credentials via op run. `mount` needs FUSE.
+
+[tasks."backup:snapshots"]
+description = "List restic snapshots for every kimai VolSync repo"
+run = [
+  "mise run //services/kimai:backup:data:snapshots",
+  "mise run //services/kimai:backup:db-dump:snapshots",
+]
+
+[tasks."backup:data:snapshots"]
+description = "List restic snapshots in kimai-data"
+env = { VOLSYNC_ITEM = "VolSync B2 kimai-data" }
+run = "bash ../../scripts/volsync-restic.sh snapshots"
+
+[tasks."backup:data:ls"]
+description = "List files in the latest kimai-data snapshot"
+env = { VOLSYNC_ITEM = "VolSync B2 kimai-data" }
+run = "bash ../../scripts/volsync-restic.sh ls latest"
+
+[tasks."backup:data:mount"]
+description = "Browse every kimai-data snapshot as files (Ctrl-C unmounts)"
+env = { VOLSYNC_ITEM = "VolSync B2 kimai-data" }
 run = '''
-#!/usr/bin/env -S op run -- bash
 set -euo pipefail
-
-MOUNTDIR=$(mktemp -d)
-trap 'rm -rf -- "$MOUNTDIR"' EXIT
-
-restic mount "${MOUNTDIR:?}"
+dir=$(mktemp -d)
+# rmdir, not rm -rf: never recurse into a mountpoint
+trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
+echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
+bash ../../scripts/volsync-restic.sh mount "$dir"
 '''
 
-[tasks."backup:list"]
+[tasks."backup:db-dump:snapshots"]
+description = "List restic snapshots in kimai-db-dump"
+env = { VOLSYNC_ITEM = "VolSync B2 kimai-db-dump" }
+run = "bash ../../scripts/volsync-restic.sh snapshots"
+
+[tasks."backup:db-dump:ls"]
+description = "List files in the latest kimai-db-dump snapshot"
+env = { VOLSYNC_ITEM = "VolSync B2 kimai-db-dump" }
+run = "bash ../../scripts/volsync-restic.sh ls latest"
+
+[tasks."backup:db-dump:mount"]
+description = "Browse every kimai-db-dump snapshot as files (Ctrl-C unmounts)"
+env = { VOLSYNC_ITEM = "VolSync B2 kimai-db-dump" }
 run = '''
-#!/usr/bin/env -S op run -- bash
-restic snapshots list
+set -euo pipefail
+dir=$(mktemp -d)
+# rmdir, not rm -rf: never recurse into a mountpoint
+trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
+echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
+bash ../../scripts/volsync-restic.sh mount "$dir"
 '''
-

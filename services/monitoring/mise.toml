@@ -1,0 +1,77 @@
+# Inspect this service's VolSync backups in B2. Each task names its
+# "VolSync B2 <repo>" 1Password item; ../../scripts/volsync-restic.sh
+# resolves the credentials via op run. `mount` needs FUSE.
+
+[tasks."backup:snapshots"]
+description = "List restic snapshots for every monitoring VolSync repo"
+run = [
+  "mise run //services/monitoring:backup:alertmanager-db:snapshots",
+  "mise run //services/monitoring:backup:loki-data:snapshots",
+  "mise run //services/monitoring:backup:prometheus-main-db:snapshots",
+]
+
+[tasks."backup:alertmanager-db:snapshots"]
+description = "List restic snapshots in alertmanager-db"
+env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
+run = "bash ../../scripts/volsync-restic.sh snapshots"
+
+[tasks."backup:alertmanager-db:ls"]
+description = "List files in the latest alertmanager-db snapshot"
+env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
+run = "bash ../../scripts/volsync-restic.sh ls latest"
+
+[tasks."backup:alertmanager-db:mount"]
+description = "Browse every alertmanager-db snapshot as files (Ctrl-C unmounts)"
+env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
+run = '''
+set -euo pipefail
+dir=$(mktemp -d)
+# rmdir, not rm -rf: never recurse into a mountpoint
+trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
+echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
+bash ../../scripts/volsync-restic.sh mount "$dir"
+'''
+
+[tasks."backup:loki-data:snapshots"]
+description = "List restic snapshots in loki-data"
+env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
+run = "bash ../../scripts/volsync-restic.sh snapshots"
+
+[tasks."backup:loki-data:ls"]
+description = "List files in the latest loki-data snapshot"
+env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
+run = "bash ../../scripts/volsync-restic.sh ls latest"
+
+[tasks."backup:loki-data:mount"]
+description = "Browse every loki-data snapshot as files (Ctrl-C unmounts)"
+env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
+run = '''
+set -euo pipefail
+dir=$(mktemp -d)
+# rmdir, not rm -rf: never recurse into a mountpoint
+trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
+echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
+bash ../../scripts/volsync-restic.sh mount "$dir"
+'''
+
+[tasks."backup:prometheus-main-db:snapshots"]
+description = "List restic snapshots in prometheus-main-db"
+env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
+run = "bash ../../scripts/volsync-restic.sh snapshots"
+
+[tasks."backup:prometheus-main-db:ls"]
+description = "List files in the latest prometheus-main-db snapshot"
+env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
+run = "bash ../../scripts/volsync-restic.sh ls latest"
+
+[tasks."backup:prometheus-main-db:mount"]
+description = "Browse every prometheus-main-db snapshot as files (Ctrl-C unmounts)"
+env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
+run = '''
+set -euo pipefail
+dir=$(mktemp -d)
+# rmdir, not rm -rf: never recurse into a mountpoint
+trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
+echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
+bash ../../scripts/volsync-restic.sh mount "$dir"
+'''

@@ -1,0 +1,31 @@
+# Inspect this service's VolSync backups in B2. Each task names its
+# "VolSync B2 <repo>" 1Password item; ../../scripts/volsync-restic.sh
+# resolves the credentials via op run. `mount` needs FUSE.
+
+[tasks."backup:snapshots"]
+description = "List restic snapshots for every copyparty VolSync repo"
+run = [
+  "mise run //services/copyparty:backup:data:snapshots",
+]
+
+[tasks."backup:data:snapshots"]
+description = "List restic snapshots in copyparty-data"
+env = { VOLSYNC_ITEM = "VolSync B2 copyparty-data" }
+run = "bash ../../scripts/volsync-restic.sh snapshots"
+
+[tasks."backup:data:ls"]
+description = "List files in the latest copyparty-data snapshot"
+env = { VOLSYNC_ITEM = "VolSync B2 copyparty-data" }
+run = "bash ../../scripts/volsync-restic.sh ls latest"
+
+[tasks."backup:data:mount"]
+description = "Browse every copyparty-data snapshot as files (Ctrl-C unmounts)"
+env = { VOLSYNC_ITEM = "VolSync B2 copyparty-data" }
+run = '''
+set -euo pipefail
+dir=$(mktemp -d)
+# rmdir, not rm -rf: never recurse into a mountpoint
+trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
+echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
+bash ../../scripts/volsync-restic.sh mount "$dir"
+'''
