@@ -29,6 +29,10 @@ kimai:
   # honor X-Forwarded-Proto, so Kimai sees https and SAML's strict
   # destination check on /auth/saml/acs passes.
   trustedProxies: "127.0.0.1,10.42.0.0/16,192.168.0.0/16"
+  # Per PHP process (the image's intended value; cache warmup needs well over
+  # the 128M default). The container limit leaves headroom above it for
+  # Apache workers serving requests alongside.
+  phpMemoryLimit: 512M
   storage:
     size: 4Gi
   resources:
@@ -37,7 +41,7 @@ kimai:
       memory: 256Mi
     limits:
       cpu: "1"
-      memory: 768Mi
+      memory: 1Gi
 
 mariadb:
   # Official image: Renovate tracks it, and DATABASE_URL's serverVersion is

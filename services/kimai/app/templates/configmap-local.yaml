@@ -8,6 +8,13 @@ metadata:
   labels:
     app.kubernetes.io/name: kimai
 data:
+  # Mounted into /usr/local/etc/php/conf.d/, which PHP reads after php.ini.
+  # The entrypoint's own `sed -i` on php.ini cannot work non-root (sed needs
+  # a temp file in the root-owned directory), leaving PHP at 128M, too
+  # little for Kimai's cache warmup. Keep in step with the container limit.
+  zz-kimai.ini: |
+    memory_limit = {{ .Values.kimai.phpMemoryLimit }}
+
   # Mounted as /opt/kimai/config/packages/local.yaml. Templated here (not in
   # values) so domain-dependent settings can use .Values.domain.
   #

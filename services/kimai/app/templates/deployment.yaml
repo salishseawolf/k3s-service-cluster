@@ -125,6 +125,10 @@ spec:
               mountPath: /opt/kimai/config/packages/local.yaml
               subPath: local.yaml
               readOnly: true
+            - name: local-config
+              mountPath: /usr/local/etc/php/conf.d/zz-kimai.ini
+              subPath: zz-kimai.ini
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
