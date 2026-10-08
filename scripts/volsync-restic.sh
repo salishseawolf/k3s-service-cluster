@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run restic against the VolSync B2 repository whose 1Password item is named
-# in $VOLSYNC_ITEM (e.g. "VolSync B2 homarr-data"). The item's restic env
+# in $VOLSYNC_ITEM (e.g. "VolSync B2 paperless-data"). The item's restic env
 # fields are resolved by `op run`, never written out. Used by the backup:*
 # tasks in services/*/mise.toml, which set VOLSYNC_ITEM per task.
 #
@@ -11,7 +11,7 @@
 # (which needs an exclusive lock) fail.
 set -euo pipefail
 
-: "${VOLSYNC_ITEM:?set VOLSYNC_ITEM to the 1Password item name, e.g. \"VolSync B2 homarr-data\"}"
+: "${VOLSYNC_ITEM:?set VOLSYNC_ITEM to the 1Password item name, e.g. \"VolSync B2 paperless-data\"}"
 [ $# -gt 0 ] || { echo "usage: VOLSYNC_ITEM=... volsync-restic.sh <restic command> [args...]" >&2; exit 2; }
 
 item="op://K3s Service Cluster/${VOLSYNC_ITEM}"

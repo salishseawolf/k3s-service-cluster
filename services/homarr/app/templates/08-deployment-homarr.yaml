@@ -137,9 +137,13 @@ spec:
         - name: nginx-run
           mountPath: /run/nginx
       volumes:
+      # No PVC: the DB is in CNPG (DB_DRIVER node-postgres) and Redis is
+      # external, so /appdata only ever held empty db/, redis/ and
+      # trusted-certificates/ dirs. Homarr recreates them on start. A CA cert
+      # added in Homarr's UI would not survive a restart; mount it from a
+      # ConfigMap at /appdata/trusted-certificates/ instead.
       - name: data
-        persistentVolumeClaim:
-          claimName: homarr-data
+        emptyDir: {}
       - name: nginx-lib
         emptyDir: {}
       - name: nginx-cache
