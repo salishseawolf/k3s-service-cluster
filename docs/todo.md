@@ -8,6 +8,7 @@
 - [x] kimai MariaDB: hourly `mariadb-dump` CronJob into the `kimai-db-dump` PVC, uploaded by VolSync; failure email via Alertmanager
 - [ ] kimai backups: confirm the first dump (:15) and both VolSync uploads (:25 kimai-data, :45 kimai-db-dump) succeed, since they're the first movers in a PSA `restricted` namespace (`moverSecurityContext` untested); send the `amtool` test alert; run one restore drill into a scratch database
 - [ ] alerting: decide which default kube-prometheus-stack alerts deserve `notify: email` too (e.g. `KubeJobFailed`, which currently goes nowhere, including for renovate)
+- [ ] alerting: once kube-prometheus-stack ships prometheus-operator ≥ v0.90 (which knows `force_implicit_tls`), optionally move Alertmanager from `smtp.resend.com:2587` (STARTTLS) to `:2465` + `force_implicit_tls: true` in `services/monitoring/app/values.yaml`. Until then the operator's strict parse rejects the field and silently keeps the last good config; check with `amtool config show` after any Alertmanager config change
 - [ ] step-ca: at the next fresh deploy, set `ca.db.storageClass: hcloud-volumes` in `platform/step-ca/crd/templates/helmchart.yaml`. Its PVC comes from the chart default (no class, so the cluster default), and StatefulSet `volumeClaimTemplates` are immutable, so it can't be pinned on the live cluster. Not backed up by choice (see docs/RECOVERY-RUNBOOK.md inventory)
 
 ## Minor

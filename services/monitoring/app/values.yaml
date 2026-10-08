@@ -81,12 +81,14 @@ kps:
             - to: admin@salishseawolf.com
               # Must be on the Resend-verified domain.
               from: alerts@salishseawolf.com
-              # Resend's alternate SMTPS port, as in the 1P item: Hetzner blocks
-              # outbound 465 (and 25). Alertmanager only defaults to implicit
-              # TLS on port 465, so force it here; without it, it would try
-              # plaintext + STARTTLS, which an SMTPS port doesn't speak.
-              smarthost: smtp.resend.com:2465
-              force_implicit_tls: true
+              # STARTTLS on Resend's alternate port. Not 465: Hetzner blocks
+              # outbound 465 (and 25). Not 2465 (implicit TLS, as Authentik and
+              # Kimai use): on any port but 465 that needs force_implicit_tls,
+              # which prometheus-operator v0.89 (kube-prometheus-stack 82.x)
+              # rejects; its strict config parse keeps the last good config.
+              # require_tls (default true) refuses to log in unless STARTTLS
+              # succeeds. See docs/todo.md for moving to 2465 later.
+              smarthost: smtp.resend.com:2587
               auth_username: resend
               auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/password
               send_resolved: true
