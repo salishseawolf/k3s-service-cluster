@@ -1,5 +1,11 @@
 [env]
 MARIADB_ROOT_PASSWORD = "op://K3s Service Cluster/Kimai Secrets/mariadb-root-password"
+# For the backups
+RESTIC_REPOSITORY = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/RESTIC_REPOSITORY"
+RESTIC_PASSWORD = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/RESTIC_PASSWORD"
+AWS_ACCESS_KEY_ID = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/AWS_ACCESS_KEY_ID"
+AWS_SECRET_ACCESS_KEY = "op://K3s Service Cluster/VolSync B2 kimai-db-dump/AWS_SECRET_ACCESS_KEY"
+
 
 [tasks.dump]
 run = [
@@ -10,4 +16,21 @@ op run -- kubectl -n kimai exec kimai-mariadb-0 -- sh -c '\
     --single-transaction kimai' > ../../tmp/kimai-db-cluster.dump.sql
 ''',
 ]
+
+[tasks."backup:mount"]
+run = '''
+#!/usr/bin/env -S op run -- bash
+set -euo pipefail
+
+MOUNTDIR=$(mktemp -d)
+trap 'rm -rf -- "$MOUNTDIR"' EXIT
+
+restic mount "${MOUNTDIR:?}"
+'''
+
+[tasks."backup:list"]
+run = '''
+#!/usr/bin/env -S op run -- bash
+restic snapshots list
+'''
 

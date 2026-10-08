@@ -47,6 +47,17 @@ spec:
                 - |
                   out=/dumps/kimai.sql
                   tmp=/dumps/.kimai.sql.tmp
+                  # K3s' policy controller admits a new pod's IP to the
+                  # NetworkPolicy allow-sets a few seconds after it starts;
+                  # until then default-deny drops its traffic. Wait (up to
+                  # 60s) instead of failing on the first connect.
+                  for i in $(seq 1 30); do
+                    if mariadb-admin ping --host=kimai-mariadb --user={{ .Values.mariadb.user }} \
+                         --connect-timeout=2 --silent; then
+                      echo "mariadb reachable after attempt $i"; break
+                    fi
+                    sleep 2
+                  done
                   mariadb-dump --host=kimai-mariadb --user={{ .Values.mariadb.user }} \
                     --single-transaction --skip-dump-date --hex-blob \
                     {{ .Values.mariadb.database }} > "$tmp"
