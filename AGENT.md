@@ -67,6 +67,7 @@ services/*/app/             Argo CD: application Helm charts
   copyparty/                 File sharing
   homarr/                    Dashboard (edge-gated forward-auth)
   paperless/                 Document management (OIDC)
+  kimai/                     Time tracking with its own MariaDB (SAML)
   gatus/                     Health monitoring (edge-gated)
   umami/                     Privacy-first web analytics
   monitoring/                Prometheus, Loki, Alloy, Grafana
@@ -234,7 +235,55 @@ oidc_key/secret, actions_token, admin_user/password), `Homarr Secrets`,
 `Paperless Secrets`, `VolSync B2 <pvc>` (one item per backed-up PVC, restic
 env fields), `Authentik Deployment Secrets`, `Cloudflare DNS Challenge`,
 `Redis Password`, `StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`,
-`Umami Secrets`.
+`Umami Secrets`, `Kimai Secrets`, `Kimai SAML Signing`.
+
+### VolSync B2 credentials (one scoped key per PVC)
+
+**Human step:** the B2 admin key lives in the human's `Personal` vault
+(`op://Personal/Backblaze`), which agents cannot read. When a new PVC needs a
+backup, write the `ReplicationSource` (copy
+`services/kimai/app/templates/volsync.yaml`), then hand the human this
+procedure and wait for the item before relying on the backup.
+
+Every backed-up PVC gets its own B2 application key, limited to its own
+prefix in the `k3s-service-cluster` bucket, and its own `VolSync B2 <pvc>`
+item. Never reuse another PVC's key or item.
+
+```bash
+# 1. Authorize as the account admin key (op://Personal/Backblaze: app_key_id + its key)
+b2 account authorize
+
+# 2. (Optional) see the existing VolSync keys, their prefixes and capabilities
+b2 key list
+
+# 3. Create the scoped key. Prints keyId + applicationKey ONCE: copy both now.
+b2 key create --bucket k3s-service-cluster --name-prefix volsync/<ns> \
+  VolSync-<pvc> deleteFiles,listBuckets,listFiles,readFiles,writeFiles
+
+# 4. Don't leave the admin key cached in ~/.config/b2
+b2 account clear
+```
+
+Capabilities mirror the existing VolSync keys (confirmed by authorizing as
+`VolSync B2 paperless-media`'s key): restic reads, lists and writes its
+repository, and needs `deleteFiles` for the weekly prune. `--name-prefix` is
+a plain string match, so `volsync/<ns>/` (trailing slash) is the tighter
+form if another namespace could share the prefix.
+
+Then create `VolSync B2 <pvc>` in the `K3s Service Cluster` vault, with
+field labels exactly as below (the operator turns labels into the Secret
+keys restic reads):
+
+| Field | Value |
+|---|---|
+| `RESTIC_REPOSITORY` | `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
+| `RESTIC_PASSWORD` | new random value (`openssl rand -hex 32`); encrypts the repo, so losing it loses the backups |
+| `AWS_ACCESS_KEY_ID` | the new `keyId` |
+| `AWS_SECRET_ACCESS_KEY` | the new `applicationKey` |
+
+In a PSA `restricted` namespace, the `ReplicationSource` (and any restore
+`ReplicationDestination`) also needs a `moverSecurityContext` with
+`runAsNonRoot` and `RuntimeDefault` seccomp; see the kimai template.
 
 ## Essential Commands
 
@@ -283,3 +332,7 @@ When adding a new service under `services/<name>/app/`:
 - etcd encryption at rest (AES-CBC)
 - CNPG barman-cloud plugin enabled; daily backups to Backblaze B2 with 30d retention
 - VolSync restic backups of app PVCs to Backblaze B2
+- Alert email is opt-in: Alertmanager mails only alerts labelled
+  `notify: email` (to admin@salishseawolf.com, via Resend); everything else
+  goes to the null receiver. A service opts in with a PrometheusRule carrying
+  `release: monitoring` (see services/kimai/app/templates/prometheusrule.yaml)

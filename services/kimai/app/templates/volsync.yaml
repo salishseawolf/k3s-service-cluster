@@ -1,0 +1,68 @@
+# VolSync restic backups for kimai (hourly; minutes are staggered across
+# services so the movers don't all hit SeaweedFS/B2 at the top of the hour).
+#
+# The 1P item carries the restic env verbatim (the operator cannot template,
+# so the vault does): RESTIC_REPOSITORY, RESTIC_PASSWORD, AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY. Each PVC gets its OWN item/repository and scoped B2
+# key (README "Creating a VolSync B2 key") — restic repositories must never
+# be shared between ReplicationSources.
+#
+#   kimai-data     app files, written by Kimai as www-data (33)
+#   kimai-db-dump  latest logical DB dump, written by the dump CronJob as
+#                  mysql (999) at :15, uploaded here at :45
+#
+# kimai-mariadb-data itself is deliberately NOT backed up: a live copy of
+# InnoDB files is only crash-consistent; the dump is the DB backup.
+{{- range $pvc, $cfg := dict
+  "kimai-data"    (dict "minute" "25" "uid" 33)
+  "kimai-db-dump" (dict "minute" "45" "uid" 999) }}
+---
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: volsync-b2-{{ $pvc }}
+  namespace: kimai
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 {{ $pvc }}"
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: {{ $pvc }}
+  namespace: kimai
+spec:
+  sourcePVC: {{ $pvc }}
+  trigger:
+    schedule: "{{ $cfg.minute }} * * * *"
+  restic:
+    repository: volsync-b2-{{ $pvc }}
+    # Direct: hcloud-csi has no snapshot support (no Hetzner volume-snapshot
+    # API) and seaweedfs-csi implements neither CSI snapshots nor cloning (no
+    # csi-snapshotter sidecar, no snapshot-controller/CRDs in-cluster), so
+    # Clone/Snapshot PiT copies are impossible here. The mover mounts the
+    # live PVC (file-level crash consistency).
+    copyMethod: Direct
+    pruneIntervalDays: 7
+    retain:
+      hourly: 12
+      daily: 5
+      weekly: 4
+      monthly: 2
+      yearly: 1
+    # Restic cache on node-local storage: hcloud-volumes has a 10Gi minimum
+    # and caching on seaweedfs-storage would make restores depend on the very
+    # store being restored.
+    cacheCapacity: 2Gi
+    cacheStorageClassName: local-path
+    # The kimai namespace enforces PSA restricted (the other backed-up
+    # services are baseline/privileged). VolSync already sets the container
+    # half (no privilege escalation, drop ALL, read-only root); these pod
+    # fields complete it, as the uid that owns the volume's files.
+    moverSecurityContext:
+      runAsUser: {{ $cfg.uid }}
+      runAsGroup: {{ $cfg.uid }}
+      fsGroup: {{ $cfg.uid }}
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+{{- end }}

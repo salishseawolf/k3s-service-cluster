@@ -52,6 +52,10 @@ Thumbs.db
 # Kubernetes config (contains cluster credentials)
 kubeconfig
 
+# Database dumps (password hashes, API tokens)
+tmp/
+*.dump.sql
+
 # Logs
 *.log
 

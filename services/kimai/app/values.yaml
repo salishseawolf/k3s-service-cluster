@@ -60,3 +60,16 @@ mariadb:
     limits:
       cpu: "1"
       memory: 1Gi
+  # Hourly logical dump into the kimai-db-dump PVC (VolSync uploads it at
+  # :45). Same image as the server, so client and server versions match.
+  dump:
+    schedule: "15 * * * *"
+    storage:
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi

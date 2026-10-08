@@ -11,7 +11,9 @@ restoring persistent data from Backblaze B2 backups.
 |---|---|---|---|
 | CNPG PostgreSQL (6 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
-| All PVCs (Gitea, Paperless, Homarr, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (hourly; retain 12h/5d/4w/2m/1y) | ~1h |
+| All PVCs (Gitea, Paperless, Homarr, Kimai, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (hourly; retain 12h/5d/4w/2m/1y) | ~1h |
+| Kimai MariaDB (`kimai-mariadb-data`) | B2 `volsync/kimai/kimai-db-dump` | Hourly `mariadb-dump --single-transaction` (:15) into the `kimai-db-dump` PVC, uploaded by VolSync (:45). The data dir itself is not copied (only crash-consistent). Failures email admin@ via Alertmanager | ~1h |
+| step-ca database (`database-step-ca-0`, 10Gi, `hcloud-volumes`) | **Not backed up (accepted)** | Survives node loss (Hetzner network volume). On total loss: CA keys come back from 1P, cert-manager re-registers its ACME account, issued certs keep working; only the issued/revoked-cert records are gone | — |
 | SeaweedFS blob store (`seaweedfs-data`) | Not backed up directly | Reconstructed by per-PVC VolSync restores into a fresh SeaweedFS | — |
 | Secrets | 1Password vault | Operator re-creates from vault | N/A (git) |
 | Cluster config (CRDs, Argo, etc.) | Git | Argo CD re-deploys | N/A (git) |
@@ -137,7 +139,7 @@ it empty) so SeaweedFS starts fresh; VolSync then repopulates every
 seaweedfs-backed PVC at the file level.
 
 For each backed-up PVC (gitea-data, homarr-data, paperless-data,
-paperless-media, copyparty-data), scale the consuming
+paperless-media, copyparty-data, kimai-data, kimai-db-dump), scale the consuming
 workload to 0, then restore into the (empty, Argo-recreated) PVC with a
 ReplicationDestination using the same `volsync-b2-<pvc>` secret:
 
@@ -156,6 +158,41 @@ spec:
     copyMethod: Direct
     cacheCapacity: 2Gi
     cacheStorageClassName: local-path
+```
+
+**kimai-data / kimai-db-dump:** the `kimai` namespace enforces PSA
+`restricted`, so the restore mover is rejected unless the
+ReplicationDestination carries the same security context as its
+ReplicationSource. Add under `spec.restic`, with uid **33** for kimai-data
+and **999** for kimai-db-dump:
+```yaml
+    moverSecurityContext:
+      runAsUser: 33          # 999 for kimai-db-dump
+      runAsGroup: 33
+      fsGroup: 33
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+```
+
+**Kimai database:** restoring `kimai-db-dump` only brings back the dump
+file (`kimai.sql`); load it into MariaDB afterwards. Kimai must not be in use
+meanwhile; its restart runs any pending migrations.
+```bash
+# empty the database (the kimai user keeps its grants; they are by name)
+kubectl -n kimai exec kimai-mariadb-0 -- sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e \
+  "DROP DATABASE kimai; CREATE DATABASE kimai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
+# load the restored dump straight from the dump PVC, via a one-off pod that mounts it
+kubectl -n kimai run kimai-db-restore --rm -i --restart=Never \
+  --image=docker.io/library/mariadb:<tag from services/kimai/app/values.yaml> \
+  --overrides='{"spec":{"securityContext":{"runAsUser":999,"runAsGroup":999,"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},
+    "containers":[{"name":"r","image":"docker.io/library/mariadb:<tag>","stdin":true,
+      "command":["sh","-c","mariadb -h kimai-mariadb -ukimai -p\"$P\" kimai < /dumps/kimai.sql"],
+      "env":[{"name":"P","valueFrom":{"secretKeyRef":{"name":"kimai-secrets","key":"mariadb-password"}}}],
+      "securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}},
+      "volumeMounts":[{"name":"d","mountPath":"/dumps"}]}],
+    "volumes":[{"name":"d","persistentVolumeClaim":{"claimName":"kimai-db-dump"}}]}}'
+kubectl -n kimai delete pod -l app.kubernetes.io/name=kimai   # restart: migrations + cache
 ```
 
 Watch completion, then scale the workload back up and delete the

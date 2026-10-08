@@ -185,6 +185,17 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+      # Via Traefik like Paperless, so no kimai NetworkPolicy change. The login
+      # page renders only if PHP, the cache and the MariaDB connection all work
+      # (same path as the pod's own probes); "/" just redirects to it.
+      - name: Kimai
+        group: services
+        url: "https://kimai.{{ .Values.domain }}/en/login"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        failures: 3
+        success: 2
       - name: Gatus (self)
         group: internal
         url: "http://gatus.gatus.svc.cluster.local:{{ .Values.port }}/health"

@@ -33,3 +33,23 @@ spec:
   resources:
     requests:
       storage: {{ .Values.mariadb.storage.size }}
+---
+# Latest logical dump only (templates/mariadb-dump-cronjob.yaml); history lives
+# in restic via VolSync (templates/volsync.yaml), so this PVC itself is
+# disposable.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kimai-db-dump
+  namespace: kimai
+  labels:
+    app.kubernetes.io/name: kimai-mariadb-dump
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: seaweedfs-storage
+  resources:
+    requests:
+      storage: {{ .Values.mariadb.dump.storage.size }}

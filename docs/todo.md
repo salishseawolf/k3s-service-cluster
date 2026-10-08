@@ -4,6 +4,12 @@
 - [ ] Gitea OIDC resolves with production LE cert
 - [ ] Database syncs cleanly with managed roles + quota
 
+## Backups
+- [x] kimai MariaDB: hourly `mariadb-dump` CronJob into the `kimai-db-dump` PVC, uploaded by VolSync; failure email via Alertmanager
+- [ ] kimai backups: confirm the first dump (:15) and both VolSync uploads (:25 kimai-data, :45 kimai-db-dump) succeed, since they're the first movers in a PSA `restricted` namespace (`moverSecurityContext` untested); send the `amtool` test alert; run one restore drill into a scratch database
+- [ ] alerting: decide which default kube-prometheus-stack alerts deserve `notify: email` too (e.g. `KubeJobFailed`, which currently goes nowhere, including for renovate)
+- [ ] step-ca: at the next fresh deploy, set `ca.db.storageClass: hcloud-volumes` in `platform/step-ca/crd/templates/helmchart.yaml`. Its PVC comes from the chart default (no class, so the cluster default), and StatefulSet `volumeClaimTemplates` are immutable, so it can't be pinned on the live cluster. Not backed up by choice (see docs/RECOVERY-RUNBOOK.md inventory)
+
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
 - [ ] m6: Poorly named paperless deployment files
