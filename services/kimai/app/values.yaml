@@ -1,0 +1,58 @@
+---
+# Injected by the root ApplicationSet as a Helm parameter (single source of
+# truth for the cluster domain lives in platform/argocd).
+domain: ""
+
+secrets:
+  # One 1P item, projected by templates/onepassworditems.yaml. Keys:
+  # app-secret, admin-password, mailer-url, mariadb-password,
+  # mariadb-root-password. mariadb-password must be alphanumeric: it is
+  # spliced into DATABASE_URL unescaped.
+  name: kimai-secrets
+  itemPath: "vaults/K3s Service Cluster/items/Kimai Secrets"
+  # Same 1P item services/identity uses to build Authentik's signing key
+  # pair; only its public `certificate` field is read here.
+  saml:
+    name: kimai-saml-signing
+    itemPath: "vaults/K3s Service Cluster/items/Kimai SAML Signing"
+
+kimai:
+  image:
+    repository: docker.io/kimai/kimai2
+    tag: "2.69.0"
+  port: 8001
+  # Superadmin login; created on first start (password: admin-password).
+  adminEmail: admin@salishseawolf.com
+  # Must be on a Resend-verified domain (salishseawolf.com), or Resend rejects it.
+  mailerFrom: kimai@salishseawolf.com
+  # Traefik (hostNetwork, node IPs) terminates TLS. Trusting it makes Symfony
+  # honor X-Forwarded-Proto, so Kimai sees https and SAML's strict
+  # destination check on /auth/saml/acs passes.
+  trustedProxies: "127.0.0.1,10.42.0.0/16,192.168.0.0/16"
+  storage:
+    size: 4Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+
+mariadb:
+  # Official image: Renovate tracks it, and DATABASE_URL's serverVersion is
+  # derived from this tag, so a bump needs no other edit.
+  image:
+    repository: docker.io/library/mariadb
+    tag: "11.4.13"
+  database: kimai
+  user: kimai
+  storage:
+    size: 4Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi

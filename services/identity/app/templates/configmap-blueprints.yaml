@@ -1280,3 +1280,77 @@ data:
           meta_icon: ""
           policy_engine_mode: any
           group: "Infrastructure"
+
+  blueprint-kimai.yaml: |
+    ---
+    # Kimai time tracking via SAML (integrations.goauthentik.io, Kimai guide).
+    # Kimai pins the IdP certificate in its local.yaml, so the signing pair is
+    # pre-generated in 1P ("Kimai SAML Signing") and shared with
+    # services/kimai, rather than using the self-signed default.
+    version: 1
+    metadata:
+      name: Kimai
+      labels:
+        blueprints.goauthentik.io/instantiate: "true"
+    entries:
+      - model: authentik_crypto.certificatekeypair
+        state: present
+        id: kp-kimai-saml
+        identifiers:
+          name: kimai-saml
+        attrs:
+          certificate_data: !Env AUTHENTIK_KIMAI_SAML_CERT
+          key_data: !Env AUTHENTIK_KIMAI_SAML_KEY
+
+      - model: authentik_providers_saml.samlprovider
+        state: present
+        id: provider-kimai
+        identifiers:
+          name: Kimai SAML Provider
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          acs_url: "https://kimai.{{ .Values.domain }}/auth/saml/acs"
+          sp_binding: post
+          audience: "https://kimai.{{ .Values.domain }}/"
+          # Must equal kimai.saml.connection.idp.entityId in services/kimai.
+          issuer_override: "https://auth.{{ .Values.domain }}/application/saml/kimai/metadata/"
+          sls_url: "https://kimai.{{ .Values.domain }}/auth/saml/logout"
+          sls_binding: redirect
+          logout_method: frontchannel_iframe
+          signing_kp: !KeyOf kp-kimai-saml
+          # Kimai sets wantAssertionsSigned: true.
+          sign_assertion: true
+          signature_algorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+          digest_algorithm: "http://www.w3.org/2001/04/xmlenc#sha256"
+          name_id_mapping: !Find [authentik_core.propertymapping, [name, "authentik default SAML Mapping: Email"]]
+          default_name_id_policy: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+          property_mappings:
+            - !Find [authentik_core.propertymapping, [name, "authentik default SAML Mapping: Email"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default SAML Mapping: Name"]]
+            # http://schemas.xmlsoap.org/claims/Group: Kimai maps
+            # infrastructure -> ROLE_SUPER_ADMIN from this.
+            - !Find [authentik_core.propertymapping, [name, "authentik default SAML Mapping: Groups"]]
+
+      - model: authentik_core.application
+        state: present
+        id: app-kimai
+        identifiers:
+          slug: kimai
+        attrs:
+          name: Kimai
+          provider: !KeyOf provider-kimai
+          meta_launch_url: "https://kimai.{{ .Values.domain }}/"
+          meta_description: "Time tracking"
+          policy_engine_mode: any
+          group: "Services"
+
+      # Replaces the forward-auth gate: only 'internal' members may log in.
+      # (group is created by the forward-auth blueprint)
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 10
+          target: !KeyOf app-kimai
+        attrs:
+          group: !Find [authentik_core.group, [name, internal]]

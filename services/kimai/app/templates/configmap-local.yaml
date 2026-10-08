@@ -1,0 +1,82 @@
+{{- $kimai := printf "https://kimai.%s" .Values.domain }}
+{{- $idp := printf "https://auth.%s/application/saml/kimai/" .Values.domain }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kimai-local-config
+  namespace: kimai
+  labels:
+    app.kubernetes.io/name: kimai
+data:
+  # Mounted as /opt/kimai/config/packages/local.yaml. Templated here (not in
+  # values) so domain-dependent settings can use .Values.domain.
+  #
+  # SAML per the authentik Kimai guide. The URLs below must match the
+  # provider in services/identity (blueprint-kimai.yaml) exactly:
+  #   idp.entityId == issuer_override, sp.entityId == audience,
+  #   assertionConsumerService.url == acs_url.
+  local.yaml: |
+    monolog:
+      handlers:
+        main:
+          path: php://stderr
+
+    kimai:
+      user:
+        # Password login stays as the superadmin break-glass; everyone else
+        # arrives through Authentik, so no self-service accounts or resets.
+        login: true
+        registration: false
+        password_reset: false
+
+      saml:
+        provider: authentik
+        activate: true
+        title: Log in with authentik
+        mapping:
+          - { saml: "$http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", kimai: email }
+          - { saml: "$http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", kimai: alias }
+        roles:
+          # Authentik group membership is the source of truth for roles;
+          # users not in a mapped group get ROLE_USER.
+          resetOnLogin: true
+          attribute: http://schemas.xmlsoap.org/claims/Group
+          mapping:
+            - { saml: infrastructure, kimai: ROLE_SUPER_ADMIN }
+        connection:
+          baseurl: "{{ $kimai }}/auth/saml/"
+          strict: true
+          debug: false
+          idp:
+            entityId: "{{ $idp }}metadata/"
+            singleSignOnService:
+              url: "{{ $idp }}"
+              binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+            singleLogoutService:
+              url: "{{ $idp }}"
+              binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+            # From the shared "Kimai SAML Signing" 1P item (env, not git).
+            x509cert: "%env(KIMAI_SAML_IDP_CERT)%"
+          sp:
+            entityId: "{{ $kimai }}/"
+            assertionConsumerService:
+              url: "{{ $kimai }}/auth/saml/acs"
+              binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            singleLogoutService:
+              url: "{{ $kimai }}/auth/saml/logout"
+              binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+          security:
+            nameIdEncrypted: false
+            authnRequestsSigned: false
+            logoutRequestSigned: false
+            logoutResponseSigned: false
+            wantMessagesSigned: false
+            # Authentik signs assertions (sign_assertion: true); reject any
+            # that are not signed by the pinned certificate.
+            wantAssertionsSigned: true
+            wantNameIdEncrypted: false
+            requestedAuthnContext: true
+            signMetadata: false
+            wantXMLValidation: true
+            signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+            digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256"

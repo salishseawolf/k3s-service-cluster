@@ -1,0 +1,8 @@
+---
+apiVersion: v2
+name: kimai
+description: >-
+  Kimai time tracking with its own MariaDB. Plain templates (no upstream
+  chart) so PSA, domain templating and secrets follow house conventions.
+type: application
+version: 0.1.0

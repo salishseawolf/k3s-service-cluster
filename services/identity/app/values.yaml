@@ -71,6 +71,12 @@ authentik:
         valueFrom: {secretKeyRef: {name: grafana-oidc-creds, key: oidc_client}}
       - name: AUTHENTIK_GRAFANA_OIDC_CLIENT_SECRET
         valueFrom: {secretKeyRef: {name: grafana-oidc-creds, key: password}}
+      # SAML signing pair inversion: Kimai pins this certificate in its own
+      # config, so it must survive a rebuild (a self-signed one would not).
+      - name: AUTHENTIK_KIMAI_SAML_CERT
+        valueFrom: {secretKeyRef: {name: kimai-saml-signing, key: certificate}}
+      - name: AUTHENTIK_KIMAI_SAML_KEY
+        valueFrom: {secretKeyRef: {name: kimai-saml-signing, key: private_key}}
 
   server:
     # kube-linter exception on the Deployment object only (no rollout).

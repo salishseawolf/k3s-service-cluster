@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kimai
+  namespace: kimai
+  labels:
+    app.kubernetes.io/name: kimai
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint): apache/PHP write var/cache and var/log outside the data
+      volume; map them to emptyDirs after a podman --read-only test.
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  # RWO data volume: never run two pods at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kimai
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kimai
+      annotations:
+        # local.yaml is a subPath mount (no live updates): roll on change.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-local.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        runAsNonRoot: true
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: kimai
+          image: "{{ .Values.kimai.image.repository }}:{{ .Values.kimai.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: {{ .Values.kimai.port }}
+          env:
+            - name: APP_ENV
+              value: prod
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: app-secret
+            - name: ADMINMAIL
+              value: {{ .Values.kimai.adminEmail | quote }}
+            - name: ADMINPASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: admin-password
+            - name: MAILER_FROM
+              value: {{ .Values.kimai.mailerFrom | quote }}
+            - name: MAILER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: mailer-url
+            # Defined before DATABASE_URL so $(DB_PASSWORD) expands: one
+            # password in 1P instead of a hand-built DSN copy.
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: mariadb-password
+            - name: DATABASE_URL
+              value: "mysql://{{ .Values.mariadb.user }}:$(DB_PASSWORD)@kimai-mariadb:3306/{{ .Values.mariadb.database }}?charset=utf8mb4&serverVersion={{ regexFind "^[0-9]+\\.[0-9]+\\.[0-9]+" .Values.mariadb.image.tag }}-MariaDB"
+            - name: TRUSTED_HOSTS
+              value: "localhost|kimai.{{ .Values.domain }}"
+            - name: TRUSTED_PROXIES
+              value: {{ .Values.kimai.trustedProxies | quote }}
+            # Authentik's SAML signing certificate, read by local.yaml via
+            # %env(KIMAI_SAML_IDP_CERT)%. Public half only.
+            - name: KIMAI_SAML_IDP_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.saml.name }}
+                  key: certificate
+          # Same probes as the upstream chart: the login page is the first
+          # thing that fails if PHP, the cache or the DB connection is broken.
+          readinessProbe:
+            httpGet:
+              path: /en/login
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /en/login
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.kimai.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /opt/kimai/var/data
+            - name: local-config
+              mountPath: /opt/kimai/config/packages/local.yaml
+              subPath: local.yaml
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kimai-data
+        - name: local-config
+          configMap:
+            name: kimai-local-config

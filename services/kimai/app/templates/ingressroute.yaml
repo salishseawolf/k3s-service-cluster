@@ -1,0 +1,21 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kimai
+  namespace: kimai
+  labels:
+    app.kubernetes.io/name: kimai
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      # No forward-auth middleware: Kimai authenticates via SAML, and the
+      # Authentik application binding (blueprint-kimai.yaml) admits only the
+      # 'internal' group. Edge auth too would mean logging in twice.
+      match: "Host(`kimai.{{ .Values.domain }}`)"
+      services:
+        - kind: Service
+          name: kimai
+          port: 80
+  tls: {}

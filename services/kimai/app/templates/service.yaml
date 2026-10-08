@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kimai
+  namespace: kimai
+  labels:
+    app.kubernetes.io/name: kimai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kimai
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kimai-mariadb
+  namespace: kimai
+  labels:
+    app.kubernetes.io/name: kimai-mariadb
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kimai-mariadb
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
