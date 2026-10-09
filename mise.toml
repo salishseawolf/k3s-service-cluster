@@ -94,6 +94,23 @@ op run -- bash -c '
 '
 """
 
+[tasks."node:shell"]
+description = "Interactive root shell on a K3s node (SSH, admin IP only)"
+usage = 'arg "[node_index]" help="Node index (0-2)" default="0"'
+# raw: hand the terminal straight to ssh so the shell is interactive
+raw = true
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+ip="$(mise run //infrastructure/tofu:ip "$usage_node_index" 2>/dev/null)"
+if [[ ! "$ip" =~ ^[0-9.]+$ ]]; then
+  echo "No node at index $usage_node_index (got: ${ip:-nothing})" >&2
+  exit 1
+fi
+echo "==> root@$ip (node index $usage_node_index)" >&2
+exec ssh "root@$ip"
+"""
+
 [tasks.destroy]
 description = "Tear down all cloud resources"
 run = "mise run //infrastructure/tofu:destroy"

@@ -42,7 +42,7 @@ run = [
 [tasks.ip]
 description = "Get public IP of specific node"
 usage = 'arg "index" help="Node index (0-2)" default="0"'
-run = 'tofu output -json node_public_ips | jq -r ".[{{arg(name=\"index\")}}]"'
+run = 'tofu output -json node_public_ips | yq -p json -r ".[${usage_index}]"'
 
 [tasks."output:json"]
 description = "Get all outputs as JSON"
