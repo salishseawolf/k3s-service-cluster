@@ -33,6 +33,9 @@
   // branch, and nothing merges itself (merged == deployed via Argo).
   prCreation: "status-success",
   automerge: false,
+  // No hourly cap (default 2): every branch whose CI passed gets its PR in
+  // the same run. prConcurrentLimit stays at the default 10 open PRs.
+  prHourlyLimit: 0,
 
   enabledManagers: ["kubernetes", "helm-values", "helmv3", "argocd"],
   includePaths: [
