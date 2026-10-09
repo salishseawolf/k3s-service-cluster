@@ -260,6 +260,10 @@ loki:
   enabled: true
   fullnameOverride: monitoring-loki
   loki:
+    # Single-tenant mode (tenant "fake"): Grafana and Alloy then need no
+    # X-Scope-OrgID header. This is tenant routing, not authentication (Loki
+    # has none); access is limited by the monitoring NetworkPolicies.
+    auth_enabled: false
     commonConfig:
       replication_factor: 1
     limits_config:
@@ -323,11 +327,29 @@ alloy:
             url = "http://monitoring-loki.monitoring:3100/loki/api/v1/push"
           }
         }
+        // loki.source.file does not expand globs; local.file_match does.
+        local.file_match "pod_logs" {
+          path_targets = [{__path__ = "/var/log/pods/*/*/*.log"}]
+        }
         loki.source.file "pod_logs" {
-          targets = [
-            {__path__ = "/var/log/pods/*/*/*.log"},
-            {__path__ = "/var/log/pods/*/*/*/*.log"},
-          ]
+          targets    = local.file_match.pod_logs.targets
+          forward_to = [loki.process.pod_logs.receiver]
+        }
+        // Strip the CRI prefix (timestamp, stream, flag) and label each line
+        // from its path: /var/log/pods/<ns>_<pod>_<uid>/<container>/<n>.log
+        loki.process "pod_logs" {
+          stage.cri {}
+          stage.regex {
+            source     = "filename"
+            expression = "/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/"
+          }
+          stage.labels {
+            values = {
+              namespace = "",
+              pod       = "",
+              container = "",
+            }
+          }
           forward_to = [loki.write.default.receiver]
         }
     mounts:
