@@ -27,7 +27,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: copyparty
-        image: 'copyparty/ac:1.20.16'
+        image: 'copyparty/ac:1.20.24'
         ports:
         - containerPort: 3923
           name: http
