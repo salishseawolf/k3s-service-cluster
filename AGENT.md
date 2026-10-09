@@ -17,7 +17,7 @@ Ansible, and continuously reconciled by Argo CD. Admin IP is 73.97.54.81/32.
 
 Authoritative references in-repo: `docs/RUNBOOK-GITOPS.md` (operations, vault
 checklist, fresh deploy), `docs/RECOVERY-RUNBOOK.md` (disaster recovery),
-`docs/MIGRATION.md` (service anatomy), `docs/PLAN.md` (rationale).
+`docs/MIGRATION.md` (service anatomy).
 
 ## Ground rules (non-negotiable)
 
@@ -25,10 +25,15 @@ checklist, fresh deploy), `docs/RECOVERY-RUNBOOK.md` (disaster recovery),
    written to disk in this repo. Never echo resolved secret values, never
    paste them into command output you report, never commit `.secrets.env*`,
    `kubeconfig`, or anything matching `.gitignore`.
-2. **You do not widen the perimeter.** Ports 80/443 stay admin-CIDR-only.
-   Changing `allowed_admin_cidr`, opening firewall rules, or any change to
-   `infrastructure/tofu/main.tf` firewall blocks requires explicit human
-   approval first.
+2. **You do not widen the perimeter.** Know what the perimeter actually is
+   (see [Perimeter](#perimeter)): the Hetzner firewall does **not** cover
+   traffic through the load balancer, so for 80/443/2222 the real controls
+   are Traefik (`ClientIP`/`ipAllowList`) and Authentik forward-auth. Each of
+   these requires explicit human approval first: changing
+   `allowed_admin_cidr` or `adminSourceRanges`, opening firewall rules, adding
+   or changing an LB service in `infrastructure/tofu/main.tf`, adding a route
+   without forward-auth, removing forward-auth from a route, or widening a
+   `ClientIP`/`ipAllowList` source list.
 3. **Destructive operations require confirmation.** `tofu destroy`,
    `mise run destroy`, `helm uninstall`, `kubectl delete ns`, deleting
    volumes/snapshots/backups: present the exact command and wait for a human
@@ -164,8 +169,10 @@ kubectl get nodes                        # 3 nodes Ready
 
 **Gate 3:** 3 servers, LB, network and firewall exist
 (`op run -- hcloud server list`, `op run -- hcloud load-balancer list`);
-DNS A records resolve to the LB IP; 3 Ready nodes; Argo CD is running in
-`argocd`.
+the root and wildcard DNS records resolve to the LB IP and `api.<domain>` to
+the three node IPs; `kubectl get nodes` works through the generated
+kubeconfig (`https://api.<domain>:6443`); 3 Ready nodes; Argo CD is running
+in `argocd`.
 
 ### Stage 4: Watch the Argo cascade
 
@@ -181,8 +188,8 @@ cluster is healthy; the wave 30 PVC canary succeeds. Then every
 explained amber) across its endpoint groups.
 
 **Human handoff:** after identity is up, a human must add their user to the
-`internal` group in Authentik. Forward-auth denies everyone else. Flag it;
-do not block on it.
+`internal` group in Authentik. Most forward-auth gates (and Kimai) admit
+only that group. Flag it; do not block on it.
 
 ### Stage 5: Final report
 
@@ -311,18 +318,63 @@ When adding a new service under `services/<name>/app/`:
 - NetworkPolicy (networkpolicy.yaml)
 - OnePasswordItem CRs for secrets (onepassworditems.yaml)
 - Workload (deployment.yaml or statefulset.yaml)
-- IngressRoute (ingressroute.yaml with forward-auth if edge-gated)
+- IngressRoute (ingressroute.yaml) with the `authentik-forward-auth`
+  middleware (namespace `identity`), plus a forward-auth provider and
+  application for the host in `services/identity/app/templates/configmap-blueprints.yaml`
+  and an entry in the embedded outpost's providers list (it is replaced, not
+  merged). A route without forward-auth is a perimeter change (ground rule 2)
 - Service (service.yaml)
 - PVC annotations: `Prune=false,Delete=false`
 - The ApplicationSet auto-discovers it by directory
 
 ## Network
 
-- **Hetzner Cloud Firewall**: external traffic (admin IP + private net)
+- **Hetzner Cloud Firewall**: direct-to-node traffic only (admin IP + private net)
 - **firewalld** on each node (public zone: SSH/HTTP/HTTPS/K8s API/Gitea SSH)
 - **Kubernetes NetworkPolicies** per namespace (default-deny ingress)
 - **Traefik** hostNetwork DaemonSet with authenticated forward-auth middleware
 - **Authentik** as SSO/identity provider with proxy outposts
+
+### Perimeter
+
+Hetzner Cloud Firewalls cannot be attached to load balancers, and the LB
+reaches the nodes over the private network, which the firewall allows. So
+**everything the LB forwards is reachable from the whole internet**, and
+access control happens behind it:
+
+| Entry | Path | Enforced by |
+|---|---|---|
+| 80/443 | LB (PROXY protocol, real client IP) → Traefik | per route: Authentik forward-auth, or public by design |
+| 2222 (Gitea SSH) | LB (PROXY protocol) → Traefik TCP | `gitea-ssh-allowlist` MiddlewareTCP: `adminSourceRanges` |
+| 6443 (K3s API) | **not on the LB**; `api.<domain>` = one A record per node | Hetzner firewall: admin IP only |
+| 22 (node SSH) | direct to nodes | Hetzner firewall: admin IP only |
+
+Web routes, by design:
+
+- **Public:** the personal site, Copyparty share links (`files.`, for
+  people outside the org), Umami's tracking paths, and Authentik itself
+  (`auth.`, the login page, rate-limited).
+- **Everything else is behind forward-auth.** Apps with their own Authentik
+  login (Gitea, Paperless OIDC; Kimai SAML) are gated too, so no request
+  reaches their code without an Authentik session.
+- **Token exceptions** bypass forward-auth only with a `ClientIP` rule:
+  Gitea's git smart-HTTP, `/api` and `/v2` (`adminSourceRanges` + pod
+  network `10.42.0.0/16`), and Argo CD's `/api` (`adminSourceRanges`).
+  `ClientIP` sees the real client only because the LB sends PROXY protocol
+  and Traefik trusts it on that entrypoint; an LB service without
+  `proxyprotocol = true` makes every client look like the LB's private IP
+  (`192.168.1.10`), which `adminSourceRanges` admits.
+- **In-cluster clients** of `git.<domain>` (Gitea Actions' `actions/checkout`)
+  resolve it to Traefik's ClusterIP via a CoreDNS rewrite
+  (`services/gitea/app/templates/coredns-custom.yaml`), so they arrive from
+  the pod network (the runner's egress policy allows Traefik's port 8443 on
+  the nodes for this). Gatus checks gated apps on their internal Services with
+  the public `Host` header instead of through Traefik.
+
+The kubeconfig points at `https://api.<domain>:6443` with
+`tls-server-name: kubernetes` (K3s fixes `--tls-san` at install; the built-in
+`kubernetes` SAN avoids reinstalling). kubectl fails over across the three
+A records.
 
 ## Security
 

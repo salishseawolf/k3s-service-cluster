@@ -2,8 +2,8 @@
 apiVersion: v2
 name: gatus
 description: >-
-  Cluster health dashboard. First service migrated to the GitOps tier
-  (docs/PLAN.md R3.3): self-contained chart, secrets via OnePasswordItem CRs,
+  Cluster health dashboard. First service migrated to the GitOps tier:
+  self-contained chart, secrets via OnePasswordItem CRs,
   auth enforced at the edge (authentik-forward-auth), DB principal owned
   declaratively by the database service, NetworkPolicy included.
 type: application

@@ -1,6 +1,6 @@
 ---
 apiVersion: v2
 name: gitea-actions
-description: CI runner; ingress-denied, strictly egress-limited (H2.2).
+description: CI runner; ingress-denied, strictly egress-limited.
 type: application
 version: 0.1.0

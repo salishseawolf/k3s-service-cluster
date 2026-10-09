@@ -1,7 +1,7 @@
 # Renovate serves nothing: deny all ingress. Egress is DNS plus the public
 # internet (api.github.com, github.com, ghcr.io, Docker Hub, chart repos),
 # with cluster and private ranges carved out so a compromised run cannot
-# reach datastores or other pods. Same shape as gitea-actions (H2.2).
+# reach datastores or other pods. Same shape as gitea-actions.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

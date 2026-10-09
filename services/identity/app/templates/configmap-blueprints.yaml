@@ -672,7 +672,7 @@ data:
 {{ end }}
 
       # ============================================================
-      # Tenancy groups (docs/PLAN.md H2.4)
+      # Tenancy groups
       # 'internal' gates staff-only tools at the edge. Client access
       # is modeled as client-<name> groups bound per application.
       # ============================================================

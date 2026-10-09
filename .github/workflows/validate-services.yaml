@@ -1,5 +1,5 @@
 ---
-# CI = validation only (docs/PLAN.md R4). CD belongs to Argo, so CI never
+# CI = validation only. CD belongs to Argo, so CI never
 # holds cluster credentials: these jobs run on GitHub-hosted runners with a
 # read-only token and nothing that can reach the cluster.
 name: validate-services

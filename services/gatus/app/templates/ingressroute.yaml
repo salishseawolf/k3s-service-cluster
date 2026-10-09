@@ -12,7 +12,7 @@ spec:
     - kind: Rule
       match: "Host(`gatus.{{ .Values.domain }}`)"
       middlewares:
-        # Auth at the edge (docs/PLAN.md H2.3): Authentik's 'internal' group
+        # Auth at the edge: Authentik's 'internal' group
         # gates this application before traffic reaches the pod.
         - name: authentik-forward-auth
           namespace: identity

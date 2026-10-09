@@ -1,4 +1,4 @@
-# Same model as the bootstrap-tier policies (docs/PLAN.md H2.1): default-deny
+# Same model as the bootstrap-tier policies: default-deny
 # ingress; Traefik arrives with a node IP (hostNetwork), matched via ipBlock.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

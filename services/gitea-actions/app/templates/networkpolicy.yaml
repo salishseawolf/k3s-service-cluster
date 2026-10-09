@@ -1,6 +1,6 @@
 # NetworkPolicies for the gitea-actions namespace.
 #
-# Model (docs/PLAN.md H2.1): default-deny ingress per namespace, then explicit
+# Model: default-deny ingress per namespace, then explicit
 # allows. Traefik runs as a hostNetwork DaemonSet, so ingress from Traefik
 # arrives with a NODE ip as source — matched via ipBlock on the private net
 # (192.168.0.0/16), not a podSelector. Kubelet probe traffic on some CNIs is
@@ -18,8 +18,8 @@ spec:
   policyTypes:
     - Ingress
 ---
-# H2.2 — the runner executes semi-arbitrary code in a privileged namespace.
-# Egress limited to: DNS, Gitea (direct + hairpin via LB), and the public
+# The runner executes semi-arbitrary code in a privileged namespace.
+# Egress limited to: DNS, Gitea (direct + via Traefik), and the public
 # internet for image pulls / actions — with cluster and private ranges carved
 # out so a compromised job cannot reach datastores or other pods.
 apiVersion: networking.k8s.io/v1
@@ -45,6 +45,17 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: gitea
+    # Traefik websecure on the nodes (hostNetwork, container port 8443): the
+    # CoreDNS rewrite (services/gitea/app/templates/coredns-custom.yaml) sends
+    # git.<domain> to Traefik's ClusterIP, which lands here instead of going
+    # out through the LB. Only Traefik's HTTPS port; the private ranges stay
+    # excluded below.
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.0/24
+      ports:
+        - protocol: TCP
+          port: 8443
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

@@ -1,6 +1,6 @@
 # NetworkPolicies for the copyparty namespace.
 #
-# Model (docs/PLAN.md H2.1): default-deny ingress per namespace, then explicit
+# Model: default-deny ingress per namespace, then explicit
 # allows. Traefik runs as a hostNetwork DaemonSet, so ingress from Traefik
 # arrives with a NODE ip as source — matched via ipBlock on the private net
 # (192.168.0.0/16), not a podSelector. Kubelet probe traffic on some CNIs is
