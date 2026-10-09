@@ -1,7 +1,12 @@
 ---
 # Fetch kubeconfig from K3s cluster and save locally
+# The kubeconfig targets api.<domain> (one A record per node, see
+# infrastructure/tofu/cloudflare.tf), so the API is reached directly under the
+# Hetzner firewall instead of through the LB. tls-server-name: the serving
+# cert has no SAN for api.<domain> (K3s fixes --tls-san at install), so
+# verify against its built-in "kubernetes" SAN instead.
 # Required variables:
-#   - k3s_control_plane_endpoint: Load balancer IP
+#   - domain: cluster domain (group_vars, from TF_VAR_domain)
 # Optional:
 #   - kubeconfig_local_path: Where to save kubeconfig
 #     Defaults to KUBECONFIG env var or ./kubeconfig in working directory
@@ -24,8 +29,8 @@
     kubeconfig_raw: "{{ kubeconfig_content.content | b64decode }}"
     kubeconfig_updated: >-
       {{ kubeconfig_raw | regex_replace(
-        'https://127.0.0.1:6443',
-        'https://' + k3s_control_plane_endpoint + ':6443'
+        '(?m)^(\s*)server: https://127\.0\.0\.1:6443$',
+        '\1server: https://api.' + domain + ':6443\n\1tls-server-name: kubernetes'
       ) }}
   ansible.builtin.copy:
     content: "{{ kubeconfig_updated }}"

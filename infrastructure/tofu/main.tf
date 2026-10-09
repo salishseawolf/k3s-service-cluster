@@ -55,23 +55,10 @@ resource "hcloud_load_balancer_target" "k3s_control_plane" {
   depends_on = [hcloud_load_balancer_network.k3s_control_plane]
 }
 
-# Load Balancer Service - K3s API
-resource "hcloud_load_balancer_service" "k3s_api" {
-  load_balancer_id = hcloud_load_balancer.k3s_control_plane.id
-  protocol         = "tcp"
-  listen_port      = 6443
-  destination_port = 6443
-
-  health_check {
-    protocol = "tcp"
-    port     = 6443
-    interval = 10
-    timeout  = 5
-    retries  = 3
-  }
-
-  depends_on = [hcloud_load_balancer_target.k3s_control_plane]
-}
+# No LB service for the K3s API (6443): Hetzner firewalls don't apply to LB
+# traffic, so it would be open to the internet. Clients use api.<domain>
+# (cloudflare.tf, one A record per node), where the firewall's admin-only
+# 6443 rule applies. Nodes join each other over the private network.
 
 # Load Balancer Service - HTTP (Traefik ingress on 8080)
 resource "hcloud_load_balancer_service" "http" {

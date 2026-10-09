@@ -72,7 +72,7 @@
           K3s cluster deployed successfully
 
           Kubeconfig: ./kubeconfig
-          API Endpoint: {{ k3s_control_plane_endpoint }}:6443
+          API Endpoint: api.{{ domain }}:6443 (one A record per node)
 
           Next steps:
           1. export KUBECONFIG=./kubeconfig
