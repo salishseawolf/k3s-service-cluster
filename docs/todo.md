@@ -30,7 +30,10 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
 - [x] m6: Poorly named paperless deployment files (renamed by workload: paperless, tika, gotenberg; 1P items by secret name)
-- [ ] m7: Share IngressRoute auth bypass undocumented
+- [x] m7: the copyparty "share" IngressRoute was an auth bypass, not just undocumented: `Query(h, .{0,})` is an exact match in Traefik v3, so `?h=.{0,}` skipped forward-auth and copyparty trusted client-sent `X-Authentik-*` headers (confirmed 2026-10-09: forged `probe`/`infrastructure` got browse + upload on `/`). Reachable only from the admin IP/private net. Route deleted 2026-10-09; share links (`/shr`) go through forward-auth
+- [ ] copyparty: test whether any pod can forge identity directly (`allow-ingress-traefik` admits all of `10.42.0.0/16` on every port, and `xff-src` trusts it): curl `copyparty.copyparty:3923/?ls` with `X-Authentik-*` headers from a throwaway pod. If it works, narrow the NetworkPolicy and `xff-src` to Traefik's real source IPs (same-node traffic likely arrives from the node's `10.42.x.1` bridge IP)
+- [ ] copyparty: check whether `idp-store: 3` saved the forged `probe` user (group `infrastructure`) from the m7 test, and remove it
+- [ ] copyparty: if shares should work logged out, add a `PathPrefix(/shr/)` route with a middleware that strips client `X-Authentik-*` headers
 
 ## Suggestions
 - [ ] S2: Add egress NetworkPolicy restrictions where safe
