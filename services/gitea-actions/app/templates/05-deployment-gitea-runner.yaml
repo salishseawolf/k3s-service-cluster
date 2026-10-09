@@ -18,6 +18,12 @@ metadata:
       dockerd writes image layers and state under the container's root fs.
 spec:
   replicas: 1
+  # Recreate: the runner's registration (/data/.runner) lives on the RWO
+  # gitea-runner-data PVC. A rolling update briefly runs two runners on it,
+  # and both upgrades so far left the new pod without a usable registration
+  # (2026-10-07 re-registered as a duplicate, 2026-10-09 "unregistered runner").
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: gitea-runner
