@@ -48,7 +48,7 @@ mariadb:
   # derived from this tag, so a bump needs no other edit.
   image:
     repository: docker.io/library/mariadb
-    tag: "11.4.13"
+    tag: "11.8.9"
   database: kimai
   user: kimai
   storage:
