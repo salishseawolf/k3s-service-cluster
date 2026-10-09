@@ -10,10 +10,15 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      # No forward-auth middleware: Kimai authenticates via SAML, and the
-      # Authentik application binding (blueprint-kimai.yaml) admits only the
-      # 'internal' group. Edge auth too would mean logging in twice.
+      # Authentik forward-auth first, then Kimai's SAML login. Both
+      # applications admit only the 'internal' group (blueprint-kimai.yaml,
+      # blueprint-forward-auth-apps.yaml); the shared Authentik session makes
+      # the second login automatic. The SAML ACS POST from auth.<domain> still
+      # carries the forward-auth cookie: same site, so SameSite=Lax allows it.
       match: "Host(`kimai.{{ .Values.domain }}`)"
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: identity
       services:
         - kind: Service
           name: kimai

@@ -153,9 +153,17 @@ data:
           - "[RESPONSE_TIME] < 2000"
         failures: 3
         success: 2
+      # Paperless, Gitea and Kimai sit behind Authentik forward-auth, which
+      # would answer a check with a login redirect. So these call the Services
+      # directly (allowed by each namespace's 10.42.0.0/16 ingress rule), with
+      # the public Host header the apps validate (Paperless' PAPERLESS_URL,
+      # Kimai's TRUSTED_HOSTS). Traefik and TLS are covered by the other
+      # https checks (Authentik, Personal Site).
       - name: Paperless-ngx
         group: services
-        url: "https://paperless.{{ .Values.domain }}"
+        url: "http://paperless.paperless.svc.cluster.local/"
+        headers:
+          Host: "paperless.{{ .Values.domain }}"
         interval: 60s
         conditions:
           - "[STATUS] == 200"
@@ -171,7 +179,7 @@ data:
         success: 2
       - name: Gitea
         group: services
-        url: "https://git.{{ .Values.domain }}/api/healthz"
+        url: "http://gitea-http.gitea.svc.cluster.local:3000/api/healthz"
         interval: 60s
         conditions:
           - "[STATUS] == 200"
@@ -185,12 +193,14 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
-      # Via Traefik like Paperless, so no kimai NetworkPolicy change. The login
-      # page renders only if PHP, the cache and the MariaDB connection all work
-      # (same path as the pod's own probes); "/" just redirects to it.
+      # The login page renders only if PHP, the cache and the MariaDB
+      # connection all work (same path as the pod's own probes); "/" just
+      # redirects to it.
       - name: Kimai
         group: services
-        url: "https://kimai.{{ .Values.domain }}/en/login"
+        url: "http://kimai.kimai.svc.cluster.local/en/login"
+        headers:
+          Host: "kimai.{{ .Values.domain }}"
         interval: 60s
         conditions:
           - "[STATUS] == 200"

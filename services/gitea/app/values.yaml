@@ -3,6 +3,10 @@ domain: ""
 
 # Injected by the root ApplicationSet from platform/argocd/root/cluster-values.yaml
 adminSourceRanges: []
+# K3s' pod CIDR (cluster-cidr default): in-cluster clients that may use the
+# git/API token route without forward-auth (templates/ingressroutes.yaml).
+inClusterSourceRanges:
+  - "10.42.0.0/16"
 
 gitea:
   global:

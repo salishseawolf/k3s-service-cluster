@@ -1,0 +1,17 @@
+# In-cluster clients resolve git.<domain> to Traefik's ClusterIP instead of the
+# LB's public IP, so Gitea Actions jobs (actions/checkout clones Gitea's
+# public URL) reach the token route in ingressroutes.yaml from a pod/node
+# address, which its ClientIP rule admits. Same hostname, certificate and
+# route as from outside; only the path into Traefik changes.
+#
+# K3s' CoreDNS mounts this ConfigMap (optional) and imports *.override into
+# its server block. Only git.<domain>: a wildcard would also catch api.<domain>
+# (the K3s API, which is not behind Traefik).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  git.override: |
+    rewrite name git.{{ .Values.domain }} traefik.kube-system.svc.cluster.local

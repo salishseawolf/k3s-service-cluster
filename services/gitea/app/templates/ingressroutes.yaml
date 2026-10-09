@@ -6,9 +6,33 @@ metadata:
 spec:
   entryPoints: [websecure]
   routes:
+    # Git smart-HTTP, the API and the package registry, without forward-auth
+    # (token clients can't do a browser login), but only from the admin
+    # ranges or the pod network. In-cluster clients (Gitea Actions'
+    # actions/checkout, Gatus) reach this through Traefik's ClusterIP via the
+    # CoreDNS rewrite (coredns-custom.yaml); their source is a pod or node
+    # address. ClientIP sees the real client because the LB sends PROXY
+    # protocol on 443. From anywhere else these paths fall through to the
+    # forward-auth route below.
+    - kind: Rule
+      match: >-
+        Host(`git.{{ .Values.domain }}`) &&
+        (Path(`/{owner}/{repo}/info/refs`) || Path(`/{owner}/{repo}/git-upload-pack`) ||
+        Path(`/{owner}/{repo}/git-receive-pack`) || PathPrefix(`/{owner}/{repo}/info/lfs/`) ||
+        PathPrefix(`/api/`) || PathPrefix(`/v2/`)) &&
+        ClientIP({{ include "k3s.gitea.tokenSourceRanges" . }})
+      priority: 200
+      services:
+        - name: gitea-http
+          port: 3000
+    # Everything else: Authentik forward-auth first, then Gitea's own login
+    # (OIDC via the same Authentik session).
     - kind: Rule
       match: "Host(`git.{{ .Values.domain }}`)"
       priority: 100
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: identity
       services:
         - name: gitea-http
           port: 3000

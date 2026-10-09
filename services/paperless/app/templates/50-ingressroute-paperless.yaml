@@ -7,8 +7,13 @@ spec:
   entryPoints:
     - websecure
   routes:
+    # Authentik forward-auth first, then Paperless' own login (OIDC via the
+    # same Authentik session).
     - match: "Host(`paperless.{{ .Values.domain }}`)"
       kind: Rule
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: identity
       services:
         - name: paperless
           port: 80
