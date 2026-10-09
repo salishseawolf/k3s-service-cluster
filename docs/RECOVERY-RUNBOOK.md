@@ -157,7 +157,7 @@ spec:
     destinationPVC: <pvc>       # write directly into the existing claim
     copyMethod: Direct
     cacheCapacity: 2Gi
-    cacheStorageClassName: local-path
+    cacheStorageClassName: local-path   # one-off; keeps restores independent of SeaweedFS
 ```
 
 **kimai-data / kimai-db-dump:** the `kimai` namespace enforces PSA

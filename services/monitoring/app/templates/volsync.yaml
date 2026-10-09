@@ -31,7 +31,10 @@ spec:
     retain:
       daily: 30
     cacheCapacity: 2Gi
-    cacheStorageClassName: local-path
+    # Not local-path: that pins the cache to one node, and copyMethod Direct
+    # runs the mover on the app pod's node, so a rescheduled app deadlocked
+    # its backup ("volume node affinity conflict"). SeaweedFS follows the pod.
+    cacheStorageClassName: seaweedfs-storage
     moverSecurityContext:
       runAsUser: 0
     unlock: "prometheus-2026-08-10"

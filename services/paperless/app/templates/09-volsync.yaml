@@ -46,6 +46,9 @@ spec:
     # and caching on seaweedfs-storage would make restores depend on the very
     # store being restored.
     cacheCapacity: 2Gi
-    cacheStorageClassName: local-path
+    # Not local-path: that pins the cache to one node, and copyMethod Direct
+    # runs the mover on the app pod's node, so a rescheduled app deadlocked
+    # its backup ("volume node affinity conflict"). SeaweedFS follows the pod.
+    cacheStorageClassName: seaweedfs-storage
     unlock: "stale-lock-20260811"
 {{- end }}
