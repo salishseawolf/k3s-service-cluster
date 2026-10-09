@@ -5,22 +5,22 @@
 [tasks."backup:snapshots"]
 description = "List restic snapshots for every monitoring VolSync repo"
 run = [
-  "mise run //services/monitoring:backup:alertmanager-db:snapshots",
-  "mise run //services/monitoring:backup:loki-data:snapshots",
-  "mise run //services/monitoring:backup:prometheus-main-db:snapshots",
+  "mise run //services/monitoring:backup:alertmanager:snapshots",
+  "mise run //services/monitoring:backup:loki:snapshots",
+  "mise run //services/monitoring:backup:prometheus:snapshots",
 ]
 
-[tasks."backup:alertmanager-db:snapshots"]
+[tasks."backup:alertmanager:snapshots"]
 description = "List restic snapshots in alertmanager-db"
 env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
 run = "bash ../../scripts/volsync-restic.sh snapshots"
 
-[tasks."backup:alertmanager-db:ls"]
+[tasks."backup:alertmanager:ls"]
 description = "List files in the latest alertmanager-db snapshot"
 env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
 run = "bash ../../scripts/volsync-restic.sh ls latest"
 
-[tasks."backup:alertmanager-db:mount"]
+[tasks."backup:alertmanager:mount"]
 description = "Browse every alertmanager-db snapshot as files (Ctrl-C unmounts)"
 env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
 run = '''
@@ -32,17 +32,17 @@ echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
 bash ../../scripts/volsync-restic.sh mount "$dir"
 '''
 
-[tasks."backup:loki-data:snapshots"]
+[tasks."backup:loki:snapshots"]
 description = "List restic snapshots in loki-data"
 env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
 run = "bash ../../scripts/volsync-restic.sh snapshots"
 
-[tasks."backup:loki-data:ls"]
+[tasks."backup:loki:ls"]
 description = "List files in the latest loki-data snapshot"
 env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
 run = "bash ../../scripts/volsync-restic.sh ls latest"
 
-[tasks."backup:loki-data:mount"]
+[tasks."backup:loki:mount"]
 description = "Browse every loki-data snapshot as files (Ctrl-C unmounts)"
 env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
 run = '''
@@ -54,17 +54,17 @@ echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
 bash ../../scripts/volsync-restic.sh mount "$dir"
 '''
 
-[tasks."backup:prometheus-main-db:snapshots"]
+[tasks."backup:prometheus:snapshots"]
 description = "List restic snapshots in prometheus-main-db"
 env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
 run = "bash ../../scripts/volsync-restic.sh snapshots"
 
-[tasks."backup:prometheus-main-db:ls"]
+[tasks."backup:prometheus:ls"]
 description = "List files in the latest prometheus-main-db snapshot"
 env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
 run = "bash ../../scripts/volsync-restic.sh ls latest"
 
-[tasks."backup:prometheus-main-db:mount"]
+[tasks."backup:prometheus:mount"]
 description = "Browse every prometheus-main-db snapshot as files (Ctrl-C unmounts)"
 env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
 run = '''
