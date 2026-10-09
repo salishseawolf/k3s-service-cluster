@@ -5,7 +5,7 @@ domain: ""
 
 image:
   repository: ghcr.io/twin/gatus
-  tag: "v5.34.0"
+  tag: "v5.37.0"
 
 port: 8080
 
