@@ -57,6 +57,14 @@ spec:
           default: true
         exposedPort: 2222
         protocol: TCP
+        # The LB's gitea_ssh service sends PROXY protocol (infrastructure/tofu),
+        # so the gitea-ssh-allowlist MiddlewareTCP sees the real client IP.
+        # Without it every LB connection came from 192.168.1.10, which the
+        # allowlist admits (192.168.0.0/16), leaving 2222 open to the internet.
+        proxyProtocol:
+          trustedIPs:
+            - 192.168.0.0/16
+            - 10.42.0.0/16
 
     # Allow cross-namespace middleware references (e.g. identity namespace)
     providers:

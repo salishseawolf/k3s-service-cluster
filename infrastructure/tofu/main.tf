@@ -117,6 +117,10 @@ resource "hcloud_load_balancer_service" "gitea_ssh" {
   protocol         = "tcp"
   listen_port      = 2222
   destination_port = 2222
+  # Pass the client IP to Traefik's ssh entrypoint so the gitea-ssh-allowlist
+  # MiddlewareTCP can enforce adminSourceRanges. Apply only after Traefik
+  # trusts PROXY protocol on 2222 (bootstrap traefik-config.yaml.j2).
+  proxyprotocol = true
 
   health_check {
     protocol = "tcp"

@@ -18,7 +18,9 @@ spec:
 # already applied to direct node access by infrastructure/tofu's Hetzner
 # firewall (which only governs direct-to-node traffic, not traffic arriving
 # via the Load Balancer — this middleware is what actually enforces it for
-# the LB-fronted path).
+# the LB-fronted path). It only sees the real client IP because the LB's
+# 2222 service sends PROXY protocol and Traefik's ssh entrypoint trusts it;
+# without that every LB connection appears as 192.168.1.10 and passes.
 apiVersion: traefik.io/v1alpha1
 kind: MiddlewareTCP
 metadata:
