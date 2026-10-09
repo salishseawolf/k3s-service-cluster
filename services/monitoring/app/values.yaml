@@ -314,6 +314,12 @@ loki:
     replicas: 0
   test:
     enabled: false
+  # Nothing uses the gateway (Grafana and Alloy talk to monitoring-loki:3100
+  # directly) and the canary only produced test lines through it.
+  gateway:
+    enabled: false
+  lokiCanary:
+    enabled: false
   monitoring:
     selfMonitoring:
       enabled: false
@@ -332,6 +338,8 @@ alloy:
   enabled: true
   fullnameOverride: monitoring-alloy
   alloy:
+    # The level templates below are single Alloy strings and can't wrap.
+    # yamllint disable rule:line-length
     configMap:
       create: true
       content: |
@@ -366,8 +374,97 @@ alloy:
               container = "",
             }
           }
+          // Log levels for the formats Loki can't detect itself (it handles
+          // JSON and logfmt `level`). Each rule sets the extracted `level`;
+          // later rules win, so the keyword fallback goes first and the
+          // format-specific rules override it. Lines no rule matches stay
+          // "unknown" in Loki, deliberately not "info".
+          //
+          // Keyword fallback (restic, Go/Python stderr), skipped for JSON
+          // and logfmt lines.
+          stage.match {
+            selector = `{namespace=~".+"} !~ "^\\{|level="`
+            stage.regex {
+              expression = `(?i)\b(?P<level>warn|warning)\b`
+            }
+            stage.regex {
+              expression = `[a-z](?P<level>Warning):`
+            }
+            stage.regex {
+              expression = `(?i)\b(?P<level>error|failed|exception)\b`
+            }
+            stage.regex {
+              expression = `(?i)^(?P<level>fatal|panic)\b`
+            }
+          }
+          // glog (SeaweedFS and its CSI driver): I1009 22:50:10.965407 ...
+          stage.regex {
+            expression = `^(?P<level>[IWEF])\d{4} \d{2}:\d{2}:\d{2}\.\d+ `
+          }
+          // Gitea: 2026/10/09 22:30:58 HTTPRequest [I] router: ...
+          stage.regex {
+            expression = `^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} \S+ \[(?P<level>[TDIWEFC])\] `
+          }
+          // MariaDB: 2026-10-09 22:46:01 4852 [Warning] ...
+          stage.regex {
+            expression = `^\d{4}-\d{2}-\d{2} +\d{1,2}:\d{2}:\d{2} \d+ \[(?P<level>Note|Warning|ERROR)\] `
+          }
+          // 1Password Connect: JSON with a numeric level Loki can't map, and
+          // the real one as a "(I) " prefix on log_message.
+          stage.regex {
+            expression = `^\{"log_message":"\((?P<level>[DIWE])\) `
+          }
+          // The Alloy chart renders this config through Helm's tpl, so Alloy
+          // templates are wrapped as Helm raw strings: {{`"..."`}}.
+          // Apache/nginx access logs (Kimai, personal site): by HTTP status.
+          stage.match {
+            selector = `{namespace=~".+"} |~ "\\] \"[A-Z]+ [^\"]*\" \\d{3} "`
+            stage.regex {
+              expression = `\] "[A-Z]+ [^"]*" (?P<http_status>\d{3}) `
+            }
+            stage.template {
+              source   = "level"
+              template = {{`"{{ if ge .http_status \"500\" }}error{{ else if ge .http_status \"400\" }}warn{{ else }}info{{ end }}"`}}
+            }
+          }
+          // Gatus check results.
+          stage.match {
+            selector = `{namespace="gatus"} |= "] Monitored " |= "success=false"`
+            stage.template {
+              source   = "level"
+              template = "error"
+            }
+          }
+          stage.match {
+            selector = `{namespace="gatus"} |= "] Monitored " |= "success=true"`
+            stage.template {
+              source   = "level"
+              template = "info"
+            }
+          }
+          // Go's "http: TLS handshake error" is a client hanging up (Gatus
+          // TCP checks), not a server error.
+          stage.match {
+            selector = `{namespace=~".+"} |= "http: TLS handshake error from"`
+            stage.template {
+              source   = "level"
+              template = "debug"
+            }
+          }
+          // Normalise to Loki's level names and attach as structured metadata
+          // (not a label: no new streams); Loki uses it as detected_level.
+          stage.template {
+            source   = "level"
+            template = {{`"{{ $l := ToLower (print .Value) }}{{ if or (eq $l \"t\") (eq $l \"trace\") }}trace{{ else if or (eq $l \"d\") (eq $l \"debug\") }}debug{{ else if or (eq $l \"i\") (eq $l \"info\") (eq $l \"note\") }}info{{ else if or (eq $l \"w\") (eq $l \"warn\") (eq $l \"warning\") }}warn{{ else if or (eq $l \"e\") (eq $l \"error\") (eq $l \"failed\") (eq $l \"exception\") }}error{{ else if or (eq $l \"f\") (eq $l \"c\") (eq $l \"fatal\") (eq $l \"panic\") (eq $l \"critical\") }}critical{{ end }}"`}}
+          }
+          stage.structured_metadata {
+            values = {
+              level = "",
+            }
+          }
           forward_to = [loki.write.default.receiver]
         }
+    # yamllint enable rule:line-length
     mounts:
       varlog: true
       dockercontainers: false
