@@ -36,8 +36,6 @@ spec:
         - |
           ROOT_USER=$(cat /secrets/root-creds/username)
           ROOT_PASS=$(cat /secrets/root-creds/password)
-          GITEA_S3_KEY=$(cat /secrets/gitea-s3-creds/access_key)
-          GITEA_S3_SECRET=$(cat /secrets/gitea-s3-creds/secret_key)
           DB_PASS=$(cat /secrets/db-password/db_password)
           cat > /shared/s3.json << EOF
           {
@@ -48,16 +46,6 @@ spec:
                   {
                     "accessKey": "$ROOT_USER",
                     "secretKey": "$ROOT_PASS"
-                  }
-                ],
-                "actions": ["Admin", "Read", "Write", "List", "Tagging"]
-              },
-              {
-                "name": "gitea",
-                "credentials": [
-                  {
-                    "accessKey": "$GITEA_S3_KEY",
-                    "secretKey": "$GITEA_S3_SECRET"
                   }
                 ],
                 "actions": ["Admin", "Read", "Write", "List", "Tagging"]
@@ -99,9 +87,6 @@ spec:
           readOnly: true
         - name: db-password
           mountPath: /secrets/db-password
-        - mountPath: /secrets/gitea-s3-creds
-          name: gitea-s3-creds
-          readOnly: true
         - name: filer-config
           mountPath: /etc/filer-config
           readOnly: true
@@ -112,6 +97,10 @@ spec:
         image: 'chrislusf/seaweedfs:4.32_full'
         command:
         - weed
+        # Before the subcommand (glog flags are global): log to stderr, which
+        # Alloy ships to Loki, instead of growing /tmp/weed.* in the container
+        # layer (226 MB in 3 days before the 2026-10 fixes).
+        - -logtostderr
         - server
         - -filer
         - -s3
@@ -192,6 +181,3 @@ spec:
       - name: db-password
         secret:
           secretName: seaweedfs-db-password
-      - name: gitea-s3-creds
-        secret:
-          secretName: gitea-s3-creds

@@ -31,7 +31,8 @@ spec:
     - from:
         - podSelector: {}
 ---
-# nodes: Traefik (filer UI) + CSI FUSE mounts from host network; gitea: S3 storage backend; gatus: health checks.
+# nodes: Traefik (filer UI) + CSI FUSE mounts from host network; gatus: health checks.
+# TODO: 10.42.0.0/16 admits every pod; narrow to seaweedfs-csi + nodes (docs/todo.md).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -47,9 +48,6 @@ spec:
             cidr: 10.42.0.0/16
         - ipBlock:
             cidr: 192.168.0.0/16
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: gitea
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: gatus
