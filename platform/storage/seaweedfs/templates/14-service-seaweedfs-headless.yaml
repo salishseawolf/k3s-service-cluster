@@ -1,0 +1,37 @@
+# Stable name SeaweedFS advertises for itself (weed server -ip=...). Without it,
+# master/volume/filer advertise the pod IP, the FUSE mount clients cache it, and
+# after any SeaweedFS restart every read hangs on the dead IP (2026-10-10).
+# Headless: the name always resolves to the current pod IP, on every port
+# (including the gRPC ports seaweedfs-internal does not expose).
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-headless
+  namespace: 'seaweedfs'
+  labels:
+    app.kubernetes.io/name: seaweedfs
+spec:
+  clusterIP: None
+  # The pod must resolve its own name while starting, before it is Ready.
+  publishNotReadyAddresses: true
+  ports:
+  - port: 9333
+    targetPort: 9333
+    name: master
+  - port: 19333
+    targetPort: 19333
+    name: master-grpc
+  - port: 8080
+    targetPort: 8080
+    name: volume
+  - port: 18080
+    targetPort: 18080
+    name: volume-grpc
+  - port: 8888
+    targetPort: 8888
+    name: filer
+  - port: 18888
+    targetPort: 18888
+    name: filer-grpc
+  selector:
+    app.kubernetes.io/name: seaweedfs

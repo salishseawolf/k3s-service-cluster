@@ -102,6 +102,9 @@ spec:
         # layer (226 MB in 3 days before the 2026-10 fixes).
         - -logtostderr
         - server
+        # Advertise a stable name, not the pod IP (14-service-seaweedfs-headless.yaml).
+        - -ip=seaweedfs-headless.seaweedfs.svc.cluster.local
+        - -ip.bind=0.0.0.0
         - -filer
         - -s3
         - -master.port=9333
