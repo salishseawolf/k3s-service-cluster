@@ -14,6 +14,17 @@
 - [ ] storage: two StorageClasses are marked default (`hcloud-volumes` and K3s' `local-path`), so a PVC without a class lands on either. `local-path` must stay (VolSync restore caches use it), and K3s re-applies its manifest on start, so the fix is a bootstrap change (K3s `.skip` + own local-storage manifest with the annotation `"false"`)
 - [ ] step-ca: at the next fresh deploy, set `ca.db.storageClass: hcloud-volumes` in `platform/step-ca/crd/templates/helmchart.yaml`. Its PVC comes from the chart default (no class, so the cluster default), and StatefulSet `volumeClaimTemplates` are immutable, so it can't be pinned on the live cluster. Not backed up by choice (see docs/RECOVERY-RUNBOOK.md inventory)
 
+## SeaweedFS (after the 2026-10-09/10 incident)
+Every app PVC was node-local disk until 2026-10-10 (`WEED_MASTER` disabled volume growth; the CSI node DaemonSet lacked mount propagation). Fixed and all apps migrated; these are the follow-ups.
+- [ ] RCA write-up in `docs/`: both root causes, the 03:15 node-02 disk fill (cleanup `mv` across a bind mount copied 40 GB and evicted SeaweedFS), and the stale-IP incident (mount clients cached the dead pod IP; fixed by advertising `seaweedfs-headless`). Add the lessons to AGENT.md: never set a bare `WEED_*` parent env var, the canary must assert `fuse.seaweedfs`, check a chart honors `replicas: 0` before relying on it
+- [ ] alert on stale FUSE mount clients: only visible in the `seaweedfs-mount` pods' logs (`read http://<ip>:8080/... failed`), not in metrics. Needs the Loki ruler (not configured) plus an Alertmanager route
+- [ ] NetworkPolicy `allow-seaweedfs-clients` admits all of `10.42.0.0/16`: narrow to `seaweedfs-csi` (mount pods), the nodes, `gatus`, and `monitoring` (Prometheus scrapes `:9327`). Test a fresh mount and a read before and after
+- [ ] single point of failure: one `weed server` pod holds all app storage, so a SeaweedFS restart or eviction is an outage for every app (mounts now reconnect by themselves). Decide: run it HA (separate master/volume/filer, replication) or accept it and rely on the `SeaweedFSDown` alert. It also needs 1 CPU / 1 GiB, which only node-02 can currently fit
+- [ ] backups: confirm the first clean runs after the stale-mount fix (loki-data, paperless-data/-media, prometheus-main-db from 2026-10-10 04:35); treat the `prometheus-main-db` snapshot from 04:05 as suspect
+- [ ] FUSE reads run at about 2-5 MB/s; fine for current apps, benchmark before putting anything throughput-heavy on SeaweedFS
+- [ ] Gitea admin: delete the offline `gitea-runner-01` registration left by the runner's fresh volume
+- [ ] after a few days green: delete `/root/swfs-rescue-20261010/` on all three nodes and `/root/kimai-old-db/` on node-03 (it holds a Kimai dump with password hashes)
+
 ## Monitoring & alerting
 All default kube-prometheus-stack alerts go to the `null` receiver; only `notify: email` alerts are mailed (see `amtool alert query` for what's firing).
 - [ ] volsync-metrics `TargetDown` (firing since 2026-08-07): Prometheus can't scrape VolSync, so `volsync_volume_out_of_sync` is missing and `KimaiBackupNotUploaded` can never fire; the VolSync Grafana dashboard is empty. Start with the target's `lastError` (`/api/v1/targets`)
