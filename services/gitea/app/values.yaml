@@ -11,9 +11,7 @@ inClusterSourceRanges:
 gitea:
   global:
     storageClass: seaweedfs-storage
-  # SeaweedFS migration (2026-10): 0 while gitea-data is restored onto real
-  # SeaweedFS; set back to 1 afterwards.
-  replicaCount: 0
+  replicaCount: 1
   deployment:
     # kube-linter exception on the Deployment object only (no rollout).
     annotations:
