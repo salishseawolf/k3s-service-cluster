@@ -121,6 +121,9 @@ spec:
         - -s3.port=8333
         - -dir=/data
         - -volume.max=100
+        # 1 GiB volumes (default 30 GiB): the CSI driver gives every PVC its
+        # own collection, so volume slots, not bytes, run out first.
+        - -master.volumeSizeLimitMB=1024
         - -s3.config=/etc/seaweedfs/s3.json
         ports:
         - containerPort: 9333
@@ -134,8 +137,13 @@ spec:
         - containerPort: 18888
           name: filer-grpc
         env:
-        - name: WEED_MASTER
-          value: localhost:9333
+        # Never set a bare WEED_MASTER (or WEED_FILER, ...): weed reads config
+        # through viper with WEED_* env vars, and a parent-key var shadows every
+        # nested key under it. WEED_MASTER zeroed master.volume_growth.copy_1,
+        # so no volume was ever created (2026-10-09 RCA). Full-key vars are fine.
+        # Grow one volume per collection at a time (default 7 per PVC collection).
+        - name: WEED_MASTER_VOLUME_GROWTH_COPY_1
+          value: "1"
         - name: S3_CONFIG_FILE
           value: /etc/seaweedfs/s3.json
         volumeMounts:
