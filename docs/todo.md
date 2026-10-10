@@ -16,7 +16,7 @@
 
 ## SeaweedFS (after the 2026-10-09/10 incident)
 Every app PVC was node-local disk until 2026-10-10 (`WEED_MASTER` disabled volume growth; the CSI node DaemonSet lacked mount propagation). Fixed and all apps migrated; these are the follow-ups.
-- [ ] RCA write-up in `docs/`: both root causes, the 03:15 node-02 disk fill (cleanup `mv` across a bind mount copied 40 GB and evicted SeaweedFS), and the stale-IP incident (mount clients cached the dead pod IP; fixed by advertising `seaweedfs-headless`). Add the lessons to AGENT.md: never set a bare `WEED_*` parent env var, the canary must assert `fuse.seaweedfs`, check a chart honors `replicas: 0` before relying on it
+- [x] RCA write-up: `docs/RCA-2026-10-SEAWEEDFS.md` (both root causes, the node-02 disk fill, the stale-IP mount clients); lessons in AGENT.md "Storage" (2026-10-10)
 - [ ] alert on stale FUSE mount clients: only visible in the `seaweedfs-mount` pods' logs (`read http://<ip>:8080/... failed`), not in metrics. Needs the Loki ruler (not configured) plus an Alertmanager route
 - [ ] NetworkPolicy `allow-seaweedfs-clients` admits all of `10.42.0.0/16`: narrow to `seaweedfs-csi` (mount pods), the nodes, `gatus`, and `monitoring` (Prometheus scrapes `:9327`). Test a fresh mount and a read before and after
 - [ ] single point of failure: one `weed server` pod holds all app storage, so a SeaweedFS restart or eviction is an outage for every app (mounts now reconnect by themselves). Decide: run it HA (separate master/volume/filer, replication) or accept it and rely on the `SeaweedFSDown` alert. It also needs 1 CPU / 1 GiB, which only node-02 can currently fit
@@ -49,7 +49,7 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 - [ ] copyparty: if shares should work logged out, add a `PathPrefix(/shr/)` route with a middleware that strips client `X-Authentik-*` headers
 - [ ] traefik: Grafana's IngressRoutes name `wildcard-salishseawolf-com-tls`, which doesn't exist in `monitoring` (Traefik logs `Error configuring TLS` and falls back to the default cert); use `tls: {}` like the other routes
 - [ ] authentik: the outpost's Kubernetes integration creates Ingresses outside git (`copyparty/ak-outpost-copyparty` for `files.`, `seaweedfs/ak-outpost-seaweedfs-filer` for `filer-s3.`) pointing at a missing `authentik-outpost-tls` secret. Decide whether the integration should manage Ingresses at all (the IngressRoutes already route through forward-auth), and add `filer-s3.` to AGENT.md's Perimeter section if it stays
-- [ ] argocd: repo-server logs bursts of `cannot reference a different revision of the same repository ($values references "main" ...)` right after pushes; harmless while transient, look if it persists
+- [ ] argocd: `cannot reference a different revision of the same repository ($values references "main" ...)`. Not harmless: on 2026-10-10 two pushes a minute apart left the seaweedfs sync stuck on the older commit (it recovered by itself after a few minutes). Fix: pin the `$values` source to the same revision as the chart source in the ApplicationSet/apps instead of `main`
 
 ## Suggestions
 - [ ] S2: Add egress NetworkPolicy restrictions where safe

@@ -17,7 +17,8 @@ Ansible, and continuously reconciled by Argo CD. Admin IP is 73.97.54.81/32.
 
 Authoritative references in-repo: `docs/RUNBOOK-GITOPS.md` (operations, vault
 checklist, fresh deploy), `docs/RECOVERY-RUNBOOK.md` (disaster recovery),
-`docs/MIGRATION.md` (service anatomy).
+`docs/MIGRATION.md` (service anatomy), `docs/RCA-2026-10-SEAWEEDFS.md`
+(why app storage was node-local until 2026-10, and the storage rules below).
 
 ## Ground rules (non-negotiable)
 
@@ -375,6 +376,34 @@ The kubeconfig points at `https://api.<domain>:6443` with
 `tls-server-name: kubernetes` (K3s fixes `--tls-san` at install; the built-in
 `kubernetes` SAN avoids reinstalling). kubectl fails over across the three
 A records.
+
+## Storage
+
+App data (including databases) lives on `seaweedfs-storage`; system storage
+(CNPG, step-ca, SeaweedFS's own disk) on `hcloud-volumes`. Until 2026-10 every
+`seaweedfs-storage` PVC was silently node-local disk
+(`docs/RCA-2026-10-SEAWEEDFS.md`). Rules that came out of it:
+
+- **Never set a bare `WEED_*` parent-key env var** on `weed` (`WEED_MASTER`,
+  `WEED_FILER`, ...). viper lets it shadow every nested key; `WEED_MASTER`
+  disabled volume growth for three months. Full-key vars
+  (`WEED_MASTER_VOLUME_GROWTH_COPY_1`) are fine.
+- **Verify a mount is real:** a pod's volume must show `fuse.seaweedfs` in
+  `/proc/mounts`, not `ext4`. The wave-30 canary enforces this; keep it.
+- **SeaweedFS advertises `seaweedfs-headless.seaweedfs.svc.cluster.local`**,
+  never its pod IP; mount clients cache the address and hang on reads after a
+  restart otherwise.
+- **One `weed server` pod holds all app storage.** Restarting or evicting it is
+  an outage for every app (mounts reconnect afterwards). It only fits node-02
+  today; watch node-02's disk and the `SeaweedFS*` alerts.
+- **Stopping an app to work on its volume:** render the chart first (some, like
+  Loki, ignore `replicas: 0`), and remember VolSync movers also hold the
+  volume. A stale mount client only goes away once no pod on that node uses
+  the volume.
+- **On nodes, move files by their real path.** `mv` across mount points (a bind
+  mount of `/` included) copies, and filled node-02 once.
+- Restic locks left by killed movers: `mise run //services/<svc>:backup:locks`
+  and `...:backup:<repo>:unlock [--all]`.
 
 ## Security
 
