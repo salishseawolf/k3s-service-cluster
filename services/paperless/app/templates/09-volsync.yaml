@@ -24,10 +24,6 @@ metadata:
   name: {{ $pvc }}
   namespace: 'paperless'
 spec:
-  # Paused for the SeaweedFS migration (2026-10): until this PVC is restored
-  # onto real SeaweedFS, a mover would back up an empty volume. Unpause per
-  # app after its restore is verified.
-  paused: true
   sourcePVC: {{ $pvc }}
   trigger:
     schedule: "{{ $minute }} * * * *"
