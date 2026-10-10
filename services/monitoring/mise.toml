@@ -75,3 +75,49 @@ trap 'rmdir -- "$dir" 2>/dev/null || true' EXIT
 echo "Mounting $VOLSYNC_ITEM at $dir (Ctrl-C to unmount)"
 bash ../../scripts/volsync-restic.sh mount "$dir"
 '''
+
+# Restic locks. A mover killed mid-run (pod deleted, node evicted) leaves its
+# lock, and the next forget/prune fails with "repository is already locked".
+# `unlock` removes only stale locks; `unlock --all` removes every lock, so
+# first check that no volsync-src-* pod is Running for that repo.
+
+[tasks."backup:locks"]
+description = "Show restic locks in every monitoring VolSync repo"
+run = [
+  "mise run //services/monitoring:backup:alertmanager:locks",
+  "mise run //services/monitoring:backup:loki:locks",
+  "mise run //services/monitoring:backup:prometheus:locks",
+]
+
+[tasks."backup:alertmanager:locks"]
+description = "Show restic locks in alertmanager-db (age, host, pid)"
+env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
+run = "bash ../../scripts/volsync-locks.sh show"
+
+[tasks."backup:alertmanager:unlock"]
+description = "Remove stale restic locks in alertmanager-db (--all: every lock)"
+env = { VOLSYNC_ITEM = "VolSync B2 alertmanager-db" }
+usage = 'flag "--all" help="Remove every lock, not only stale ones (no mover may be running)"'
+run = "bash ../../scripts/volsync-locks.sh clear ${usage_all:+--all}"
+
+[tasks."backup:loki:locks"]
+description = "Show restic locks in loki-data (age, host, pid)"
+env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
+run = "bash ../../scripts/volsync-locks.sh show"
+
+[tasks."backup:loki:unlock"]
+description = "Remove stale restic locks in loki-data (--all: every lock)"
+env = { VOLSYNC_ITEM = "VolSync B2 loki-data" }
+usage = 'flag "--all" help="Remove every lock, not only stale ones (no mover may be running)"'
+run = "bash ../../scripts/volsync-locks.sh clear ${usage_all:+--all}"
+
+[tasks."backup:prometheus:locks"]
+description = "Show restic locks in prometheus-main-db (age, host, pid)"
+env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
+run = "bash ../../scripts/volsync-locks.sh show"
+
+[tasks."backup:prometheus:unlock"]
+description = "Remove stale restic locks in prometheus-main-db (--all: every lock)"
+env = { VOLSYNC_ITEM = "VolSync B2 prometheus-main-db" }
+usage = 'flag "--all" help="Remove every lock, not only stale ones (no mover may be running)"'
+run = "bash ../../scripts/volsync-locks.sh clear ${usage_all:+--all}"
