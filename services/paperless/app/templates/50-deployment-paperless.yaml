@@ -13,7 +13,9 @@ metadata:
       TODO(lint), see docs/todo.md "Fix linting issues": fix-perms init (root) chmods an emptyDir
       that is already 0777; verify for medium Memory, then remove it.
 spec:
-  replicas: 1
+  # SeaweedFS migration (2026-10): 0 while paperless-data/-media are restored
+  # onto real SeaweedFS; set back to 1 afterwards.
+  replicas: 0
   selector:
     matchLabels:
       app: paperless
