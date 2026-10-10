@@ -20,5 +20,8 @@ spec:
   - port: 18888
     targetPort: 18888
     name: filer-grpc
+  - port: 9327
+    targetPort: 9327
+    name: metrics
   selector:
     app.kubernetes.io/name: seaweedfs

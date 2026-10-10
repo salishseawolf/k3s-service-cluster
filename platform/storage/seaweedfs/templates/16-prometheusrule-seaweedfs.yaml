@@ -1,0 +1,110 @@
+# SeaweedFS alerts, emailed via Alertmanager. `release: monitoring` is what
+# Prometheus' ruleSelector matches; `notify: email` routes to the email
+# receiver (services/monitoring). All app PVCs live on this single SeaweedFS
+# pod, so every rule here is an outage or data-loss precursor for every app.
+# Each maps to a failure seen on 2026-10-09/10 (docs, SeaweedFS RCA).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: seaweedfs
+  namespace: 'seaweedfs'
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    release: monitoring
+spec:
+  groups:
+    - name: seaweedfs
+      rules:
+        # Evicted on 2026-10-10: every app's reads and new mounts stopped.
+        - alert: SeaweedFSDown
+          expr: |
+            (max(up{job="seaweedfs"}) or vector(0)) == 0
+          for: 3m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: SeaweedFS is down; all app storage is unavailable
+            description: >-
+              Prometheus cannot scrape weed server. Every SeaweedFS PVC blocks
+              until it is back. Check: kubectl -n seaweedfs get pods,events
+        # The original bug (WEED_MASTER shadowed volume growth): every write
+        # assignment failed with "No writable volumes" for three months.
+        # One failure at a collection's first write is normal; sustained is not.
+        - alert: SeaweedFSWritesFailing
+          expr: |
+            sum(increase(SeaweedFS_master_pick_for_write_error[15m])) > 3
+          for: 15m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: SeaweedFS cannot assign writable volumes
+            description: >-
+              The master keeps failing to pick a writable volume ("No writable
+              volumes"). Check volume growth: curl seaweedfs-internal:9333/dir/status
+              and the weed server log.
+        # -volume.max=100 one-GiB volumes; each PVC is its own collection.
+        - alert: SeaweedFSVolumeSlotsLow
+          expr: |
+            sum(SeaweedFS_volumeServer_volumes{type="volume"})
+              / max(SeaweedFS_volumeServer_max_volumes) > 0.85
+          for: 30m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: "SeaweedFS has used {{`{{ $value | humanizePercentage }}`}} of its volume slots"
+            description: >-
+              When every slot is used no volume can grow and writes fail. Raise
+              -volume.max (and the disk) in 11-deployment-seaweedfs.yaml.
+        - alert: SeaweedFSDiskLow
+          expr: |
+            min(SeaweedFS_volumeServer_resource{type="avail"}
+              / ignoring(type) SeaweedFS_volumeServer_resource{type="all"}) < 0.15
+          for: 30m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: "SeaweedFS data disk has {{`{{ $value | humanizePercentage }}`}} free"
+            description: >-
+              The seaweedfs-data volume (hcloud) is filling up. Grow the PVC
+              (allowVolumeExpansion) or free space.
+        - alert: SeaweedFSDiskError
+          expr: |
+            max(SeaweedFS_volumeServer_disk_error_status) > 0
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: SeaweedFS volume server reports a disk error
+            description: >-
+              weed volume flagged its data directory as failing. Check the pod
+              log and the seaweedfs-data hcloud volume.
+        - alert: SeaweedFSReadWriteFailures
+          expr: |
+            sum(increase(SeaweedFS_volumeServer_file_read_failures[15m]))
+              + sum(increase(SeaweedFS_volumeServer_file_write_failures[15m])) > 0
+          for: 15m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: SeaweedFS volume server is failing reads or writes
+            description: >-
+              Needle reads or writes are failing on the volume server. Check the
+              weed server log for the volume ids involved.
+        - alert: SeaweedFSFilerErrors
+          expr: |
+            sum(rate(SeaweedFS_filer_request_total{code=~"5.."}[10m])) > 0.05
+          for: 15m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: SeaweedFS filer is returning 5xx errors
+            description: >-
+              FUSE mounts go through the filer; sustained 5xx means apps see I/O
+              errors. Check the weed server log and the filer's Postgres store.

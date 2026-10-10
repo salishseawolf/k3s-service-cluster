@@ -1,0 +1,19 @@
+# Scrapes weed server's metrics (-metricsPort) via seaweedfs-internal. Prometheus
+# selects ServiceMonitors in any namespace (serviceMonitorSelectorNilUsesHelmValues:
+# false in services/monitoring). Alerts: 16-prometheusrule-seaweedfs.yaml.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: seaweedfs
+  namespace: 'seaweedfs'
+  labels:
+    app.kubernetes.io/name: seaweedfs
+spec:
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

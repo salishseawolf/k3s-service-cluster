@@ -105,6 +105,8 @@ spec:
         # Advertise a stable name, not the pod IP (14-service-seaweedfs-headless.yaml).
         - -ip=seaweedfs-headless.seaweedfs.svc.cluster.local
         - -ip.bind=0.0.0.0
+        # Prometheus metrics (15-servicemonitor-seaweedfs.yaml)
+        - -metricsPort=9327
         - -filer
         - -s3
         - -master.port=9333
@@ -128,6 +130,8 @@ spec:
           name: s3
         - containerPort: 18888
           name: filer-grpc
+        - containerPort: 9327
+          name: metrics
         env:
         # Never set a bare WEED_MASTER (or WEED_FILER, ...): weed reads config
         # through viper with WEED_* env vars, and a parent-key var shadows every
