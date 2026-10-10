@@ -303,11 +303,6 @@ loki:
     enabled: false
   singleBinary:
     replicas: 1
-    # SeaweedFS migration (2026-10): the chart forces replicas >= 1 on
-    # filesystem storage, so Loki is held Pending on a node label nothing has
-    # while its volume is restored onto real SeaweedFS. Remove afterwards.
-    nodeSelector:
-      salishseawolf.com/seaweedfs-migration-hold: "true"
     persistence:
       storageClass: seaweedfs-storage
       size: 10Gi
