@@ -3,9 +3,9 @@
 # The actual PVC names from kube-prometheus-stack StatefulSets are long;
 # we keep the 1Password items named after the short names so they remain human-friendly.
 {{- range $item := list
-  (dict "actual" "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0" "short" "prometheus-main-db" "paused" true "minute" "5")
+  (dict "actual" "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0" "short" "prometheus-main-db" "paused" false "minute" "5")
   (dict "actual" "alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0" "short" "alertmanager-db" "paused" false "minute" "20")
-  (dict "actual" "storage-monitoring-loki-0" "short" "loki-data" "paused" true "minute" "35") }}
+  (dict "actual" "storage-monitoring-loki-0" "short" "loki-data" "paused" false "minute" "35") }}
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
