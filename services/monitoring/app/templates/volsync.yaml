@@ -3,9 +3,9 @@
 # The actual PVC names from kube-prometheus-stack StatefulSets are long;
 # we keep the 1Password items named after the short names so they remain human-friendly.
 {{- range $item := list
-  (dict "actual" "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0" "short" "prometheus-main-db" "minute" "5")
-  (dict "actual" "alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0" "short" "alertmanager-db" "minute" "20")
-  (dict "actual" "storage-monitoring-loki-0" "short" "loki-data" "minute" "35") }}
+  (dict "actual" "prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0" "short" "prometheus-main-db" "paused" true "minute" "5")
+  (dict "actual" "alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0" "short" "alertmanager-db" "paused" false "minute" "20")
+  (dict "actual" "storage-monitoring-loki-0" "short" "loki-data" "paused" true "minute" "35") }}
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
@@ -23,8 +23,8 @@ metadata:
 spec:
   # Paused for the SeaweedFS migration (2026-10): until this PVC is restored
   # onto real SeaweedFS, a mover would back up an empty volume. Unpause per
-  # app after its restore is verified.
-  paused: true
+  # app after its restore is verified ("paused" per item above).
+  paused: {{ $item.paused }}
   sourcePVC: {{ $item.actual }}
   trigger:
     schedule: "{{ $item.minute }} * * * *"
