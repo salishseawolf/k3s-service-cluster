@@ -67,8 +67,14 @@ spec:
         - name: MOUNT_ENDPOINT
           value: unix:///var/lib/seaweedfs-mount/seaweedfs-mount.sock
         volumeMounts:
-        - name: kubelet-dir
-          mountPath: /var/lib/kubelet
+        # Staging dirs live under plugins/kubernetes.io/csi/; seaweedfs-mount
+        # creates the FUSE mounts there, so this needs Bidirectional to see
+        # them (as upstream). A non-propagating /var/lib/kubelet mount made
+        # NodePublish bind the empty dir underneath: every PVC was node-local
+        # disk until 2026-10 (see docs, SeaweedFS RCA).
+        - name: kubelet-plugins-dir
+          mountPath: /var/lib/kubelet/plugins
+          mountPropagation: Bidirectional
         - name: plugins-dir
           mountPath: /var/lib/csi/sockets
           mountPropagation: Bidirectional
@@ -107,9 +113,9 @@ spec:
         - name: plugins-dir
           mountPath: /var/lib/csi/sockets
       volumes:
-      - name: kubelet-dir
+      - name: kubelet-plugins-dir
         hostPath:
-          path: '/var/lib/kubelet'
+          path: '/var/lib/kubelet/plugins'
           type: Directory
       - name: plugins-dir
         hostPath:

@@ -24,7 +24,16 @@ spec:
       containers:
         - name: canary
           image: busybox:1.36
-          command: ["sh", "-c", "echo ok > /probe/canary && cat /probe/canary"]
+          # A write/read alone passes on plain node disk too, which hid a broken
+          # CSI mount for months: also require a real SeaweedFS FUSE mount.
+          command:
+            - sh
+            - -c
+            - >-
+              grep -q ' /probe fuse.seaweedfs ' /proc/mounts
+              || { echo "/probe is not a SeaweedFS mount:";
+                   grep ' /probe ' /proc/mounts; exit 1; };
+              echo ok > /probe/canary && cat /probe/canary
           # Writes only to the PVC under test. Still root on purpose: whether
           # non-root can write to a fresh seaweedfs PVC depends on CSI fsGroup
           # support, and a failing canary blocks every wave-40 service.
