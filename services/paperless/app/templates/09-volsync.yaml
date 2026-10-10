@@ -24,6 +24,8 @@ metadata:
   name: {{ $pvc }}
   namespace: 'paperless'
 spec:
+  # Temporarily paused (2026-10-10) to release a stale SeaweedFS mount.
+  paused: true
   sourcePVC: {{ $pvc }}
   trigger:
     schedule: "{{ $minute }} * * * *"
