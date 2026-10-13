@@ -31,26 +31,67 @@ spec:
     - from:
         - podSelector: {}
 ---
-# nodes: Traefik (filer UI) + CSI FUSE mounts from host network; gatus: health checks.
-# TODO: 10.42.0.0/16 admits every pod; narrow to seaweedfs-csi + nodes (docs/todo.md).
+# Clients of weed server, by namespace and port (measured 2026-10-10 from the
+# pod's connection table plus config): the CSI driver (mount pods, node plugin,
+# controller) needs master/filer/volume; Gatus TCP-checks four ports;
+# Prometheus scrapes metrics. Same-namespace traffic (the Authentik outpost in
+# front of the filer UI) is allowed above. Kubelet probes are host-local and
+# admitted by K3s' policy controller. Anything else in the pod network could
+# previously read every app's data through the filer; it no longer can.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-seaweedfs-clients
   namespace: "seaweedfs"
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: seaweedfs-csi
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gatus
+      ports:
+        - {protocol: TCP, port: 8333}
+        - {protocol: TCP, port: 9333}
+        - {protocol: TCP, port: 8888}
+        - {protocol: TCP, port: 8080}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - {protocol: TCP, port: 9327}
+---
+# Traefik (hostNetwork) reaches only the Authentik outpost that fronts the
+# filer UI and filer-s3, not weed server itself. Same sources as every other
+# namespace's Traefik rule: node IPs, plus the pod range because cross-node
+# host-to-pod traffic arrives from the sending node's Flannel address
+# (10.42.x.0). The outpost enforces the Authentik login on all it forwards.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-traefik-to-outpost
+  namespace: "seaweedfs"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: authentik-outpost-proxy
   policyTypes:
     - Ingress
   ingress:
     - from:
         - ipBlock:
-            cidr: 10.42.0.0/16
-        - ipBlock:
             cidr: 192.168.0.0/16
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: gatus
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: seaweedfs-csi
+        - ipBlock:
+            cidr: 10.42.0.0/16
+      ports:
+        - {protocol: TCP, port: 9000}
+        - {protocol: TCP, port: 9443}
