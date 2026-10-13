@@ -49,12 +49,17 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
-      - name: Traefik Dashboard
+      # Traefik's dashboard is not exposed (404 even locally), and the bare
+      # domain routes to the personal site, so the old /dashboard/ check could
+      # never pass and logged an nginx 404 every minute. Check that Traefik
+      # accepts HTTPS on its in-cluster Service instead (the same path Gitea
+      # Actions uses via the CoreDNS rewrite).
+      - name: Traefik
         group: platform
-        url: "https://{{ .Values.domain }}/dashboard/"
+        url: "tcp://traefik.kube-system.svc.cluster.local:443"
         interval: 60s
         conditions:
-          - "[STATUS] == 200"
+          - "[CONNECTED] == true"
         failures: 3
         success: 2
       - name: Wildcard TLS Certificate Expiry
