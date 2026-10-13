@@ -16,24 +16,19 @@ kps:
     ingress:
       enabled: false
     prometheusSpec:
-      # Stopped 2026-10-13: the SeaweedFS FUSE client for this volume grew to
-      # 4.2 GB and OOM-starved node-02. Decide storage before re-enabling
-      # (docs/todo.md).
-      replicas: 0
-      retention: 30d
-      retentionSize: 45GiB
+      # No PVC (2026-10-13): metrics history resets on every pod restart, by
+      # choice. On SeaweedFS its FUSE client grew to 4.2 GB and OOM-starved
+      # node-02. The emptyDir is on the node's root disk, so retention stays
+      # well under its sizeLimit (the kubelet evicts the pod, not the node).
+      retention: 7d
+      retentionSize: 8GiB
       scrapeInterval: 60s
       externalLabels:
         cluster: salishseawolf
         environment: production
       storageSpec:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: seaweedfs-storage
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 50Gi
+        emptyDir:
+          sizeLimit: 10Gi
       podMonitorSelectorNilUsesHelmValues: false
       serviceMonitorSelectorNilUsesHelmValues: false
       resources:
@@ -107,14 +102,11 @@ kps:
       # Mounted at /etc/alertmanager/secrets/<name>/<key>.
       secrets:
         - alertmanager-smtp
+      # No PVC (2026-10-13): silences and the notification log reset on pod
+      # restart (a still-firing alert may be emailed again).
       storage:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: seaweedfs-storage
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 10Gi
+        emptyDir:
+          sizeLimit: 1Gi
       resources:
         requests:
           cpu: 100m
@@ -307,8 +299,10 @@ loki:
     enabled: false
   singleBinary:
     replicas: 1
+    # Hetzner volume, not SeaweedFS: monitoring must not depend on the storage
+    # it monitors (2026-10-13, docs/RCA-2026-10-SEAWEEDFS.md).
     persistence:
-      storageClass: seaweedfs-storage
+      storageClass: hcloud-volumes
       size: 10Gi
   backend:
     replicas: 0
