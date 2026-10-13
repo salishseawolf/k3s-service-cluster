@@ -1,2 +1,13 @@
 ---
 domain: ""
+# Source addresses Traefik (hostNetwork) uses towards pods: each node's private
+# IP, and in the pod network each node's Flannel address (.0, cross-node) and
+# bridge gateway (.1, same node). Measured 2026-10-13. A /31 per node podCIDR
+# covers .0 and .1, which no pod ever gets, so this admits nodes, not pods.
+# Update if nodes are rebuilt with different podCIDRs
+# (kubectl get nodes -o custom-columns=N:.metadata.name,CIDR:.spec.podCIDR).
+traefikSources:
+  - 192.168.0.0/16
+  - 10.42.0.0/31   # k3s-converged-node-01 (podCIDR 10.42.0.0/24)
+  - 10.42.3.0/31   # k3s-converged-node-02 (podCIDR 10.42.3.0/24)
+  - 10.42.1.0/31   # k3s-converged-node-03 (podCIDR 10.42.1.0/24)

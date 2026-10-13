@@ -70,11 +70,11 @@ spec:
       ports:
         - {protocol: TCP, port: 9327}
 ---
-# Traefik (hostNetwork) reaches only the Authentik outpost that fronts the
-# filer UI and filer-s3, not weed server itself. Same sources as every other
-# namespace's Traefik rule: node IPs, plus the pod range because cross-node
-# host-to-pod traffic arrives from the sending node's Flannel address
-# (10.42.x.0). The outpost enforces the Authentik login on all it forwards.
+# Traefik (hostNetwork) needs two things here: the Authentik outpost (the
+# forward-auth check for filer-s3) and then the filer itself, because the
+# seaweedfs-filer IngressRoute proxies straight to seaweedfs-internal:8888
+# after auth passes. Sources are node addresses only (values.traefikSources):
+# admitting the whole pod range would reopen the filer to every pod.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -88,10 +88,30 @@ spec:
     - Ingress
   ingress:
     - from:
+        {{- range .Values.traefikSources }}
         - ipBlock:
-            cidr: 192.168.0.0/16
-        - ipBlock:
-            cidr: 10.42.0.0/16
+            cidr: {{ . }}
+        {{- end }}
       ports:
         - {protocol: TCP, port: 9000}
         - {protocol: TCP, port: 9443}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-traefik-to-filer
+  namespace: "seaweedfs"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- range .Values.traefikSources }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        - {protocol: TCP, port: 8888}
