@@ -61,6 +61,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: mariadb-password
+            # Run mariadb-upgrade at startup after a major version bump (the
+            # image backs up the system tables first). Without it the 11.8 -> 13
+            # bump (2026-10-13) left the mysql.* system tables on the old layout.
+            - name: MARIADB_AUTO_UPGRADE
+              value: "1"
           # ping succeeds once the server answers, even without credentials,
           # so the probe needs no secret.
           readinessProbe:
