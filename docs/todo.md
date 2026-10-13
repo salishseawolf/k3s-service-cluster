@@ -19,15 +19,22 @@ Every app PVC was node-local disk until 2026-10-10 (`WEED_MASTER` disabled volum
 - [x] RCA write-up: `docs/RCA-2026-10-SEAWEEDFS.md` (both root causes, the node-02 disk fill, the stale-IP mount clients); lessons in AGENT.md "Storage" (2026-10-10)
 - [ ] alert on stale FUSE mount clients: only visible in the `seaweedfs-mount` pods' logs (`read http://<ip>:8080/... failed`), not in metrics. Needs the Loki ruler (not configured) plus an Alertmanager route
 - [ ] NetworkPolicy `allow-seaweedfs-clients` admits all of `10.42.0.0/16`: narrow to `seaweedfs-csi` (mount pods), the nodes, `gatus`, and `monitoring` (Prometheus scrapes `:9327`). Test a fresh mount and a read before and after
-- [ ] single point of failure: one `weed server` pod holds all app storage, so a SeaweedFS restart or eviction is an outage for every app (mounts now reconnect by themselves). Decide: run it HA (separate master/volume/filer, replication) or accept it and rely on the `SeaweedFSDown` alert. It also needs 1 CPU / 1 GiB, which only node-02 can currently fit
-- [ ] backups: confirm the first clean runs after the stale-mount fix (loki-data, paperless-data/-media, prometheus-main-db from 2026-10-10 04:35); treat the `prometheus-main-db` snapshot from 04:05 as suspect
+- [ ] single point of failure: one `weed server` pod holds all app storage, so a SeaweedFS restart or eviction is an outage for every app (mounts now reconnect by themselves). Decide: run it HA (separate master/volume/filer, replication) or accept it and rely on the `SeaweedFSDown` alert. It also needs 1 CPU / 1 GiB, which only fits where a node has room (it moved node-02 to node-03 on 2026-10-13)
+- [x] backups: first clean runs after the stale-mount fix confirmed (paperless 2026-10-10). Loki's then failed silently until 2026-10-13: a stale restic lock broke forget while each retry saved a snapshot (1,073 pruned once unlocked). `prometheus-main-db` and `alertmanager-db` removed: both run on `emptyDir` since 2026-10-13
 - [ ] FUSE reads run at about 2-5 MB/s; fine for current apps, benchmark before putting anything throughput-heavy on SeaweedFS
 - [ ] Gitea admin: delete the offline `gitea-runner-01` registration left by the runner's fresh volume
-- [ ] after a few days green: delete `/root/swfs-rescue-20261010/` on all three nodes and `/root/kimai-old-db/` on node-03 (it holds a Kimai dump with password hashes)
+- [ ] after a few days green: delete `/root/swfs-rescue-20261010/` on all three nodes and `/root/kimai-old-db/` on node-03 (it holds a Kimai dump with password hashes); node-01's deleted 2026-10-13
+
+### Follow-ups from 2026-10-13 (node-02 OOM, `docs/RCA-2026-10-SEAWEEDFS.md`)
+- [ ] alert on FUSE client memory: `container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"}` above ~1.5 GiB per node, email. Baseline 2026-10-13 21:29: 167-541 MiB per node; largest client Kimai MariaDB at 281 MiB (node-01), so watch whether it grows
+- [ ] memory limits: `seaweedfs-mount` has none (a limit that trips kills every mount on the node, so size it with the alert data first), and VolSync movers have `resources: {}`
+- [ ] Kimai: run `mariadb-upgrade` after the MariaDB 13 bump (its entrypoint skipped it: `MARIADB_AUTO_UPGRADE` unset); data verified intact
+- [ ] Gatus: external check on Prometheus `/-/ready`, since an `emptyDir` eviction restarts it with no one to alert
+- [ ] Renovate: stop majors landing together (six merged at once on 2026-10-13; Redis 8 broke five apps). E.g. `major: {dependencyDashboardApproval: true}` plus one major at a time with app checks between
 
 ## Monitoring & alerting
 All default kube-prometheus-stack alerts go to the `null` receiver; only `notify: email` alerts are mailed (see `amtool alert query` for what's firing).
-- [ ] volsync-metrics `TargetDown` (firing since 2026-08-07): Prometheus can't scrape VolSync, so `volsync_volume_out_of_sync` is missing and `KimaiBackupNotUploaded` can never fire; the VolSync Grafana dashboard is empty. Start with the target's `lastError` (`/api/v1/targets`)
+- [ ] volsync-metrics `TargetDown` (firing since 2026-08-07): Prometheus can't scrape VolSync, so `volsync_volume_out_of_sync` is missing and `KimaiBackupNotUploaded` can never fire; the VolSync Grafana dashboard is empty. Start with the target's `lastError` (`/api/v1/targets`). **Priority:** Loki's backup failed silently for three days (2026-10-10 to 13) for lack of this alert
 - [ ] CNPG `TargetDown` for `database/main-db` (since 2026-08-07): likely the `database` NetworkPolicy doesn't admit Prometheus
 - [ ] decide which default alerts deserve `notify: email`: `KubeJobNotCompleted` (would have caught homarr's stuck backup), `KubeJobFailed`, `TargetDown` all flagged real problems while unrouted
 - [ ] `PrometheusOutOfOrderTimestamps` (~1.8 samples/s dropped): look for two ServiceMonitors scraping the same target (the custom volsync one next to an operator-created one?)

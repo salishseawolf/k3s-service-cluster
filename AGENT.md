@@ -384,7 +384,10 @@ A records.
 ## Storage
 
 App data (including databases) lives on `seaweedfs-storage`; system storage
-(CNPG, step-ca, SeaweedFS's own disk) on `hcloud-volumes`. Until 2026-10 every
+(CNPG, step-ca, SeaweedFS's own disk) on `hcloud-volumes`. **Exception:**
+monitoring never depends on the storage it watches, so Loki uses a Hetzner
+volume and Prometheus and Alertmanager use capped `emptyDir`s (history resets
+on pod restart, by choice). Until 2026-10 every
 `seaweedfs-storage` PVC was silently node-local disk
 (`docs/RCA-2026-10-SEAWEEDFS.md`). Rules that came out of it:
 
@@ -398,8 +401,14 @@ App data (including databases) lives on `seaweedfs-storage`; system storage
   never its pod IP; mount clients cache the address and hang on reads after a
   restart otherwise.
 - **One `weed server` pod holds all app storage.** Restarting or evicting it is
-  an outage for every app (mounts reconnect afterwards). It only fits node-02
-  today; watch node-02's disk and the `SeaweedFS*` alerts.
+  an outage for every app (mounts reconnect afterwards). Its 1 CPU / 1 GiB
+  request fits only where a node has room; watch that node's disk and memory
+  and the `SeaweedFS*` alerts.
+- **FUSE client memory is not the app's.** Each volume's `weed mount` client
+  runs in the node's `seaweedfs-mount` pod, outside the app's limits, and
+  buffers writes in RAM. Prometheus's grew to 4.2 GB and OOM-starved node-02
+  (2026-10-13). Don't put heavy writers (TSDBs, busy databases) on SeaweedFS
+  without capping the mount side.
 - **Stopping an app to work on its volume:** render the chart first (some, like
   Loki, ignore `replicas: 0`), and remember VolSync movers also hold the
   volume. A stale mount client only goes away once no pod on that node uses

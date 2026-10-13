@@ -1,6 +1,7 @@
 # RCA: SeaweedFS never stored app data (2026-07-08 to 2026-10-10)
 
-All times UTC. Status: resolved 2026-10-10 04:25; follow-ups in `docs/todo.md`
+All times UTC. Status: resolved 2026-10-10 04:25; a follow-up incident on
+2026-10-13 (node-02 OOM from a FUSE client) is covered below. Follow-ups in `docs/todo.md`
 ("SeaweedFS (after the 2026-10-09/10 incident)").
 
 ## Summary
@@ -128,7 +129,82 @@ were released by pausing their backups and stopping them briefly (`a293f8d`,
 - A mover killed mid-run left a restic lock that failed every later forget.
   Cleared with the new `backup:*:unlock` mise tasks (`4f0155f`).
 
-## Timeline
+## Follow-up incident: node-02 starved by a FUSE client (2026-10-13)
+
+### What happened
+
+Around 18:51 six Renovate PRs merged together (five major bumps: Kimai's
+MariaDB 11.8 to 13, Paperless 2 to 3, Redis 8, Homarr 2, the seed Job's
+Postgres client). Shortly after, the user saw the `database` sync stuck and
+asked whether it was causing wider problems. It was a symptom:
+
+| Time (UTC) | Event |
+|---|---|
+| 15:14 | the `weed mount` client for Prometheus's volume starts on node-02 and keeps growing |
+| 18:08 onwards | kernel OOM killer on node-02 kills `livenessprobe`, `hcloud-csi-driver`, Loki |
+| 18:51 | Renovate merges land; the `database` PostSync hook Job pod is pinned to node-03, which has no CPU left, and stays Pending |
+| 18:59 | node-02 stops heart-beating (`NotReady`, flapping); its API server hangs in TLS handshakes |
+| 19:09 | on node-02: the Prometheus mount client at **4.2 GB RSS of 7.7 GB**, load 30-38, no swap |
+| 19:14 | Prometheus stopped (`replicas: 0`); its volume unstages and the mount client exits |
+| 19:17 | node-02 `Ready` again |
+| 19:14-19:23 | Redis 8 refusing writes (`MISCONF`): no writable `/data` for RDB snapshots under a read-only root. Fixed with `--save ""` |
+| ~19:30 | seed Job unpinned; `database` sync completes |
+| 19:40-19:55 | node-02's kubelet only reachable about half the time (K3s tunnel `close 1006`, etcd peer `EOF`s) until `systemctl restart k3s` on node-02 |
+| 20:40 | monitoring moved off SeaweedFS; a stuck sync (`$values` revision mismatch) left Loki down until a manual terminate and sync |
+| ~21:20 | every Argo app moved to a single source; all 26 Synced/Healthy |
+
+### Root cause
+
+The SeaweedFS FUSE client buffers writes in RAM. Its options here
+(`-concurrentWriters=128 -cacheCapacityMB=0`) give it no disk write cache, and
+its memory is charged to the `seaweedfs-mount` pod, which has no limit, not to
+the app. Prometheus writes constantly (WAL and 2-hour block compactions), so
+its client grew until the node ran out of memory. Restarting Prometheus did not
+help: the client belongs to the mount, which outlives the pod. This is the
+"Prometheus on a non-POSIX filesystem" risk accepted in the original plan,
+showing up as memory rather than corruption.
+
+### Contributing factors
+
+- **No memory limit** on `seaweedfs-mount` or on VolSync movers, and **no alert**
+  on mount-client memory.
+- **Six Renovate majors merged at once** into a cluster already degrading. Redis
+  8 then broke five apps (Authentik, Gitea, Paperless, Homarr, Gatus) on its own.
+- **A node-pinned hook Job** (`seedJob.nodeName`, pinned to where the CNPG
+  primary used to run) could not schedule once that node was full.
+- **Argo's two-source `$values` wiring** stuck two syncs on a stale revision
+  (2026-10-10 and 2026-10-13), the second leaving Loki down.
+- **Silent backup failures:** a stale restic lock made Loki's forget fail for
+  three days while each retry saved another snapshot (1,073 pruned on
+  2026-10-13). VolSync's metrics have been unscrapeable since August, so no
+  `out_of_sync` alert could fire.
+- **K3s on a node that was OOM-starved** stayed degraded (tunnel, etcd member)
+  after memory recovered, until restarted.
+
+### Changes made (2026-10-13)
+
+| Commit | Change |
+|---|---|
+| `19e3454` | Prometheus stopped to release its mount client |
+| `d4ec8d9` | Redis: `--save ""`, `--appendonly no` (cache/broker, no volume) |
+| `2751454` | `database` seed Job no longer pinned to a node |
+| `519f9c6` | monitoring off SeaweedFS: Loki on a 10 Gi Hetzner volume, Prometheus (7d / 8 GiB, 10 Gi cap) and Alertmanager (1 Gi cap) on `emptyDir`; their backups removed |
+| `4d1f01a`, `3061186` | every Argo app on one source; `cluster-values.yaml` by relative path |
+| (no commit) | `systemctl restart k3s` on node-02; stale restic lock on `loki-data` cleared |
+
+Data: Kimai (2 users, 73 timesheets) and Paperless (45 documents) verified
+intact after their major upgrades.
+
+### Lessons
+
+- Memory used by a FUSE client is not bounded by the app's limits. Heavy
+  writers (TSDBs, databases) need a cap on the mount side or a block volume.
+- Monitoring must not depend on the storage it monitors.
+- Merge Renovate majors one at a time, with app checks between them.
+- Do not pin Jobs to a node for locality; use the Service.
+- After a node is OOM-starved, restart K3s on it even if it reports `Ready`.
+
+## Timeline (2026-07-08 to 2026-10-10)
 
 | When | Event |
 |---|---|
