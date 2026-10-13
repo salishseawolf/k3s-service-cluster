@@ -109,3 +109,26 @@ spec:
     - to:
         - ipBlock:
             cidr: 10.42.0.0/16
+---
+# Gatus checks Prometheus' /-/ready from outside the monitoring stack
+# (services/gatus), so a dead Prometheus still gets reported.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gatus-to-prometheus
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gatus
+      ports:
+        - port: 9090
+          protocol: TCP
+  policyTypes:
+    - Ingress
+

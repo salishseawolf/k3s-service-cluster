@@ -143,6 +143,33 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+      # Independent of Prometheus/Alertmanager: every email alert goes through
+      # them, so these two alert via Gatus' own Slack notifier. Prometheus runs
+      # on a capped emptyDir and restarts empty if it fills (2026-10-13).
+      - name: Prometheus
+        group: monitoring
+        url: "http://prometheus-prometheus.monitoring.svc.cluster.local:9090/-/ready"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: slack
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+            description: "Prometheus not ready: no metrics, and no email alerts can fire"
+      - name: Alertmanager
+        group: monitoring
+        url: "http://prometheus-alertmanager.monitoring.svc.cluster.local:9093/-/ready"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: slack
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+            description: "Alertmanager not ready: email alerts are not being delivered"
       - name: Internet Connectivity
         group: external
         url: "https://google.com"
