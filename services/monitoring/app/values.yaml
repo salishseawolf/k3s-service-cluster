@@ -16,6 +16,10 @@ kps:
     ingress:
       enabled: false
     prometheusSpec:
+      # Stopped 2026-10-13: the SeaweedFS FUSE client for this volume grew to
+      # 4.2 GB and OOM-starved node-02. Decide storage before re-enabling
+      # (docs/todo.md).
+      replicas: 0
       retention: 30d
       retentionSize: 45GiB
       scrapeInterval: 60s
