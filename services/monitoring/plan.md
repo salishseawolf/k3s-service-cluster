@@ -35,6 +35,11 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 - Set size-based retention cap (45Gi) as safety valve
 - Monitor `prometheus_tsdb_wal_fsync_duration_seconds` after deploy
 
+**Superseded 2026-10-13:** Prometheus's SeaweedFS FUSE client grew to 4.2 GB and
+OOM-starved node-02 (`docs/RCA-2026-10-SEAWEEDFS.md`). Monitoring no longer
+depends on SeaweedFS: Loki uses a Hetzner volume, Prometheus and Alertmanager a
+capped `emptyDir` (history resets on pod restart, by choice).
+
 ## Component Breakdown
 
 ### 0. Platform CRD App (`platform/monitoring-crd/`)
@@ -51,19 +56,20 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 
 | Sub-component | Purpose |
 |---------------|---------|
-| Prometheus | Metrics collection, 30d retention, PVC: `50Gi seaweedfs-storage` |
+| Prometheus | Metrics collection, 7d / 8 GiB retention, `emptyDir` (10Gi cap), no PVC |
 | Grafana | Visualization, datasources + dashboards pre-provisioned via ConfigMap, admin password via 1Password Operator |
-| Alertmanager | Alert routing (default: noop), PVC: `10Gi seaweedfs-storage` for persistence |
+| Alertmanager | Alert routing (`notify: email` alerts to email, rest to null), `emptyDir` (1Gi cap), no PVC |
 | kube-state-metrics | Cluster resource metrics |
 | node-exporter | Node-level metrics (DaemonSet) |
 
 - **Chart:** `prometheus-community/kube-prometheus-stack` (pinned version TBD)
 - **CRDs disabled** (managed by platform app): `prometheusOperator.createCustomResource: false`
-- **Storage:**
-  - Prometheus: `50Gi seaweedfs-storage`
-  - Alertmanager: `10Gi seaweedfs-storage` (saved silences/state)
-- **Retention:** time-based 30d + size-based cap 45Gi
-- **Scrape interval:** 60s (4× Prometheus default; gentler on SeaweedFS-backed workloads)
+- **Storage:** no PVCs (2026-10-13)
+  - Prometheus: `emptyDir` with `sizeLimit: 10Gi`; metrics history resets when the pod restarts
+  - Alertmanager: `emptyDir` with `sizeLimit: 1Gi`; silences and the notification log reset on restart
+- **Retention:** 7d + size-based cap 8GiB, well under the emptyDir cap (the
+  kubelet evicts the pod, not the node, if it is exceeded)
+- **Scrape interval:** 60s (4× Prometheus default; chosen when the TSDB was on SeaweedFS, kept to bound emptyDir growth)
 - **External labels:** `cluster: salishseawolf`, `environment: production`
 - **PSP/PodMonitor:** enable PodMonitor for CNPG's existing `enablePodMonitor: true`
 - **Grafana:**
@@ -77,11 +83,11 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 
 - **Chart:** `grafana/loki` or `grafana/loki-simple-scalable` (pinned version, matching Alloy's API version)
 - **Mode:** Single binary (sufficient for 3 nodes)
-- **Storage:** PVC: `10Gi seaweedfs-storage`
+- **Storage:** PVC: `10Gi hcloud-volumes` (Hetzner volume; on SeaweedFS until 2026-10-13)
 - **Retention:** 180d
   - `limits_config.retention_period: 4320h`
   - `max_entries_limit_per_query: 5000`
-- **Sizing note:** 10Gi for 180d of logs on 3 nodes is tight — monitor `loki_pvc_disk_space_used_bytes` after deploy and resize if needed (seaweedfs supports online expansion)
+- **Sizing note:** 10Gi for 180d of logs on 3 nodes is tight — monitor `loki_pvc_disk_space_used_bytes` after deploy and resize if needed (hcloud-volumes supports online expansion)
 - **PVC annotation:** `argocd.argoproj.io/sync-options: Prune=false,Delete=false`
 
 ### 3. Alloy (log shipping — replaces promtail)
@@ -113,17 +119,18 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 | Item | Fields | Purpose |
 |------|--------|---------|
 | `Grafana Admin Password` | `password` | Grafana admin login |
-| `VolSync B2 prometheus-main-db` | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Prometheus TSDB backup (shares B2 key with other monitoring PVCs) |
-| `VolSync B2 alertmanager-db` | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Alertmanager state backup (shares B2 key) |
-| `VolSync B2 loki-data` | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Loki index + chunks backup (shares B2 key) |
+| `VolSync B2 loki-data` | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Loki index + chunks backup (B2 key scoped to `volsync/monitoring/`) |
+
+The `prometheus-main-db` and `alertmanager-db` items, B2 repos and backups were
+retired on 2026-10-13 when both moved to `emptyDir`.
 
 ## PVC Summary
 
 | PVC | Size | StorageClass | Component | Prune annotation | Backup |
 |-----|------|-------------|-----------|-----------------|--------|
-| `prometheus-main-db` | 50Gi | seaweedfs-storage | Prometheus TSDB | ✅ | VolSync hourly |
-| `alertmanager-db` | 10Gi | seaweedfs-storage | Alertmanager state | ✅ | VolSync hourly |
-| `loki-data` | 10Gi | seaweedfs-storage | Loki index + chunks | ✅ | VolSync hourly |
+| `storage-monitoring-loki-0` (`loki-data`) | 10Gi | hcloud-volumes | Loki index + chunks | ✅ | VolSync hourly |
+
+Prometheus and Alertmanager have no PVC (`emptyDir`, see above).
 
 ## Files to Create
 
@@ -152,20 +159,22 @@ FUSE) adds latency risk for WAL fsyncs. Mitigations:
 
 ## PVC Backups (VolSync Restic)
 
-All 3 monitoring PVCs are backed up via VolSync restic to B2, following the
-same pattern as app PVCs:
+Only Loki's PVC is backed up, via VolSync restic to B2, following the same
+pattern as app PVCs:
 
 | PVC | Schedule | Repo path |
 |-----|----------|-----------|
-| `prometheus-main-db` | Hourly at :05 | `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/monitoring/prometheus-main-db` |
-| `alertmanager-db` | Hourly at :20 | `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/monitoring/alertmanager-db` |
 | `loki-data` | Hourly at :35 | `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/monitoring/loki-data` |
 
-Each PVC gets its own restic repository (separate `RESTIC_REPOSITORY` path, separate
-1Password item). The B2 application key is shared — one key scoped to
-`volsync/monitoring/` covering all 3 PVCs. Staggered schedules (:05, :20, :35)
-so movers don't all hit SeaweedFS/B2 simultaneously. Retention: daily:30
-(matching app PVCs).
+The B2 application key is scoped to `volsync/monitoring/`. Retention: daily:30
+(matching app PVCs). The mover's restic cache is on `seaweedfs-storage`, so a
+SeaweedFS outage delays Loki's backups but not Loki itself. Failures email via
+`VolSyncBackupStuck` / `VolSyncBackupOutOfSync` (platform/volsync).
+
+Prometheus and Alertmanager were backed up the same way until 2026-10-13. With
+`emptyDir` there is nothing to back up; their repos (Prometheus's had grown to
+547.6 GB, as each of 30 daily snapshots of a high-churn TSDB was largely
+unique) were deleted.
 
 Grafana dashboards are provisioned via ConfigMap (in git) — no backup needed.
 Any UI-created dashboards would be lost on PVC failure.
