@@ -66,21 +66,19 @@ spec:
             # bump (2026-10-13) left the mysql.* system tables on the old layout.
             - name: MARIADB_AUTO_UPGRADE
               value: "1"
-          # ping succeeds once the server answers, even without credentials,
-          # so the probe needs no secret.
+          # healthcheck.sh logs in as the image's healthcheck user
+          # (/var/lib/mysql/.my-healthcheck.cnf). The old `mariadb-admin ping`
+          # without credentials logged "Access denied" every 10 s, and a TCP
+          # liveness probe logged "Aborted connection ... unauthenticated".
           readinessProbe:
             exec:
-              command:
-                - mariadb-admin
-                - ping
-                - --host=127.0.0.1
-                - --silent
+              command: ["healthcheck.sh", "--connect", "--innodb_initialized"]
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
-            tcpSocket:
-              port: mysql
+            exec:
+              command: ["healthcheck.sh", "--connect"]
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 5
