@@ -1,0 +1,48 @@
+# Backup alerts for every VolSync ReplicationSource, emailed via Alertmanager.
+# `release: monitoring` is what Prometheus' ruleSelector matches; `notify: email`
+# routes to the email receiver (services/monitoring).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: volsync-backups
+  namespace: volsync-system
+  labels:
+    app.kubernetes.io/name: volsync
+    release: monitoring
+spec:
+  groups:
+    - name: volsync-backups
+      rules:
+        # A mover that keeps failing and retrying blocks the next scheduled run,
+        # which VolSync counts as a missed interval. Catches the stale-restic-lock
+        # loop (backup saved, forget fails, retry) that left loki-data failing
+        # for 3 days and kimai-db-dump for over a day unnoticed (2026-10-13).
+        # One slow run is a single miss; 2+ in 6 h means it's stuck.
+        - alert: VolSyncBackupStuck
+          expr: |
+            sum by (obj_namespace, obj_name) (
+              increase(volsync_missed_intervals_total{role="source"}[6h])
+            ) >= 2
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: "Backup {{`{{ $labels.obj_namespace }}/{{ $labels.obj_name }}`}} keeps missing its schedule"
+            description: >-
+              The mover is failing and retrying. Check its log: kubectl -n
+              {{`{{ $labels.obj_namespace }}`}} get replicationsource
+              {{`{{ $labels.obj_name }}`}} -o jsonpath='{.status.latestMoverStatus.logs}'.
+              "repository is already locked": mise run
+              //services/<svc>:backup:<repo>:unlock (AGENT.md, Storage).
+        - alert: VolSyncBackupOutOfSync
+          expr: |
+            max by (obj_namespace, obj_name) (volsync_volume_out_of_sync{role="source"}) == 1
+          for: 3h
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: "Backup {{`{{ $labels.obj_namespace }}/{{ $labels.obj_name }}`}} out of sync for 3 h"
+            description: >-
+              VolSync reports the ReplicationSource has not completed a sync on
+              schedule. Check status.latestMoverStatus on the ReplicationSource.

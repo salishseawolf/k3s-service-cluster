@@ -61,17 +61,5 @@ spec:
             description: >-
               No successful kimai-mariadb-dump run has been recorded for 2
               hours (or kube-state-metrics is not reporting it).
-        # A dump (or file backup) that never reaches B2 is no backup.
-        - alert: KimaiBackupNotUploaded
-          expr: |
-            max by (obj_namespace, obj_name) (volsync_volume_out_of_sync{obj_namespace="kimai", obj_name=~"kimai-data|kimai-db-dump"}) == 1
-          for: 2h
-          labels:
-            severity: warning
-            notify: email
-          annotations:
-            summary: "Kimai backup {{`{{ $labels.obj_name }}`}} not uploaded to B2"
-            description: >-
-              VolSync reports ReplicationSource {{`{{ $labels.obj_name }}`}}
-              out of sync for 2 hours. Check: kubectl -n kimai get
-              replicationsource {{`{{ $labels.obj_name }}`}} -o yaml (status.latestMoverStatus)
+        # Upload to B2 is covered for every ReplicationSource by VolSyncBackupStuck /
+        # VolSyncBackupOutOfSync (platform/volsync/templates/prometheusrule-volsync.yaml).

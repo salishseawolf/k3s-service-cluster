@@ -1,6 +1,11 @@
 ---
 volsync:
   manageCRDs: true
+  # The chart always creates a ServiceMonitor (whenever the CRD exists) that
+  # carries no bearer token, so with auth on it got 401 and fired TargetDown
+  # from 2026-08 to 2026-10-13. Metrics are per-object backup status/timings.
+  metrics:
+    disableAuth: true
   replicaCount: 1
   resources:
     requests: {cpu: 50m, memory: 128Mi}
