@@ -29,7 +29,7 @@ Every app PVC was node-local disk until 2026-10-10 (`WEED_MASTER` disabled volum
 - [ ] alert on FUSE client memory: `container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"}` above ~1.5 GiB per node, email. Baseline 2026-10-13 21:29: 167-541 MiB per node; largest client Kimai MariaDB at 281 MiB (node-01), so watch whether it grows
 - [ ] memory limits: `seaweedfs-mount` has none (a limit that trips kills every mount on the node, so size it with the alert data first), and VolSync movers have `resources: {}`
 - [x] Kimai: `MARIADB_AUTO_UPGRADE=1` on the MariaDB StatefulSet; the 11.8 to 13 system-table upgrade ran 2026-10-13 (system tables backed up first, user tables untouched, data verified: 2 users, 73 timesheets)
-- [ ] Kimai MariaDB probes: switch to the image's `healthcheck.sh --connect --innodb_initialized` (uses `/var/lib/mysql/.my-healthcheck.cnf`, created by the upgrade). Today's probe connects without a password, logging `Access denied for user 'mysql'@'127.0.0.1'` every 10 s, and the TCP probe logs `Aborted connection`
+- [x] Kimai MariaDB probes (2026-10-13): switch to the image's `healthcheck.sh --connect --innodb_initialized` (uses `/var/lib/mysql/.my-healthcheck.cnf`, created by the upgrade). Today's probe connects without a password, logging `Access denied for user 'mysql'@'127.0.0.1'` every 10 s, and the TCP probe logs `Aborted connection`
 - [ ] Gatus: external check on Prometheus `/-/ready`, since an `emptyDir` eviction restarts it with no one to alert
 - [ ] Renovate: stop majors landing together (six merged at once on 2026-10-13; Redis 8 broke five apps). E.g. `major: {dependencyDashboardApproval: true}` plus one major at a time with app checks between
 
