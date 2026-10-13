@@ -12,8 +12,6 @@ spec:
   template:
     spec:
       serviceAccountName: default
-      nodeSelector:
-        kubernetes.io/hostname: {{ .Values.seedJob.nodeName }}
       restartPolicy: Never
       containers:
       - name: psql
