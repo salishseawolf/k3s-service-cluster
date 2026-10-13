@@ -29,6 +29,13 @@ spec:
             - "{{ .Values.maxmemory }}"
             - --maxmemory-policy
             - allkeys-lru
+            # Cache/broker only: no volume and a read-only root, so never try to
+            # snapshot. A failed save makes Redis refuse all writes (MISCONF),
+            # which broke every consumer after the Redis 8 bump (2026-10-13).
+            - --save
+            - ""
+            - --appendonly
+            - "no"
           env:
             - name: REDIS_PASSWORD
               valueFrom:
