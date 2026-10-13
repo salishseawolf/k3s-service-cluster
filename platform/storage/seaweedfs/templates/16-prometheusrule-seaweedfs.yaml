@@ -108,3 +108,36 @@ spec:
             description: >-
               FUSE mounts go through the filer; sustained 5xx means apps see I/O
               errors. Check the weed server log and the filer's Postgres store.
+        # Each node's seaweedfs-mount container holds every FUSE client on that
+        # node, outside the apps' memory limits. On 2026-10-13 Prometheus's
+        # client grew to 4.2 GB and OOM-starved node-02 (RCA follow-up).
+        # Baseline that day: 170-540 MiB per node.
+        - alert: SeaweedFSMountMemoryHigh
+          expr: |
+            max by (node) (container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"})
+              > 1.5 * 1024 * 1024 * 1024
+          for: 15m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: "SeaweedFS FUSE clients on {{`{{ $labels.node }}`}} use {{`{{ $value | humanize1024 }}`}}B"
+            description: >-
+              A volume's weed mount client is buffering writes in RAM. Find the
+              large one: on the node, ps -o rss,args -C weed --sort=-rss | head.
+              Releasing it needs the app stopped (no pod on that node using the
+              volume); restarting the app alone does not.
+        - alert: SeaweedFSMountMemoryCritical
+          expr: |
+            max by (node) (container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"})
+              > 3 * 1024 * 1024 * 1024
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: "SeaweedFS FUSE clients on {{`{{ $labels.node }}`}} use {{`{{ $value | humanize1024 }}`}}B: node at risk"
+            description: >-
+              At this size the node can be OOM-starved within the hour (node-02,
+              2026-10-13). Stop the app whose mount is growing now.
+

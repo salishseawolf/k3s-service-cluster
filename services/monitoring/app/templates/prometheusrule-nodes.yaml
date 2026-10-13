@@ -1,0 +1,34 @@
+# Node memory backstop, emailed via Alertmanager (`notify: email`). The default
+# kube-prometheus-stack node alerts go to the null receiver. Added after node-02
+# was OOM-starved on 2026-10-13 (docs/RCA-2026-10-SEAWEEDFS.md); no swap, so a
+# node near zero available memory thrashes and flaps NotReady.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-memory
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: monitoring
+    release: monitoring
+spec:
+  groups:
+    - name: node-memory
+      rules:
+        - alert: NodeMemoryLow
+          # node-exporter reports by IP; join kube_pod_info to name the node.
+          expr: |
+            min by (node) (
+              (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+              * on (pod) group_left (node)
+              max by (pod, node) (kube_pod_info{namespace="monitoring", pod=~".*node-exporter.*"})
+            ) < 0.10
+          for: 10m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: "{{`{{ $labels.node }}`}} has {{`{{ $value | humanizePercentage }}`}} memory available"
+            description: >-
+              The node is close to OOM and will start killing pods (and may flap
+              NotReady). Check: kubectl top pods -A --sort-by=memory, and the
+              node's seaweedfs-mount pod (FUSE clients are not in app limits).
