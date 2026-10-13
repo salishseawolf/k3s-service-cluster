@@ -8,16 +8,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "30"
 spec:
   project: platform
-  sources:
-    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-      targetRevision: main
-      path: platform/storage/seaweedfs-csi
-      helm:
-        valueFiles:
-          - $values/platform/argocd/root/cluster-values.yaml
-    - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-      targetRevision: main
-      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: seaweedfs-csi
@@ -31,3 +21,10 @@ spec:
     retry:
       limit: 5
       backoff: {duration: 20s, factor: 2, maxDuration: 5m}
+  source:
+    repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
+    targetRevision: main
+    path: platform/storage/seaweedfs-csi
+    helm:
+      valueFiles:
+        - ../../argocd/root/cluster-values.yaml

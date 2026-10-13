@@ -26,17 +26,6 @@ spec:
       name: '{{index .path.segments 1}}'
     spec:
       project: services
-      sources:
-        - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-          targetRevision: main
-          path: '{{.path.path}}'
-          helm:
-            valueFiles:
-              - $values/platform/argocd/root/cluster-values.yaml
-            ignoreMissingValueFiles: true
-        - repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
-          targetRevision: main
-          ref: values
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{index .path.segments 1}}'
@@ -50,3 +39,11 @@ spec:
         retry:
           limit: 10
           backoff: {duration: 20s, factor: 2, maxDuration: 5m}
+      source:
+        repoURL: https://github.com/salishseawolf/k3s-service-cluster.git
+        targetRevision: main
+        path: '{{.path.path}}'
+        helm:
+          valueFiles:
+            - ../../../platform/argocd/root/cluster-values.yaml
+          ignoreMissingValueFiles: true

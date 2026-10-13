@@ -308,6 +308,10 @@ kubectl -n argocd get applications -w # watch Argo reconcile
 ## Domain
 
 Single source of truth: `platform/argocd/root/cluster-values.yaml`.
+Apps load it as a Helm value file by **relative path** from their chart
+directory (one Argo source). Don't reintroduce it as a second same-repo
+source with `ref: values`: Argo then fails syncs ("cannot reference a
+different revision of the same repository") whenever a push lands mid-sync.
 Set `domain:` and gitea `autoDiscoverUrl` there. Rebrand = one-file PR.
 
 ## Service Scaffolding

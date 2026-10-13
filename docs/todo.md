@@ -49,7 +49,7 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 - [ ] copyparty: if shares should work logged out, add a `PathPrefix(/shr/)` route with a middleware that strips client `X-Authentik-*` headers
 - [ ] traefik: Grafana's IngressRoutes name `wildcard-salishseawolf-com-tls`, which doesn't exist in `monitoring` (Traefik logs `Error configuring TLS` and falls back to the default cert); use `tls: {}` like the other routes
 - [ ] authentik: the outpost's Kubernetes integration creates Ingresses outside git (`copyparty/ak-outpost-copyparty` for `files.`, `seaweedfs/ak-outpost-seaweedfs-filer` for `filer-s3.`) pointing at a missing `authentik-outpost-tls` secret. Decide whether the integration should manage Ingresses at all (the IngressRoutes already route through forward-auth), and add `filer-s3.` to AGENT.md's Perimeter section if it stays
-- [ ] argocd: `cannot reference a different revision of the same repository ($values references "main" ...)`. Not harmless: on 2026-10-10 two pushes a minute apart left the seaweedfs sync stuck on the older commit (it recovered by itself after a few minutes). Fix: pin the `$values` source to the same revision as the chart source in the ApplicationSet/apps instead of `main`
+- [x] argocd: `cannot reference a different revision of the same repository` (stuck syncs on 2026-10-10 and 2026-10-13, the second left Loki down). Fixed 2026-10-13: every app uses one source and loads `cluster-values.yaml` by relative path (`monitoring-crd` keeps two sources: different repos)
 
 ## Suggestions
 - [ ] S2: Add egress NetworkPolicy restrictions where safe
