@@ -134,6 +134,15 @@ kps:
     sidecar:
       datasources:
         defaultDatasourceEnabled: false
+      # Grafana has no persistent storage, so every dashboard is a ConfigMap
+      # labelled grafana_dashboard: "1". The grafana_folder annotation picks
+      # its folder; the chart's own dashboards get "Kubernetes" here.
+      dashboards:
+        folderAnnotation: grafana_folder
+        annotations:
+          grafana_folder: Kubernetes
+        provider:
+          foldersFromFilesStructure: true
     extraSecretMounts:
       - name: grafana-oidc-creds
         mountPath: /etc/secrets
@@ -159,6 +168,7 @@ kps:
             access: proxy
             isDefault: true
           - name: Loki
+            uid: loki
             type: loki
             url: http://monitoring-loki.monitoring:3100
             access: proxy

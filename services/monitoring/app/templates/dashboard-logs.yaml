@@ -1,0 +1,18 @@
+# Loki log dashboards (dashboards/logs-*.json), one ConfigMap each, in the
+# "Loki Logs" folder. Edits made in the Grafana UI are lost on restart
+# (emptyDir): export the JSON and replace the file here instead.
+{{- range $path, $_ := .Files.Glob "dashboards/logs-*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-{{ base $path | trimSuffix ".json" }}
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Loki Logs
+data:
+  {{ base $path }}: |
+    {{- $.Files.Get $path | nindent 4 }}
+{{- end }}
