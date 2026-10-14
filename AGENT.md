@@ -13,7 +13,8 @@ Guidance for AI agents working in this repository (Claude Code loads it via
 
 This is a 3-node HA K3s cluster for Salish Sea Wolf LLC on Hetzner Cloud
 (hel1, salishseawolf.com). Provisioned with OpenTofu, bootstrapped with
-Ansible, and continuously reconciled by Argo CD. Admin IP is 73.97.54.81/32.
+Ansible, and continuously reconciled by Argo CD. Admin source ranges live in
+`adminSourceRanges` (`platform/argocd/root/cluster-values.yaml`).
 
 Authoritative references in-repo: `docs/RUNBOOK-GITOPS.md` (operations, vault
 checklist, fresh deploy), `docs/RECOVERY-RUNBOOK.md` (disaster recovery),

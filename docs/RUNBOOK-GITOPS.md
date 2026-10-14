@@ -107,6 +107,45 @@ The live cluster keeps running from its current state throughout; Argo
   lives in CNPG. That cycle makes fresh deploys unbootstrappable — the
   two-StorageClass split is the acyclicity of the storage graph.
 
+### Backup key for a new PVC (VolSync to B2)
+
+Every backed-up PVC gets its own B2 application key, limited to its own
+prefix in the `k3s-service-cluster` bucket, and its own `VolSync B2 <pvc>`
+item. No key is shared, so a leaked key exposes one service's backups only.
+Write the `ReplicationSource` first (copy
+`services/kimai/app/templates/volsync.yaml`).
+
+```bash
+# 1. Authorize as the account admin key (op://Personal/Backblaze: app_key_id + its key)
+b2 account authorize
+
+# 2. (Optional) see the existing VolSync keys, their prefixes and capabilities
+b2 key list
+
+# 3. Create the scoped key. Prints keyId + applicationKey ONCE: copy both now.
+b2 key create --bucket k3s-service-cluster --name-prefix volsync/<ns> \
+  VolSync-<pvc> deleteFiles,listBuckets,listFiles,readFiles,writeFiles
+
+# 4. Don't leave the admin key cached in ~/.config/b2
+b2 account clear
+```
+
+Restic reads, lists and writes its repository, and needs `deleteFiles` for
+the weekly prune. `--name-prefix` is a plain string match, so `volsync/<ns>/`
+(trailing slash) is the tighter form if another namespace could share the
+prefix.
+
+Then create `VolSync B2 <pvc>` in the `K3s Service Cluster` vault, with field
+labels exactly as below (the operator turns labels into the Secret keys
+restic reads):
+
+| Field | Value |
+|---|---|
+| `RESTIC_REPOSITORY` | `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
+| `RESTIC_PASSWORD` | new random value (`openssl rand -hex 32`); encrypts the repo, so losing it loses the backups |
+| `AWS_ACCESS_KEY_ID` | the new `keyId` |
+| `AWS_SECRET_ACCESS_KEY` | the new `applicationKey` |
+
 ## 4. Known residue (deliberate)
 
 - `bootstrap/ansible/roles/secret_zero/` exists because the 1P Operator

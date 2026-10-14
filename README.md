@@ -1,89 +1,127 @@
 # K3s Service Cluster
 
-A 3-node HA K3s cluster on Hetzner Cloud, managed via OpenTofu + Ansible
-(bootstrap) + Argo CD (continuous reconciliation).
+A production-style, three-node HA Kubernetes cluster that runs the services
+for a small business (Salish Sea Wolf LLC): source hosting and CI, single
+sign-on, document management, time tracking, file sharing, analytics and a
+personal site. Everything from the cloud servers to the dashboards is code in
+this repository; a merge to `main` is a deploy.
 
-## Quick start
+**Stack:** Hetzner Cloud, OpenTofu, Ansible, K3s, Argo CD, Traefik, Authentik,
+cert-manager, CloudNativePG, SeaweedFS, VolSync, 1Password Operator,
+Prometheus, Loki, Alloy, Grafana, Gatus, Renovate.
 
-### Prerequisites
+## Highlights
 
-- [1Password CLI](https://developer.1password.com/docs/cli/) (`op`) signed in
-- Access to the `K3s Service Cluster` and `Hermes Agent` vaults
-- The domain's Cloudflare DNS API token in the vault
+- **GitOps end to end.** OpenTofu builds the servers, network, load balancer,
+  firewall and DNS; Ansible runs once to install K3s, 1Password Connect and
+  Argo CD; from then on Argo CD reconciles every component from this repo.
+  There is no `kubectl apply` step.
+- **Gated rollout.** Argo syncs in waves (operators, then databases, then
+  storage and identity, then apps). A canary Job must bind and mount a real
+  SeaweedFS volume before any app is allowed to start, a rule that came out of
+  the incident below.
+- **Secrets never in git.** Only `op://` references are committed. The
+  1Password Operator projects secrets into the cluster, and a small Ansible
+  role creates the few typed Secrets the operator can't.
+- **Every route behind SSO.** Traefik sends all web traffic through Authentik
+  forward-auth, except routes that are public by design (the personal site,
+  share links, analytics tracking and the login page itself). Token-based
+  exceptions (git over HTTPS, APIs) are limited by client IP, which Traefik
+  sees because the load balancer speaks PROXY protocol.
+- **Defence in depth.** Pod Security Admission `restricted` by default,
+  default-deny ingress NetworkPolicies in every namespace, etcd encryption at
+  rest, and a node firewall in addition to the cloud firewall.
+- **Backups with blast-radius limits.** Postgres (CloudNativePG, three
+  instances) backs up daily to Backblaze B2 through barman-cloud; app volumes
+  back up hourly with VolSync and restic. Each volume has its own B2 key,
+  scoped to its own prefix, so one leaked key exposes one service's backups.
+- **Observability as code.** Prometheus alerts (opt-in email per rule), Loki
+  logs shipped by Alloy with per-format log-level parsing, Grafana dashboards
+  provisioned from ConfigMaps, and Gatus health checks for every service,
+  with a Slack alert if Prometheus or Alertmanager themselves go down.
+- **Validated before merge.** CI renders every Helm chart and checks the
+  output with kubeconform and kube-linter, validates OpenTofu and Ansible, and
+  scans the full history with gitleaks. Renovate opens dependency PRs.
 
-### Bootstrap (one-time)
+## Architecture
 
-```bash
-mise install
-mise run setup                 # tofu init + ansible galaxy
-mise run bootstrap             # tofu apply → K3s → 1Password Connect →
-                               #   secret_zero → Argo CD
-kubectl -n argocd get applications -w    # watch the cascade
+```mermaid
+flowchart LR
+  user([Users]) --> lb[Hetzner load balancer<br/>PROXY protocol]
+  lb --> traefik[Traefik<br/>on every node]
+  traefik -->|forward-auth| authentik[Authentik SSO]
+  traefik --> apps[Apps<br/>Gitea, Paperless, Kimai,<br/>Copyparty, Homarr, Umami]
+  apps --> cnpg[(CloudNativePG<br/>3 instances)]
+  apps --> seaweed[(SeaweedFS<br/>via FUSE CSI)]
+  cnpg -->|barman-cloud| b2[(Backblaze B2)]
+  seaweed -->|VolSync restic| b2
+  github[(GitHub repo)] -->|reconcile| argo[Argo CD]
+  argo --> traefik
+  argo --> apps
+  op[(1Password)] -->|Connect + Operator| apps
 ```
 
-### Architecture
+Argo CD sync waves:
+
+| Wave | Components | Gate before the next wave |
+|---|---|---|
+| 0 | Argo CD itself, CRDs, CNPG operator | operators healthy |
+| 10 | cert-manager config, step-ca, Postgres, Redis | Postgres cluster healthy |
+| 20 | SeaweedFS, Authentik | filer and Authentik up |
+| 30 | SeaweedFS CSI, VolSync | PVC canary mounts a real volume |
+| 40 | every app under `services/*/app` | none |
+
+## Repository layout
 
 ```
-infrastructure/     OpenTofu (human-run) — servers, network, LB, DNS
-bootstrap/          Ansible (runs ~once) — K3s, 1Password, secret_zero, Argo
-platform/           Argo CD — cert-manager, step-ca, volsync, argocd, storage
-services/*/app/     Argo CD — application Helm charts
+infrastructure/tofu/   OpenTofu: servers, private network, load balancer,
+                       firewall, Cloudflare DNS
+bootstrap/ansible/     one-time: K3s, 1Password Connect + Operator,
+                       typed secrets, Argo CD
+platform/              cluster-wide services: Argo CD, cert-manager, step-ca,
+                       SeaweedFS + CSI, VolSync, monitoring CRDs
+services/*/app/        one Helm chart per app, discovered by an ApplicationSet
+scripts/               chart render + lint pipeline (used locally and in CI)
+docs/                  runbooks, recovery procedure, incident review
 ```
-
-Argo reconciles in waves: 0 (argocd self, cnpg, cert-manager CRDs) → 10
-(database, redis, cert-manager config, step-ca) → 20 (seaweedfs, identity) →
-30 (seaweedfs-csi, volsync — PVC canary gate) → 40 (everything else).
-
-## Day-to-day
-
-- **Change anything**: PR → CI validates → merge → Argo converges
-- **Add a service**: `mkdir services/<name>/app` + standard anatomy
-- **Rotate a secret**: rotate in 1Password; operator re-syncs
-- **Rebrand**: edit `platform/argocd/root/cluster-values.yaml` (one file)
-- **Back up a new PVC**: one scoped B2 key + one 1P item per PVC (below),
-  then a `ReplicationSource` (copy `services/kimai/app/templates/volsync.yaml`)
-
-### Creating a VolSync B2 key and 1P item (per PVC)
-
-Every backed-up PVC gets its own B2 application key, limited to its own
-prefix in the `k3s-service-cluster` bucket, and its own `VolSync B2 <pvc>`
-item. No key is shared, so a leaked key exposes one service's backups only.
-
-```bash
-# 1. Authorize as the account admin key (op://Personal/Backblaze: app_key_id + its key)
-b2 account authorize
-
-# 2. (Optional) see the existing VolSync keys, their prefixes and capabilities
-b2 key list
-
-# 3. Create the scoped key. Prints keyId + applicationKey ONCE: copy both now.
-b2 key create --bucket k3s-service-cluster --name-prefix volsync/<ns> \
-  VolSync-<pvc> deleteFiles,listBuckets,listFiles,readFiles,writeFiles
-
-# 4. Don't leave the admin key cached in ~/.config/b2
-b2 account clear
-```
-
-Capabilities mirror the existing VolSync keys (confirmed by authorizing as
-`VolSync B2 paperless-media`'s key): restic reads, lists and writes its
-repository, and needs `deleteFiles` for the weekly prune. `--name-prefix` is
-a plain string match, so `volsync/<ns>/` (trailing slash) is the tighter
-form if another namespace could share the prefix.
-
-Then create `VolSync B2 <pvc>` in the `K3s Service Cluster` vault, with
-field labels exactly as below (the operator turns labels into the Secret
-keys restic reads):
-
-| Field | Value |
-|---|---|
-| `RESTIC_REPOSITORY` | `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
-| `RESTIC_PASSWORD` | new random value (`openssl rand -hex 32`); encrypts the repo, so losing it loses the backups |
-| `AWS_ACCESS_KEY_ID` | the new `keyId` |
-| `AWS_SECRET_ACCESS_KEY` | the new `applicationKey` |
 
 ## Documentation
 
-| File | What |
+| Document | What it covers |
 |---|---|
-| `docs/RUNBOOK-GITOPS.md` | GitOps operations, vault checklist, fresh deploy |
-| `docs/MIGRATION.md` | Template for adding new services |
+| [RCA: SeaweedFS never stored app data](docs/RCA-2026-10-SEAWEEDFS.md) | Two hidden defects left every app volume on node-local disk for three months; how it was found, recovered and prevented |
+| [Disaster recovery runbook](docs/RECOVERY-RUNBOOK.md) | Rebuilding the cluster and restoring Postgres and volumes from B2 |
+| [GitOps runbook](docs/RUNBOOK-GITOPS.md) | Vault checklist, fresh deploy, day-2 operations, backup keys |
+| [Service anatomy](docs/MIGRATION.md) | What every app chart contains, and how services were moved to GitOps |
+| [Argo CD SSO](docs/ARGOCD-AUTHENTIK-SSO.md) | Authentik OIDC for Argo CD, and CLI login with API tokens |
+| [AGENT.md](AGENT.md) | Ground rules and the gated deploy procedure for AI agents working in this repo |
+| [Open work](docs/todo.md) | Known follow-ups |
+
+## Working with AI agents
+
+Much of this repository was built and is operated together with AI coding
+agents. [AGENT.md](AGENT.md) is their contract: secrets never reach disk or
+logs, the network perimeter is never widened without a human, destructive
+operations wait for explicit approval, retries must be idempotent, and git is
+the only deploy path. A fresh deployment is a staged procedure with a
+verification gate after each stage and an honest partial report as an
+acceptable outcome.
+
+## Quick start
+
+Prerequisites: [mise](https://mise.jdx.dev/), the
+[1Password CLI](https://developer.1password.com/docs/cli/) signed in with
+access to the `K3s Service Cluster` and `Hermes Agent` vaults, and a
+Cloudflare DNS API token in the vault.
+
+```bash
+mise install
+mise run setup        # tofu init + Ansible collections
+mise run check        # yamllint, tofu validate, ansible-lint, render + lint every chart
+mise run bootstrap    # tofu apply, K3s, 1Password Connect, Argo CD
+kubectl -n argocd get applications -w    # watch the waves converge
+```
+
+Day to day: open a PR, let CI validate it, merge, and Argo CD converges. See
+the [GitOps runbook](docs/RUNBOOK-GITOPS.md) for adding services, rotating
+secrets and creating backup keys.
