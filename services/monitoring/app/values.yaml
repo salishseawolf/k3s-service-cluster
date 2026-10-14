@@ -480,6 +480,16 @@ alloy:
               template = "debug"
             }
           }
+          // The same abandoned query, reported afterwards: the worker can't
+          // tell the (in-process) scheduler it finished. Only err=EOF; other
+          // errors here would mean a real scheduler problem.
+          stage.match {
+            selector = `{namespace="monitoring", container="loki"} |= "error notifying scheduler about finished query" |= "err=EOF"`
+            stage.template {
+              source   = "level"
+              template = "debug"
+            }
+          }
           // VolSync's optimistic-concurrency conflicts ("the object has been
           // modified") at the start and end of every backup run: the
           // controller retries at once, and backups still succeed. Failed or
