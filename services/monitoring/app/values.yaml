@@ -421,6 +421,13 @@ alloy:
           stage.regex {
             expression = `^\d{4}-\d{2}-\d{2} +\d{1,2}:\d{2}:\d{2} \d+ \[(?P<level>Note|Warning|ERROR)\] `
           }
+          // Go zap console format (VolSync's manager, a 1Password container):
+          // 2026-10-14T19:01:40.428Z<TAB>ERROR<TAB>Reconciler error<TAB>{...}
+          // Without it the keyword fallback calls INFO lines that mention
+          // "error" (controller-runtime's requeue warning) errors.
+          stage.regex {
+            expression = `^\d{4}-\d{2}-\d{2}T[0-9:.]+Z\t(?P<level>DEBUG|INFO|WARN|ERROR|PANIC|FATAL)\t`
+          }
           // 1Password Connect: JSON with a numeric level Loki can't map, and
           // the real one as a "(I) " prefix on log_message.
           stage.regex {
@@ -468,6 +475,27 @@ alloy:
           // failure: real Loki errors use other messages.
           stage.match {
             selector = `{namespace="monitoring", container="loki"} |= "context canceled"`
+            stage.template {
+              source   = "level"
+              template = "debug"
+            }
+          }
+          // VolSync's optimistic-concurrency conflicts ("the object has been
+          // modified") at the start and end of every backup run: the
+          // controller retries at once, and backups still succeed. Failed or
+          // stuck backups alert from VolSync's metrics (VolSyncBackup*).
+          stage.match {
+            selector = `{namespace="volsync-system", container="manager"} |= "the object has been modified"`
+            stage.template {
+              source   = "level"
+              template = "debug"
+            }
+          }
+          // Argo CD's cluster cache resync (every 12h) cancels and restarts
+          // every watch; client-go logs each as E... "Watch failed"
+          // err="context canceled". Other watch errors stay errors.
+          stage.match {
+            selector = `{namespace="argocd", container="application-controller"} |= "\"Watch failed\" err=\"context canceled\""`
             stage.template {
               source   = "level"
               template = "debug"
