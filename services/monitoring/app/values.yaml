@@ -453,6 +453,16 @@ alloy:
               template = "debug"
             }
           }
+          // Loki logs a query the client abandoned (Grafana refresh or a
+          // changed query) as level=error, several lines per query. Not a
+          // failure: real Loki errors use other messages.
+          stage.match {
+            selector = `{namespace="monitoring", container="loki"} |= "context canceled"`
+            stage.template {
+              source   = "level"
+              template = "debug"
+            }
+          }
           // Normalise to Loki's level names and attach as structured metadata
           // (not a label: no new streams); Loki uses it as detected_level.
           stage.template {
