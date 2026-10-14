@@ -208,6 +208,10 @@ kps:
 
   prometheus-node-exporter:
     hostNetwork: false
+    # kernel_hung reads /proc/sys/kernel/hung_task_detect_count, which Debian's
+    # 6.1 kernel doesn't have: it failed (and logged an ERROR) on every scrape.
+    extraArgs:
+      - --no-collector.kernel_hung
     # Deliberate kube-linter exceptions, on the DaemonSet object only (not the
     # pod template, so no rollout): reading host metrics is its whole job.
     daemonsetAnnotations:

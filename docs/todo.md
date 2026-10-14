@@ -46,7 +46,7 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 - [x] kimai-db-dump: first backup 2026-10-09 23:27. The "Directory is empty" runs predate the dump; once it existed, B2 refused with `Access Denied` because the key's name prefix (`volsync/kimai/kimai-mariadb-dumps`) didn't cover the repo path (`volsync/kimai/kimai-db-dump`). Replaced with a correctly scoped key. Note: the 1Password operator doesn't recreate a deleted Secret until it restarts (`kubectl -n 1password rollout restart deploy/onepassword-connect-operator`)
 - [x] mise: shorten monitoring's backup task names (`prometheus-main-db`/`alertmanager-db`/`loki-data` → `prometheus`/`alertmanager`/`loki`)
 - [x] gatus: the "Traefik Dashboard" check (never passed: dashboard not exposed, and the bare domain is the personal site, so nginx logged a 404 every minute) replaced by a TCP check on `traefik.kube-system.svc.cluster.local:443` (2026-10-13)
-- [ ] node-exporter: `kernel_hung` collector fails every scrape (`/host/proc/sys/kernel/hung_task_detect_count` missing on this kernel); disable it (`--no-collector.kernel_hung`)
+- [x] node-exporter: `kernel_hung` collector fails every scrape (`/host/proc/sys/kernel/hung_task_detect_count` missing on this kernel); disable it (`--no-collector.kernel_hung`) (done 2026-10-14: `extraArgs: [--no-collector.kernel_hung]`)
 
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
