@@ -1,3 +1,16 @@
 ---
 # Injected by the root ApplicationSet from platform/argocd/root/cluster-values.yaml
 domain: ""
+
+# Where Traefik's requests come from (hostNetwork, so node addresses): the
+# private network, plus each node's flannel addresses (.0 for cross-node,
+# .1 for same-node traffic). Only these may reach copyparty and the outpost,
+# and only these are trusted to send the X-Authentik-* identity headers.
+# Pods can't use these addresses. Same list as platform/storage/seaweedfs;
+# update both when a node's podCIDR changes (kubectl get nodes -o
+# custom-columns=NAME:.metadata.name,CIDR:.spec.podCIDR).
+traefikSources:
+  - 192.168.0.0/16
+  - 10.42.0.0/31   # k3s-converged-node-01 (podCIDR 10.42.0.0/24)
+  - 10.42.3.0/31   # k3s-converged-node-02 (podCIDR 10.42.3.0/24)
+  - 10.42.1.0/31   # k3s-converged-node-03 (podCIDR 10.42.1.0/24)

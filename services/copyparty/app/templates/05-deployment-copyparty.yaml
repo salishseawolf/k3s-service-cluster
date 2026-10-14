@@ -21,6 +21,9 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: copyparty
+      annotations:
+        # copyparty reads its config only at start
+        checksum/config: {{ include (print $.Template.BasePath "/04-configmap-copyparty-config.yaml") . | sha256sum }}
     spec:
       securityContext:
         runAsUser: 0

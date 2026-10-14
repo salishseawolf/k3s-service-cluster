@@ -31,7 +31,10 @@ spec:
     - from:
         - podSelector: {}
 ---
-# Web traffic via hostNetwork Traefik; gatus TCP-checks the service directly.
+# Web traffic via hostNetwork Traefik (node addresses only, see
+# values.traefikSources); gatus TCP-checks the service directly. Not the whole
+# pod network: copyparty trusts X-Authentik-* identity headers, so any pod
+# that could reach it directly could log in as anyone.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -43,10 +46,10 @@ spec:
     - Ingress
   ingress:
     - from:
+        {{- range .Values.traefikSources }}
         - ipBlock:
-            cidr: 10.42.0.0/16
-        - ipBlock:
-            cidr: 192.168.0.0/16
+            cidr: {{ . }}
+        {{- end }}
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: gatus
