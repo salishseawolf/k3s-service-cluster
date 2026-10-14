@@ -68,7 +68,7 @@
     },
     {
       // Tagged with a git SHA by its own build; nothing for Renovate to compare.
-      matchPackageNames: ["ghcr.io/mightbeawolf/personal-site"],
+      matchPackageNames: ["ghcr.io/salishseawolf/personal-site"],
       enabled: false,
     },
     {

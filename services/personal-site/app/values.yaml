@@ -4,8 +4,8 @@
 domain: ""
 
 image:
-  repository: ghcr.io/mightbeawolf/personal-site
-  tag: "1761ca6"
+  repository: ghcr.io/salishseawolf/personal-site
+  tag: "b32e581"
 
 port: 80
 
