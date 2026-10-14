@@ -23,7 +23,7 @@ Every app PVC was node-local disk until 2026-10-10 (`WEED_MASTER` disabled volum
 - [x] backups: first clean runs after the stale-mount fix confirmed (paperless 2026-10-10). Loki's then failed silently until 2026-10-13: a stale restic lock broke forget while each retry saved a snapshot (1,073 pruned once unlocked). `prometheus-main-db` and `alertmanager-db` removed: both run on `emptyDir` since 2026-10-13
 - [ ] FUSE reads run at about 2-5 MB/s; fine for current apps, benchmark before putting anything throughput-heavy on SeaweedFS
 - [ ] Gitea admin: delete the offline `gitea-runner-01` registration left by the runner's fresh volume
-- [ ] after a few days green: delete `/root/swfs-rescue-20261010/` on all three nodes and `/root/kimai-old-db/` on node-03 (it holds a Kimai dump with password hashes); node-01's deleted 2026-10-13
+- [x] deleted the rescue copies: `/root/swfs-rescue-20261010/` on all three nodes and `/root/kimai-old-db/` on node-03 (a Kimai dump with password hashes), node-01 on 2026-10-13, the rest 2026-10-14 after confirming Kimai's hourly dump and VolSync uploads succeed
 
 ### Follow-ups from 2026-10-13 (node-02 OOM, `docs/RCA-2026-10-SEAWEEDFS.md`)
 - [ ] alert on FUSE client memory: `container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"}` above ~1.5 GiB per node, email. Baseline 2026-10-13 21:29: 167-541 MiB per node; largest client Kimai MariaDB at 281 MiB (node-01), so watch whether it grows
