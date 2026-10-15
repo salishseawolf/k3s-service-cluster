@@ -530,6 +530,17 @@ alloy:
               template = "info"
             }
           }
+          // K3s' Corefile imports optional /etc/coredns/custom/*.server files;
+          // coredns-custom only has git.override, so CoreDNS warns on every
+          // reload check (~145/h). Harmless; a placeholder .server file would
+          // risk a Corefile parse error for cluster DNS instead.
+          stage.match {
+            selector = `{namespace="kube-system", container="coredns"} |= "No files matching import glob pattern: /etc/coredns/custom/*.server"`
+            stage.template {
+              source   = "level"
+              template = "info"
+            }
+          }
           // Normalise to Loki's level names and attach as structured metadata
           // (not a label: no new streams); Loki uses it as detected_level.
           stage.template {
