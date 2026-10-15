@@ -5,7 +5,7 @@ domain: ""
 
 image:
   repository: ghcr.io/salishseawolf/personal-site
-  tag: "70b83dd"
+  tag: "65e91e2"
 
 port: 80
 
