@@ -31,13 +31,16 @@ kps:
           sizeLimit: 10Gi
       podMonitorSelectorNilUsesHelmValues: false
       serviceMonitorSelectorNilUsesHelmValues: false
+      # 7-day peak working set was 2.36 GiB (~260k head series, 2026-10-15).
+      # The limit must fit a node (7.5 GiB, shared): OOM-kill Prometheus, not
+      # starve the node.
       resources:
         requests:
           cpu: 500m
           memory: 2Gi
         limits:
           cpu: 2
-          memory: 8Gi
+          memory: 4Gi
 
   alertmanager:
     enabled: true

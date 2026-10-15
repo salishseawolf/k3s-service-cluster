@@ -1324,6 +1324,20 @@ data:
               - ingress
               - traefik middleware
               - httproute
+            # Without explicit resources the seaweedfs LimitRange default
+            # (sized for weed server: 1 CPU / 1 GiB) applies to the outpost,
+            # which peaks at ~65 MiB. Requests are the LimitRange minimum.
+            kubernetes_json_patches:
+              deployment:
+                - op: add
+                  path: /spec/template/spec/containers/0/resources
+                  value:
+                    requests:
+                      cpu: 100m
+                      memory: 256Mi
+                    limits:
+                      cpu: 500m
+                      memory: 512Mi
             authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             authentik_host_browser: "https://auth.{{ .Values.domain }}"
   blueprint-argocd.yaml: |
