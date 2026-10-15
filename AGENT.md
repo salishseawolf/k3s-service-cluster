@@ -369,7 +369,17 @@ Web routes, by design:
   `ClientIP` sees the real client only because the LB sends PROXY protocol
   and Traefik trusts it on that entrypoint; an LB service without
   `proxyprotocol = true` makes every client look like the LB's private IP
-  (`192.168.1.10`), which `adminSourceRanges` admits.
+  (`192.168.1.10`), which `adminSourceRanges` admits. The LB's own TCP
+  health checks carry no PROXY header, so they look like `192.168.1.10` too;
+  on 2222 they can reach Gitea's SSH server (seen once, 2026-10-15, harmless).
+- **Outpost exceptions:** on `files.` and `filer-s3.`, the prefix
+  `/outpost.goauthentik.io/` goes straight to that app's Authentik outpost
+  (`ak-outpost-*-direct` IngressRoutes), without forward-auth: these are the
+  login handshake endpoints (start, callback, sign_out, ping) that forward-auth
+  itself depends on. They only redirect to `auth.` or return a status code;
+  nothing there proxies to the app. All outpost routing is in git; the
+  outposts' Kubernetes integration doesn't create Ingresses or Middlewares
+  (`kubernetes_disabled_components`).
 - **In-cluster clients** of `git.<domain>` (Gitea Actions' `actions/checkout`)
   resolve it to Traefik's ClusterIP via a CoreDNS rewrite
   (`services/gitea/app/templates/coredns-custom.yaml`), so they arrive from
