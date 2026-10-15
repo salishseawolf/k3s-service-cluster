@@ -22,8 +22,12 @@ spec:
           port: 80  # Grafana serves on port 80 inside the chart (default grafana.ini server port)
   # Traefik's default TLSStore serves the wildcard certificate. Naming the
   # secret here made Traefik look for it in this namespace, where it doesn't
-  # exist, and log an error on every config reload.
-  tls: {}
+  # exist, and log an error on every config reload. Same as `tls: {}`, but
+  # spelled out: changing an existing route from secretName to `{}` under
+  # server-side apply sends tls: null, which the CRD rejects.
+  tls:
+    store:
+      name: default
 ---
 # Alertmanager UI (no login of its own): behind the same Authentik edge gate
 # ('internal' group). Alert emails link here via alertmanagerSpec.externalUrl.
@@ -46,4 +50,6 @@ spec:
           name: prometheus-alertmanager
           namespace: monitoring
           port: 9093
-  tls: {}
+  tls:
+    store:
+      name: default
