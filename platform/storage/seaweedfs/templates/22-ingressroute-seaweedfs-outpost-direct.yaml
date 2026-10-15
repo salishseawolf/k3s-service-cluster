@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ak-outpost-seaweedfs-filer-direct
+  namespace: 'seaweedfs'
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  # The outpost's own endpoints (start, callback, sign_out, ping) can't sit
+  # behind the forward-auth they implement. Only this prefix bypasses it;
+  # nothing here proxies to the filer. Same pattern as copyparty's
+  # ak-outpost-copyparty-direct. Priority beats the filer route above.
+  - kind: Rule
+    match: Host(`filer-s3.{{ .Values.domain }}`) && PathPrefix(`/outpost.goauthentik.io/`)
+    priority: 150
+    services:
+    - name: ak-outpost-seaweedfs-filer
+      port: 9000
+  tls: {}
