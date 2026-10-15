@@ -511,6 +511,25 @@ alloy:
               template = "debug"
             }
           }
+          // Traefik's TCP allowlist doing its job: an IP outside
+          // adminSourceRanges tried Gitea SSH (2222) and was dropped. Logged as
+          // error; warn keeps it visible (a burst from one IP is worth a look).
+          stage.match {
+            selector = `{namespace="kube-system", container="traefik"} |= "middlewareType=IPAllowListerTCP" |= "matched none of the trusted IPs"`
+            stage.template {
+              source   = "level"
+              template = "warn"
+            }
+          }
+          // A client opened a TCP connection through the LB and sent nothing
+          // (port scanners). Traefik gives up waiting for the first byte.
+          stage.match {
+            selector = `{namespace="kube-system", container="traefik"} |= "Error while Peeking first byte" |= "i/o timeout"`
+            stage.template {
+              source   = "level"
+              template = "info"
+            }
+          }
           // Normalise to Loki's level names and attach as structured metadata
           // (not a label: no new streams); Loki uses it as detected_level.
           stage.template {
