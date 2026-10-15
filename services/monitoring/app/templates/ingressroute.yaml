@@ -20,8 +20,10 @@ spec:
           name: monitoring-grafana
           namespace: monitoring
           port: 80  # Grafana serves on port 80 inside the chart (default grafana.ini server port)
-  tls:
-    secretName: wildcard-salishseawolf-com-tls
+  # Traefik's default TLSStore serves the wildcard certificate. Naming the
+  # secret here made Traefik look for it in this namespace, where it doesn't
+  # exist, and log an error on every config reload.
+  tls: {}
 ---
 # Alertmanager UI (no login of its own): behind the same Authentik edge gate
 # ('internal' group). Alert emails link here via alertmanagerSpec.externalUrl.
@@ -44,5 +46,4 @@ spec:
           name: prometheus-alertmanager
           namespace: monitoring
           port: 9093
-  tls:
-    secretName: wildcard-salishseawolf-com-tls
+  tls: {}
