@@ -10,7 +10,12 @@ spec:
   - kind: Rule
     match: Host(`files.{{ .Values.domain }}`) && PathPrefix(`/outpost.goauthentik.io/`)
     priority: 150
+    # The outpost's own endpoints (start, callback, sign_out, ping) can't sit
+    # behind the forward-auth they implement. Only this prefix bypasses it;
+    # nothing here proxies to copyparty. Port 9000 is the outpost Service's
+    # http port (80 never existed, so Traefik dropped this route until
+    # 2026-10-15).
     services:
     - name: ak-outpost-copyparty
-      port: 80
+      port: 9000
   tls: {}
