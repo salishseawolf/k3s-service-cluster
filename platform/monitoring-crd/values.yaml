@@ -24,3 +24,13 @@ prometheus:
 
 alertmanager:
   enabled: false
+
+# The chart renders these even with Prometheus disabled. Prometheus selects
+# every ServiceMonitor, so they duplicated the monitoring app's kubelet,
+# apiserver and coredns scrapes (cAdvisor out-of-order samples, 2026-10-15).
+# The monitoring app owns all of them.
+kubernetesServiceMonitors:
+  enabled: false
+
+defaultRules:
+  create: false
