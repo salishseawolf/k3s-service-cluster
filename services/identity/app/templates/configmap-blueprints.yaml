@@ -57,6 +57,14 @@ data:
           config:
             kubernetes_namespace: copyparty
             object_naming_template: ak-outpost-copyparty
+            # Routing lives in git (ak-outpost-copyparty-direct IngressRoute plus the
+            # app's forward-auth Middleware). Authentik's own Ingress and
+            # Middleware were untracked duplicates pointing at a missing TLS
+            # secret. Disabled components are skipped, not deleted.
+            kubernetes_disabled_components:
+              - ingress
+              - traefik middleware
+              - httproute
             authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             authentik_host_browser: "https://auth.{{ .Values.domain }}"
   blueprint-default-login-customization.yaml: |
@@ -1308,6 +1316,14 @@ data:
           config:
             kubernetes_namespace: seaweedfs
             object_naming_template: ak-outpost-seaweedfs-filer
+            # Routing lives in git (ak-outpost-seaweedfs-filer-direct IngressRoute plus the
+            # app's forward-auth Middleware). Authentik's own Ingress and
+            # Middleware were untracked duplicates pointing at a missing TLS
+            # secret. Disabled components are skipped, not deleted.
+            kubernetes_disabled_components:
+              - ingress
+              - traefik middleware
+              - httproute
             authentik_host: http://identity-authentik-server.identity.svc.cluster.local
             authentik_host_browser: "https://auth.{{ .Values.domain }}"
   blueprint-argocd.yaml: |
