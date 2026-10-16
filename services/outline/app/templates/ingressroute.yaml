@@ -6,17 +6,19 @@ metadata:
 spec:
   entryPoints: [websecure]
   routes:
-    # MCP for agents, without forward-auth (no browser session), but only from
-    # mcpSourceRanges; Outline authenticates the API key (Authorization:
-    # Bearer) and enforces its scope and the agent user's permissions.
-    # ClientIP sees the real client because the LB sends PROXY protocol on
-    # 443. From anywhere else /mcp falls through to the forward-auth route.
-    # Only /mcp: the OAuth endpoints (/oauth/*, /.well-known/oauth-*) stay
-    # gated until phase 2 (docs/todo.md).
+    # Agents (MCP and the REST API), without forward-auth (no browser
+    # session), but only from mcpSourceRanges; Outline authenticates the API
+    # key (Authorization: Bearer) and enforces its scope and the agent user's
+    # permissions. /api/ is here because MCP tools carry text only: binary
+    # uploads (PDFs) go through attachments.create + files.create. ClientIP
+    # sees the real client because the LB sends PROXY protocol on 443. From
+    # anywhere else these paths fall through to the forward-auth route.
+    # The OAuth endpoints (/oauth/*, /.well-known/oauth-*) stay gated until
+    # phase 2 (docs/todo.md).
     - kind: Rule
       match: >-
         Host(`wiki.{{ .Values.domain }}`) &&
-        (Path(`/mcp`) || PathPrefix(`/mcp/`)) &&
+        (Path(`/mcp`) || PathPrefix(`/mcp/`) || PathPrefix(`/api/`)) &&
         ClientIP({{ range $i, $c := .Values.mcpSourceRanges }}{{ if $i }}, {{ end }}`{{ $c }}`{{ end }})
       priority: 200
       services:

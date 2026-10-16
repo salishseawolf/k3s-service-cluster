@@ -9,12 +9,13 @@ secrets:
   name: outline-secrets
   itemPath: "vaults/K3s Service Cluster/items/Outline Secrets"
 
-# /mcp bypasses forward-auth (agents have no browser session) and is reachable
-# only from these sources; Outline checks the API key itself. Phase 2 (cloud
-# connectors over OAuth) would drop this allowlist: docs/todo.md.
+# /mcp and /api/ bypass forward-auth (agents have no browser session) and are
+# reachable only from these sources; Outline checks the API key itself.
+# Phase 2 (cloud connectors over OAuth) would drop this allowlist:
+# docs/todo.md.
 mcpSourceRanges:
   - 73.97.54.81/32     # workstation (also in adminSourceRanges)
-  - 46.62.156.134/32   # Hermes agent on Hetzner: /mcp only
+  - 46.62.156.134/32   # Hermes agent on Hetzner: /mcp and /api/ only
 
 # Traefik is a hostNetwork DaemonSet: it reaches pods from node addresses
 # (private net, or each node's flannel .0/.1 for pods on another node).

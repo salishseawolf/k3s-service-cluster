@@ -367,7 +367,7 @@ Web routes, by design:
 - **Token exceptions** bypass forward-auth only with a `ClientIP` rule:
   Gitea's git smart-HTTP, `/api` and `/v2` (`adminSourceRanges` + pod
   network `10.42.0.0/16`), Argo CD's `/api` (`adminSourceRanges`), and
-  Outline's `/mcp` (`mcpSourceRanges` in `services/outline/app/values.yaml`:
+  Outline's `/mcp` and `/api/` (`mcpSourceRanges` in `services/outline/app/values.yaml`:
   the workstation and the Hermes agent host only; Outline checks the API key
   and its scope; docs/OUTLINE-WIKI.md).
   `ClientIP` sees the real client only because the LB sends PROXY protocol

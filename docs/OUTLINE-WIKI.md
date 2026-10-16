@@ -13,7 +13,7 @@ Status (2026-10-15): scaffolded in `services/outline/app/` and the
 database, identity and gatus charts; not yet deployed.
 
 Phase 1 exposes nothing new to the internet without an Authentik login,
-except `/mcp` to two fixed IPs. Phase 2 (cloud connectors over OAuth) is a
+except `/mcp` and `/api/` to two fixed IPs. Phase 2 (cloud connectors over OAuth) is a
 separate decision, tracked in `docs/todo.md`.
 
 ## Facts this plan relies on (checked 2026-10-15)
@@ -47,7 +47,7 @@ separate decision, tracked in `docs/todo.md`.
 | Attachments | `FILE_STORAGE=local`, PVC `outline-data` on `seaweedfs-storage` (10Gi), VolSync hourly to B2 |
 | Redis | Dedicated, in-namespace: the shared Redis is `allkeys-lru` / 200 MB, which would silently evict Outline's queue jobs; changing it affects every app. `noeviction`, no persistence, own password |
 | Browser | Authentik forward-auth on the host, then Outline's own OIDC login (Paperless pattern). MFA is enforced in Authentik |
-| Agents | `/mcp` only, `ClientIP` allowlist (workstation + Hermes), no forward-auth; Outline API key per agent user |
+| Agents | `/mcp` and `/api/` only, `ClientIP` allowlist (workstation + Hermes), no forward-auth; Outline API key per agent user |
 | Egress | DNS, Postgres, own Redis, Authentik's internal Service. Nothing else |
 | Monitoring | Gatus, PrometheusRule (`notify: email`), logs via Alloy to Loki |
 
@@ -111,6 +111,7 @@ Standard scaffolding (AGENT.md "Service Scaffolding"): namespace (PSA
 | `DATABASE_CONNECTION_POOL_MAX` | `5` | |
 | `REDIS_URL` | `redis://:$(REDIS_PASSWORD)@outline-redis:6379` | |
 | `FILE_STORAGE` / `FILE_STORAGE_LOCAL_ROOT_DIR` | `local` / `/var/lib/outline/data` | the PVC |
+| `FILE_STORAGE_UPLOAD_MAX_SIZE` | `100000000` | 100 MB per file (default 1 MB); imports inherit it; `/tmp` is 1Gi |
 | `FORCE_HTTPS` | `false` | Traefik terminates TLS and redirects; on, it would redirect probes and Gatus |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | from `outline-secrets` | |
 | `OIDC_AUTH_URI` | `https://auth.<domain>/application/o/authorize/` | browser-facing |
@@ -143,15 +144,20 @@ Notion, Linear, Figma, Dropbox, S3.
 ### 5. Routes (perimeter change, approved 2026-10-15)
 
 - `Host(wiki.<domain>)`: `authentik-forward-auth` (namespace `identity`),
-  Outline Service port 3000. Covers the editor, `/api`, the realtime
-  WebSocket, and `/oauth/*`.
-- `Host(wiki.<domain>) && PathPrefix(/mcp)`, higher priority: `ClientIP`
+  Outline Service port 3000. Covers the editor, the realtime WebSocket,
+  `/oauth/*`, and `/api/` from anywhere outside the allowlist.
+- `Host(wiki.<domain>) && (PathPrefix(/mcp) || PathPrefix(/api/))`, higher
+  priority: `ClientIP`
   allowlist, no forward-auth; Outline checks the `Authorization` header
   itself. Allowlist:
   - `73.97.54.81/32` (workstation, already in `adminSourceRanges`)
-  - `46.62.156.134/32` (Hermes on Hetzner): `/mcp` only, **not** added to
+  - `46.62.156.134/32` (Hermes on Hetzner): `/mcp` and `/api/` only, **not** added to
     `adminSourceRanges`
   Kept in `services/outline/app/values.yaml` as `mcpSourceRanges`.
+- `/api/` added 2026-10-16 (approved): MCP tools carry text only, so binary
+  uploads (PDFs) need the REST API (`attachments.create`, then
+  `files.create`). The same API key and scope apply; `files.create` accepts
+  only a signed upload or an attachment key owned by the caller.
 - No other path bypasses forward-auth. `/.well-known/oauth-*`,
   `/oauth/token`, `/oauth/register`, `/oauth/revoke` stay gated (phase 2).
 
@@ -239,8 +245,9 @@ claude mcp add --transport http outline \
 | 1 | `curl -I https://wiki.<domain>/` without a session | 302 to `auth.` |
 | 2 | First login via Authentik (MFA) | Outline user created, admin |
 | 3 | `curl -I https://wiki.<domain>/oauth/token` and `/.well-known/oauth-authorization-server` | 302 to `auth.` (gated) |
-| 4 | `/mcp` from an IP outside `mcpSourceRanges` | 403 from Traefik |
+| 4 | `/mcp` from an IP outside `mcpSourceRanges` | 302 to `auth.` (falls through to the forward-auth route) |
 | 5 | `/mcp` from the workstation with no key / a wrong key | 401 from Outline |
+| 5a | `/api/` from outside `mcpSourceRanges`; from the workstation with no key | 302 to `auth.`; 401 from Outline |
 | 6 | Read-only key: `tools/list` | no create/update/delete/move tools |
 | 7 | Read-only agent: search for a document in a collection it isn't in | not returned |
 | 8 | Hermes key: edit inside its collection, then outside | allowed / refused |
