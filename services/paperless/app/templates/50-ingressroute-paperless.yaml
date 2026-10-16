@@ -7,10 +7,26 @@ spec:
   entryPoints:
     - websecure
   routes:
+    # Agents: the REST API without forward-auth, but only from apiSourceRanges
+    # and only with a Paperless API token, which Paperless checks along with
+    # the user's permissions. Basic auth and session requests don't match and
+    # fall through to forward-auth. ClientIP sees the real client because the
+    # LB sends PROXY protocol on 443.
+    - match: >-
+        Host(`paperless.{{ .Values.domain }}`) &&
+        PathPrefix(`/api/`) &&
+        HeaderRegexp(`Authorization`, `^Token `) &&
+        ClientIP({{ range $i, $c := .Values.apiSourceRanges }}{{ if $i }}, {{ end }}`{{ $c }}`{{ end }})
+      kind: Rule
+      priority: 200
+      services:
+        - name: paperless
+          port: 80
     # Authentik forward-auth first, then Paperless' own login (OIDC via the
     # same Authentik session).
     - match: "Host(`paperless.{{ .Values.domain }}`)"
       kind: Rule
+      priority: 100
       middlewares:
         - name: authentik-forward-auth
           namespace: identity
