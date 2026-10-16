@@ -644,10 +644,12 @@ data:
 
       # ============================================================
       # Edge gate in front of apps that also log in via Authentik themselves
-      # (Gitea and Paperless OIDC, Kimai SAML): no request reaches their code
-      # without an Authentik session. Access mirrors each app's own
+      # (Gitea, Paperless and Outline OIDC, Kimai SAML): no request reaches
+      # their code without an Authentik session. Access mirrors each app's own
       # Authentik application: Gitea and Paperless have no binding (any
-      # Authentik user), Kimai is 'internal' only (binding below).
+      # Authentik user), Kimai is 'internal' only, Outline 'internal' and
+      # 'wiki-agents' (bindings below). Outline's /mcp bypasses this gate for
+      # mcpSourceRanges only (services/outline/app/templates/ingressroute.yaml).
       # meta_launch_url blank://blank hides these from the user library,
       # which already shows the apps' own tiles. Gitea's token paths (git
       # smart-HTTP, /api, /v2) bypass this gate for admin and pod-network
@@ -655,7 +657,8 @@ data:
       # ============================================================
 {{- range $app := list (dict "id" "gitea" "name" "Gitea" "host" "git")
                         (dict "id" "paperless" "name" "Paperless" "host" "paperless")
-                        (dict "id" "kimai" "name" "Kimai" "host" "kimai") }}
+                        (dict "id" "kimai" "name" "Kimai" "host" "kimai")
+                        (dict "id" "outline" "name" "Outline" "host" "wiki") }}
       - model: authentik_providers_proxy.proxyprovider
         state: present
         id: provider-{{ $app.id }}-fwd
@@ -689,6 +692,14 @@ data:
         id: group-internal
         identifiers:
           name: internal
+
+      # Outline agent users (one Authentik user per agent; docs/OUTLINE-WIKI.md
+      # step 10). Admitted to Outline only, never to the other apps.
+      - model: authentik_core.group
+        state: present
+        id: group-wiki-agents
+        identifiers:
+          name: wiki-agents
 
       - model: authentik_policies.policybinding
         state: present
@@ -755,6 +766,23 @@ data:
         attrs:
           group: !KeyOf group-internal
 
+      # Outline's own OIDC application has the same two bindings.
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 10
+          target: !KeyOf app-outline-fwd
+        attrs:
+          group: !KeyOf group-internal
+
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 11
+          target: !KeyOf app-outline-fwd
+        attrs:
+          group: !KeyOf group-wiki-agents
+
       # ============================================================
       # Embedded Outpost (all forward-auth providers)
       # ============================================================
@@ -776,6 +804,7 @@ data:
             - !Find [authentik_providers_proxy.proxyprovider, [name, "Gitea Forward Auth"]]
             - !Find [authentik_providers_proxy.proxyprovider, [name, "Paperless Forward Auth"]]
             - !Find [authentik_providers_proxy.proxyprovider, [name, "Kimai Forward Auth"]]
+            - !Find [authentik_providers_proxy.proxyprovider, [name, "Outline Forward Auth"]]
           config:
             authentik_host: "https://auth.{{ .Values.domain }}"
   blueprint-gitea.yaml: |
@@ -1066,6 +1095,78 @@ data:
           provider: !KeyOf paperless-provider
           meta_launch_url: https://paperless.{{ .Values.domain }}
           meta_description: Document management system
+  blueprint-outline.yaml: |
+    ---
+    version: 1
+    metadata:
+      name: Outline
+      labels:
+        blueprints.goauthentik.io/instantiate: "true"
+    entries:
+      - model: authentik_providers_oauth2.oauth2provider
+        state: present
+        id: provider-outline
+        identifiers:
+          name: Outline
+        attrs:
+          name: Outline
+          client_type: confidential
+          # Credential inversion: pre-generated in 1P ("Outline Secrets"),
+          # injected via env; Outline reads the same item.
+          client_id: !Env AUTHENTIK_OUTLINE_CLIENT_ID
+          client_secret: !Env AUTHENTIK_OUTLINE_CLIENT_SECRET
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          redirect_uris:
+            - matching_mode: strict
+              url: https://wiki.{{ .Values.domain }}/auth/oidc.callback
+          include_claims_in_id_token: true
+          sub_mode: hashed_user_id
+          access_code_validity: minutes=5
+          access_token_validity: hours=24
+          grant_types:
+            - authorization_code
+            - refresh_token
+          property_mappings:
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'openid'"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'profile'"]]
+            - !Find [authentik_core.propertymapping, [name, "authentik default OAuth Mapping: OpenID 'email'"]]
+          scope_set:
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+
+      - model: authentik_core.application
+        state: present
+        id: app-outline
+        identifiers:
+          name: Outline
+          slug: outline
+        attrs:
+          group: Services
+          provider: !KeyOf provider-outline
+          meta_launch_url: https://wiki.{{ .Values.domain }}
+          meta_description: Knowledge base (wiki)
+          policy_engine_mode: any
+
+      # Only 'internal' staff and the agent users may log in (groups are
+      # created by the forward-auth blueprint).
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 10
+          target: !KeyOf app-outline
+        attrs:
+          group: !Find [authentik_core.group, [name, internal]]
+
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          order: 11
+          target: !KeyOf app-outline
+        attrs:
+          group: !Find [authentik_core.group, [name, wiki-agents]]
   blueprint-password-policy.yaml: |
     version: 1
     metadata:

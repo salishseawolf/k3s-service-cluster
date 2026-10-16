@@ -61,6 +61,10 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 - [ ] gitea SSH via step-ca certificates (zero trust, replaces the IP allowlist): 1) with 2222 still admin-only, `step ssh login` against an Authentik OIDC provisioner issues short-lived user certs from the SSH user CA (`StepCA Secrets`/`ssh_user_ca_key`), and Gitea trusts it (`SSH_TRUSTED_USER_CA_KEYS`, principals mapped to Gitea users); 2) once certs work, decide whether to drop the 2222 allowlist (perimeter change, ground rule 2)
 - [x] argocd: `cannot reference a different revision of the same repository` (stuck syncs on 2026-10-10 and 2026-10-13, the second left Loki down). Fixed 2026-10-13: every app uses one source and loads `cluster-values.yaml` by relative path (`monitoring-crd` keeps two sources: different repos)
 
+## Outline wiki (`docs/OUTLINE-WIKI.md`)
+- [ ] phase 1: deploy per the plan (`/mcp` limited to the workstation and Hermes `46.62.156.134`, API keys only, `OAUTH_DISABLE_DCR=true`)
+- [ ] phase 2: cloud MCP connectors (Claude.ai, Gemini, etc.) over OAuth. Needs a perimeter decision (ground rule 2): expose `/mcp`, `/.well-known/oauth-authorization-server*`, `/.well-known/oauth-protected-resource*`, `/oauth/token`, `/oauth/register`, `/oauth/revoke` without forward-auth and drop the `/mcp` `ClientIP` allowlist; `/oauth/authorize` stays behind forward-auth. Before deciding: re-check https://github.com/outline/outline/security/advisories (four 2026 advisories hit OAuth scopes and MCP), add a Traefik `rateLimit` on the public paths, and alert on `OAuth client registered` log lines. OAuth clients choose their own scope (`read write`), so read-only cloud agents must consent signed in as a read-only agent user (private window), never as yourself
+
 ## Suggestions
 - [ ] S2: Add egress NetworkPolicy restrictions where safe
 - [ ] S5: Consider cluster monitoring

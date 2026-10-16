@@ -1,0 +1,62 @@
+---
+# Injected by the root ApplicationSet from platform/argocd/root/cluster-values.yaml
+domain: ""
+
+# One 1P item (docs/OUTLINE-WIKI.md step 1). Keys: db_password, secret_key,
+# utils_secret, oidc_client, oidc_secret, redis_password. db_password and
+# redis_password must be alphanumeric: they are spliced into URLs unescaped.
+secrets:
+  name: outline-secrets
+  itemPath: "vaults/K3s Service Cluster/items/Outline Secrets"
+
+# /mcp bypasses forward-auth (agents have no browser session) and is reachable
+# only from these sources; Outline checks the API key itself. Phase 2 (cloud
+# connectors over OAuth) would drop this allowlist: docs/todo.md.
+mcpSourceRanges:
+  - 73.97.54.81/32     # workstation (also in adminSourceRanges)
+  - 46.62.156.134/32   # Hermes agent on Hetzner: /mcp only
+
+# Traefik is a hostNetwork DaemonSet: it reaches pods from node addresses
+# (private net, or each node's flannel .0/.1 for pods on another node).
+# Pods can't use these addresses. Same list as services/copyparty and
+# platform/storage/seaweedfs; update all three when a node's podCIDR changes
+# (kubectl get nodes -o custom-columns=NAME:.metadata.name,CIDR:.spec.podCIDR).
+traefikSources:
+  - 192.168.0.0/16
+  - 10.42.0.0/31   # k3s-converged-node-01 (podCIDR 10.42.0.0/24)
+  - 10.42.3.0/31   # k3s-converged-node-02 (podCIDR 10.42.3.0/24)
+  - 10.42.1.0/31   # k3s-converged-node-03 (podCIDR 10.42.1.0/24)
+
+outline:
+  image:
+    repository: docker.io/outlinewiki/outline
+    tag: "1.11.0"
+  port: 3000
+  # The image's nodejs user; owns /var/lib/outline/data.
+  uid: 1001
+  storage:
+    size: 10Gi
+  # Outline sizes ~512 MiB per process (WEB_CONCURRENCY=1) and derives its
+  # heap limit from the cgroup limit.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1536Mi
+
+# Dedicated Redis: the shared one is allkeys-lru / 200 MB, which would
+# silently evict Outline's queue jobs. noeviction, no persistence.
+redis:
+  image:
+    repository: docker.io/library/redis
+    tag: "8.10.2-alpine"
+  maxmemory: 48mb
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 96Mi

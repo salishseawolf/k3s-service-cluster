@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: outline
+  labels:
+    # Both workloads and the VolSync mover run non-root with RuntimeDefault
+    # seccomp and no caps.
+    pod-security.kubernetes.io/enforce: restricted
+    app.kubernetes.io/managed-by: argocd

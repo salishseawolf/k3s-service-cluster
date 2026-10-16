@@ -1,0 +1,86 @@
+# Outline's own Redis (queues, cache, collaboration). Not the shared one:
+# that runs allkeys-lru, and an evicted queue job is silently lost. No volume:
+# everything here is rebuilt from Postgres.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outline-redis
+  namespace: outline
+  labels:
+    app.kubernetes.io/name: outline-redis
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: outline-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: outline-redis
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - redis-server
+            - --requirepass
+            - "$(REDIS_PASSWORD)"
+            - --maxmemory
+            - "{{ .Values.redis.maxmemory }}"
+            # Writes fail loudly when full instead of dropping queue jobs.
+            - --maxmemory-policy
+            - noeviction
+            # Read-only root and no volume: never try to snapshot (a failed
+            # save makes Redis refuse all writes, MISCONF).
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: redis_password}
+          ports:
+            - name: redis
+              containerPort: 6379
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket: {port: redis}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: redis}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: outline-redis
+  namespace: outline
+  labels:
+    app.kubernetes.io/name: outline-redis
+spec:
+  selector:
+    app.kubernetes.io/name: outline-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis

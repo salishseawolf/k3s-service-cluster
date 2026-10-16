@@ -1,0 +1,17 @@
+# Attachments and images (FILE_STORAGE=local). Documents live in Postgres.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: outline-data
+  namespace: outline
+  labels:
+    app.kubernetes.io/name: outline
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: seaweedfs-storage
+  resources:
+    requests:
+      storage: {{ .Values.outline.storage.size }}

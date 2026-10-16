@@ -1,0 +1,51 @@
+# VolSync restic backup of outline-data (attachments; hourly, minutes are
+# staggered across services so the movers don't all hit SeaweedFS/B2 at the
+# top of the hour). Documents live in Postgres and are covered by barman.
+#
+# The 1P item carries the restic env verbatim (the operator cannot template,
+# so the vault does): RESTIC_REPOSITORY, RESTIC_PASSWORD, AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY, with its own scoped B2 key (AGENT.md "VolSync B2
+# credentials"). Restic repositories must never be shared.
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: volsync-b2-outline-data
+  namespace: outline
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 outline-data"
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: outline-data
+  namespace: outline
+spec:
+  sourcePVC: outline-data
+  trigger:
+    schedule: "20 * * * *"
+  restic:
+    repository: volsync-b2-outline-data
+    # Direct: neither hcloud-csi nor seaweedfs-csi supports snapshots or
+    # cloning, so the mover mounts the live PVC (file-level crash
+    # consistency; attachments are written once).
+    copyMethod: Direct
+    pruneIntervalDays: 7
+    retain:
+      hourly: 12
+      daily: 5
+      weekly: 4
+      monthly: 2
+      yearly: 1
+    cacheCapacity: 2Gi
+    # Not local-path: copyMethod Direct runs the mover on the app pod's node,
+    # and a node-pinned cache deadlocks the backup after a reschedule.
+    cacheStorageClassName: seaweedfs-storage
+    # PSA restricted: VolSync sets the container half; these pod fields
+    # complete it, as the uid that owns the volume's files.
+    moverSecurityContext:
+      runAsUser: {{ .Values.outline.uid }}
+      runAsGroup: {{ .Values.outline.uid }}
+      fsGroup: {{ .Values.outline.uid }}
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault

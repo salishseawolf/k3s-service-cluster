@@ -79,6 +79,13 @@ spec:
         inherit: true
         passwordSecret:
           name: umami-db-user-auth
+      - name: outline_user
+        ensure: present
+        login: true
+        connectionLimit: -1
+        inherit: true
+        passwordSecret:
+          name: outline-db-user-auth
 
   # Backup via Barman Cloud Plugin -> Backblaze B2
   plugins:

@@ -1,0 +1,152 @@
+{{- $auth := printf "https://auth.%s/application/o" .Values.domain }}
+{{- $authInternal := "http://identity-authentik-server.identity.svc.cluster.local/application/o" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outline
+  namespace: outline
+  labels:
+    app.kubernetes.io/name: outline
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  # RWO data volume: never run two pods at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: outline
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: outline
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: {{ .Values.outline.uid }}
+        runAsGroup: {{ .Values.outline.uid }}
+        runAsNonRoot: true
+        fsGroup: {{ .Values.outline.uid }}
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: outline
+          image: "{{ .Values.outline.image.repository }}:{{ .Values.outline.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: {{ .Values.outline.port }}
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: URL
+              value: "https://wiki.{{ .Values.domain }}"
+            - name: PORT
+              value: "{{ .Values.outline.port }}"
+            - name: WEB_CONCURRENCY
+              value: "1"
+            # Traefik terminates TLS and redirects HTTP; on, Outline would
+            # redirect probes and Gatus (no X-Forwarded-Proto).
+            - name: FORCE_HTTPS
+              value: "false"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: secret_key}
+            - name: UTILS_SECRET
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: utils_secret}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: db_password}
+            - name: DATABASE_URL
+              value: "postgres://outline_user:$(DB_PASSWORD)@main-db-rw.database.svc.cluster.local:5432/outline"
+            - name: PGSSLMODE
+              value: disable
+            - name: DATABASE_CONNECTION_POOL_MAX
+              value: "5"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: redis_password}
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@outline-redis.outline.svc.cluster.local:6379"
+            - name: FILE_STORAGE
+              value: local
+            - name: FILE_STORAGE_LOCAL_ROOT_DIR
+              value: /var/lib/outline/data
+            # Authentik OIDC. The browser goes to the public authorize URL;
+            # Outline's own token and userinfo calls stay in-cluster (manual
+            # endpoints: no issuer discovery or validation).
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: oidc_client}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.name }}, key: oidc_secret}
+            - name: OIDC_AUTH_URI
+              value: "{{ $auth }}/authorize/"
+            - name: OIDC_TOKEN_URI
+              value: "{{ $authInternal }}/token/"
+            - name: OIDC_USERINFO_URI
+              value: "{{ $authInternal }}/userinfo/"
+            - name: OIDC_LOGOUT_URI
+              value: "{{ $auth }}/outline/end-session/"
+            - name: OIDC_DISPLAY_NAME
+              value: Authentik
+            - name: OIDC_SCOPES
+              value: "openid profile email"
+            # Phase 1: agents use API keys only, so no OAuth client
+            # registration (docs/todo.md, phase 2).
+            - name: OAUTH_DISABLE_DCR
+              value: "true"
+            # No anonymized usage stats to the maintainers.
+            - name: ENABLE_UPDATES
+              value: "false"
+            # No per-request logs: document URLs carry title slugs.
+            - name: DEBUG
+              value: ""
+            - name: LOG_LEVEL
+              value: info
+            - name: RATE_LIMITER_ENABLED
+              value: "true"
+            - name: DEFAULT_LANGUAGE
+              value: en_US
+          # First start runs the database migrations before listening.
+          startupProbe:
+            httpGet:
+              path: /_health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.outline.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/outline/data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: outline-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

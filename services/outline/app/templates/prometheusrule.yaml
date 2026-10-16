@@ -1,0 +1,54 @@
+# Outline availability alerts, emailed via Alertmanager. `release: monitoring`
+# is what Prometheus' ruleSelector matches (any namespace); `notify: email` is
+# what routes an alert to the email receiver in services/monitoring. Outline
+# has no metrics endpoint, so these use kube-state-metrics. Backups are
+# covered for every ReplicationSource by VolSyncBackupStuck /
+# VolSyncBackupOutOfSync (platform/volsync), the database by the CNPG rules.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: outline
+  namespace: outline
+  labels:
+    app.kubernetes.io/name: outline
+    release: monitoring
+spec:
+  groups:
+    - name: outline
+      rules:
+        - alert: OutlineDown
+          expr: |
+            kube_deployment_status_replicas_available{namespace="outline", deployment="outline"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: Outline wiki is down
+            description: >-
+              No ready Outline pod for 5 minutes (wiki and /mcp unavailable).
+              Check: kubectl -n outline get pods; kubectl -n outline logs deploy/outline
+        - alert: OutlineRedisDown
+          expr: |
+            kube_deployment_status_replicas_available{namespace="outline", deployment="outline-redis"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: Outline's Redis is down
+            description: >-
+              No ready outline-redis pod for 5 minutes; Outline's queues and
+              collaboration stop. Check: kubectl -n outline get pods
+        - alert: OutlineCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="outline", container=~"outline|redis"}[15m]) > 3
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: Outline container restarting repeatedly
+            description: >-
+              {{`{{ $labels.pod }}/{{ $labels.container }}`}} restarted more than 3
+              times in 15 minutes. Check: kubectl -n outline describe pod {{`{{ $labels.pod }}`}};
+              kubectl -n outline logs {{`{{ $labels.pod }}`}} -c {{`{{ $labels.container }}`}} --previous

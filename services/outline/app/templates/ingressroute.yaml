@@ -1,0 +1,36 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: outline
+  namespace: outline
+spec:
+  entryPoints: [websecure]
+  routes:
+    # MCP for agents, without forward-auth (no browser session), but only from
+    # mcpSourceRanges; Outline authenticates the API key (Authorization:
+    # Bearer) and enforces its scope and the agent user's permissions.
+    # ClientIP sees the real client because the LB sends PROXY protocol on
+    # 443. From anywhere else /mcp falls through to the forward-auth route.
+    # Only /mcp: the OAuth endpoints (/oauth/*, /.well-known/oauth-*) stay
+    # gated until phase 2 (docs/todo.md).
+    - kind: Rule
+      match: >-
+        Host(`wiki.{{ .Values.domain }}`) &&
+        (Path(`/mcp`) || PathPrefix(`/mcp/`)) &&
+        ClientIP({{ range $i, $c := .Values.mcpSourceRanges }}{{ if $i }}, {{ end }}`{{ $c }}`{{ end }})
+      priority: 200
+      services:
+        - name: outline
+          port: {{ .Values.outline.port }}
+    # Everything else: Authentik forward-auth first, then Outline's own login
+    # (OIDC via the same Authentik session).
+    - kind: Rule
+      match: "Host(`wiki.{{ .Values.domain }}`)"
+      priority: 100
+      middlewares:
+        - name: authentik-forward-auth
+          namespace: identity
+      services:
+        - name: outline
+          port: {{ .Values.outline.port }}
+  tls: {}

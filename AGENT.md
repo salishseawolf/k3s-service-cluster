@@ -75,6 +75,7 @@ services/*/app/             Argo CD: application Helm charts
   homarr/                    Dashboard (edge-gated forward-auth)
   paperless/                 Document management (OIDC)
   kimai/                     Time tracking with its own MariaDB (SAML)
+  outline/                   Wiki for people and AI agents (OIDC; /mcp for agents)
   gatus/                     Health monitoring (edge-gated)
   umami/                     Privacy-first web analytics
   monitoring/                Prometheus, Loki, Alloy, Grafana
@@ -361,11 +362,14 @@ Web routes, by design:
   people outside the org), Umami's tracking paths, and Authentik itself
   (`auth.`, the login page, rate-limited).
 - **Everything else is behind forward-auth.** Apps with their own Authentik
-  login (Gitea, Paperless OIDC; Kimai SAML) are gated too, so no request
+  login (Gitea, Paperless, Outline OIDC; Kimai SAML) are gated too, so no request
   reaches their code without an Authentik session.
 - **Token exceptions** bypass forward-auth only with a `ClientIP` rule:
   Gitea's git smart-HTTP, `/api` and `/v2` (`adminSourceRanges` + pod
-  network `10.42.0.0/16`), and Argo CD's `/api` (`adminSourceRanges`).
+  network `10.42.0.0/16`), Argo CD's `/api` (`adminSourceRanges`), and
+  Outline's `/mcp` (`mcpSourceRanges` in `services/outline/app/values.yaml`:
+  the workstation and the Hermes agent host only; Outline checks the API key
+  and its scope; docs/OUTLINE-WIKI.md).
   `ClientIP` sees the real client only because the LB sends PROXY protocol
   and Traefik trusts it on that entrypoint; an LB service without
   `proxyprotocol = true` makes every client look like the LB's private IP

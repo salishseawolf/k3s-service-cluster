@@ -1,0 +1,8 @@
+---
+apiVersion: v2
+name: outline
+description: >-
+  Outline wiki (confidential knowledge base for people and AI agents) with its
+  own Redis. Plain templates; plan and rationale in docs/OUTLINE-WIKI.md.
+type: application
+version: 0.1.0

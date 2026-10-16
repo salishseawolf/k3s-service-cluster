@@ -9,9 +9,9 @@ restoring persistent data from Backblaze B2 backups.
 ### Backup inventory
 | Data | Location | Backup Method | RPO |
 |---|---|---|---|
-| CNPG PostgreSQL (6 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
+| CNPG PostgreSQL (8 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
-| All PVCs (Gitea, Paperless, Kimai, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (hourly; retain 12h/5d/4w/2m/1y) | ~1h |
+| All PVCs (Gitea, Paperless, Kimai, Outline attachments, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (hourly; retain 12h/5d/4w/2m/1y) | ~1h |
 | Kimai MariaDB (`kimai-mariadb-data`) | B2 `volsync/kimai/kimai-db-dump` | Hourly `mariadb-dump --single-transaction` (:15) into the `kimai-db-dump` PVC, uploaded by VolSync (:45). The data dir itself is not copied (only crash-consistent). Failures email admin@ via Alertmanager | ~1h |
 | step-ca database (`database-step-ca-0`, 10Gi, `hcloud-volumes`) | **Not backed up (accepted)** | Survives node loss (Hetzner network volume). On total loss: CA keys come back from 1P, cert-manager re-registers its ACME account, issued certs keep working; only the issued/revoked-cert records are gone | — |
 | SeaweedFS blob store (`seaweedfs-data`) | Not backed up directly | Reconstructed by per-PVC VolSync restores into a fresh SeaweedFS | — |
@@ -139,7 +139,7 @@ it empty) so SeaweedFS starts fresh; VolSync then repopulates every
 seaweedfs-backed PVC at the file level.
 
 For each backed-up PVC (gitea-data, paperless-data, paperless-media,
-copyparty-data, kimai-data, kimai-db-dump), scale the consuming
+copyparty-data, kimai-data, kimai-db-dump, outline-data), scale the consuming
 workload to 0, then restore into the (empty, Argo-recreated) PVC with a
 ReplicationDestination using the same `volsync-b2-<pvc>` secret:
 
@@ -233,7 +233,10 @@ kubectl -n argocd get applications -w
 4. Paperless at `https://paperless.<domain>/` — documents searchable
 5. Homarr at `https://dashboard.<domain>/` — widgets load
 6. Copyparty at `https://files.<domain>/` — shares accessible
-7. Gatus reports all-green for all endpoints
+7. Outline at `https://wiki.<domain>/`: documents (CNPG `outline`) and their
+   attachments (`outline-data`) both present; restore both to matching points
+   in time. Its Redis is disposable
+8. Gatus reports all-green for all endpoints
 
 ## Appendix: Restore testing drill
 **Never trust a backup that hasn't been restored.** Perform a drill at least

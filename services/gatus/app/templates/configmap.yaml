@@ -201,6 +201,26 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+      # Outline admits Gatus' namespace explicitly (not the pod CIDR).
+      - name: Outline
+        group: services
+        url: "http://outline.outline.svc.cluster.local:3000/_health"
+        headers:
+          Host: "wiki.{{ .Values.domain }}"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+          - "[BODY] == OK"
+        failures: 3
+        success: 2
+      - name: Outline Redis
+        group: database
+        url: "tcp://outline-redis.outline.svc.cluster.local:6379"
+        interval: 60s
+        conditions:
+          - "[CONNECTED] == true"
+        failures: 3
+        success: 2
       - name: Homarr
         group: services
         url: "tcp://homarr.homarr.svc.cluster.local:7575"

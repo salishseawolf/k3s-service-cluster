@@ -64,6 +64,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: umami
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: outline
       ports:
         - protocol: TCP
           port: 5432
