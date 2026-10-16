@@ -80,6 +80,10 @@ spec:
               value: local
             - name: FILE_STORAGE_LOCAL_ROOT_DIR
               value: /var/lib/outline/data
+            # Per-file cap (bytes); imports inherit it. Outline's default is
+            # 1 MB. Uploads stage in /tmp, which is capped at 1Gi below.
+            - name: FILE_STORAGE_UPLOAD_MAX_SIZE
+              value: "100000000"
             # Authentik OIDC. The browser goes to the public authorize URL;
             # Outline's own token and userinfo calls stay in-cluster (manual
             # endpoints: no issuer discovery or validation).
