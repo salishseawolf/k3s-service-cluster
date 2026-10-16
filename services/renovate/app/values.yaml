@@ -5,7 +5,7 @@ domain: ""
 
 image:
   repository: ghcr.io/renovatebot/renovate
-  tag: "44.149.0"
+  tag: "44.165.1"
 
 # Hourly: Renovate's working cadence (open PRs once CI passes, act on
 # Dependency Dashboard clicks, rebase, clean up merged branches). *New*
