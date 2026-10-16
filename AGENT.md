@@ -369,7 +369,10 @@ Web routes, by design:
   network `10.42.0.0/16`), Argo CD's `/api` (`adminSourceRanges`), and
   Outline's `/mcp` and `/api/` (`mcpSourceRanges` in `services/outline/app/values.yaml`:
   the workstation and the Hermes agent host only; Outline checks the API key
-  and its scope; docs/OUTLINE-WIKI.md).
+  and its scope; docs/OUTLINE-WIKI.md), and Paperless's `/api/`
+  (`apiSourceRanges` in `services/paperless/app/values.yaml`, same two hosts,
+  and only with an `Authorization: Token` header, so Basic auth with a local
+  password never skips Authentik's MFA).
   `ClientIP` sees the real client only because the LB sends PROXY protocol
   and Traefik trusts it on that entrypoint; an LB service without
   `proxyprotocol = true` makes every client look like the LB's private IP

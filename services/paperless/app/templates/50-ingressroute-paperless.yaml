@@ -11,11 +11,13 @@ spec:
     # and only with a Paperless API token, which Paperless checks along with
     # the user's permissions. Basic auth and session requests don't match and
     # fall through to forward-auth. ClientIP sees the real client because the
-    # LB sends PROXY protocol on 443.
+    # LB sends PROXY protocol on 443. HeadersRegexp is Traefik v2 syntax (K3s
+    # ships 2.11); v3 renames it HeaderRegexp. An invalid rule drops this
+    # router, so everything falls through to forward-auth.
     - match: >-
         Host(`paperless.{{ .Values.domain }}`) &&
         PathPrefix(`/api/`) &&
-        HeaderRegexp(`Authorization`, `^Token `) &&
+        HeadersRegexp(`Authorization`, `^Token `) &&
         ClientIP({{ range $i, $c := .Values.apiSourceRanges }}{{ if $i }}, {{ end }}`{{ $c }}`{{ end }})
       kind: Rule
       priority: 200
