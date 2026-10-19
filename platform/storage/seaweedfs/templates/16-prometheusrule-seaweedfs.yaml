@@ -44,7 +44,7 @@ spec:
               The master keeps failing to pick a writable volume ("No writable
               volumes"). Check volume growth: curl seaweedfs-internal:9333/dir/status
               and the weed server log.
-        # -volume.max=100 one-GiB volumes; each PVC is its own collection.
+        # -volume.max=150 one-GiB volumes; each PVC is its own collection.
         - alert: SeaweedFSVolumeSlotsLow
           expr: |
             sum(SeaweedFS_volumeServer_volumes{type="volume"})

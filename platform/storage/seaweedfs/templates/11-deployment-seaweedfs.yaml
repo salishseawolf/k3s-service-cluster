@@ -114,7 +114,10 @@ spec:
         - -filer.port=8888
         - -s3.port=8333
         - -dir=/data
-        - -volume.max=100
+        # 150, not 100 (2026-10-19): the filer's metadata log took all 100
+        # slots, and after the cleanup each cleared volume kept one tiny log
+        # chunk, so deleteEmpty couldn't free them. Slots cost no disk.
+        - -volume.max=150
         # 1 GiB volumes (default 30 GiB): the CSI driver gives every PVC its
         # own collection, so volume slots, not bytes, run out first.
         - -master.volumeSizeLimitMB=1024
