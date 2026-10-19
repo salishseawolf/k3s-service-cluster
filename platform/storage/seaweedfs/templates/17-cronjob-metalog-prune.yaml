@@ -51,10 +51,20 @@ spec:
                   ws() { timeout 600 weed shell -master=$host:9333 -filer=$host:8888; }
                   log=/topics/.system/log
                   cutoff=$(date -u -d "@$(( $(date +%s) - {{ .Values.metaLogPrune.retentionDays }} * 86400 ))" +%Y%m%d)
-                  days=$(wget -qO- --header="Accept: application/json" \
-                    "http://$host:8888$log/?limit=1000" \
-                    | grep -oE "\"FullPath\":\"$log/[0-9]{4}-[0-9]{2}-[0-9]{2}\"" \
+                  # K3s' policy controller admits a new pod's IP a few seconds
+                  # after it starts (connection refused until then): retry up
+                  # to 60s. Fetched to a file, not piped, so a failure is not
+                  # hidden behind the pipeline's last command.
+                  for i in $(seq 1 30); do
+                    wget -qO /tmp/days.json --header="Accept: application/json" \
+                      "http://$host:8888$log/?limit=1000" && break
+                    sleep 2
+                  done
+                  [ -s /tmp/days.json ] || { echo "filer unreachable"; exit 1; }
+                  days=$(grep -oE "\"FullPath\":\"$log/[0-9]{4}-[0-9]{2}-[0-9]{2}\"" /tmp/days.json \
                     | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | sort -u)
+                  # Today's folder always exists, so an empty list is an error.
+                  [ -n "$days" ] || { echo "no log days listed under $log"; exit 1; }
                   old=""
                   for d in $days; do
                     if [ "$(echo "$d" | tr -d -)" -lt "$cutoff" ]; then old="$old $d"; fi
