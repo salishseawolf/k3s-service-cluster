@@ -402,8 +402,8 @@ A records.
 
 ## Storage
 
-App data (including databases) lives on `seaweedfs-storage`; system storage
-(CNPG, step-ca, SeaweedFS's own disk) on `hcloud-volumes`. **Exception:**
+App data lives on `seaweedfs-storage`; databases and system storage (CNPG,
+the shared MariaDB, step-ca, SeaweedFS's own disk) on `hcloud-volumes`. **Exception:**
 monitoring never depends on the storage it watches, so Loki uses a Hetzner
 volume and Prometheus and Alertmanager use capped `emptyDir`s (history resets
 on pod restart, by choice). Until 2026-10 every
@@ -434,6 +434,12 @@ on pod restart, by choice). Until 2026-10 every
   the volume.
 - **On nodes, move files by their real path.** `mv` across mount points (a bind
   mount of `/` included) copies, and filled node-02 once.
+- **The filer's metadata log is pruned nightly.** `/topics/.system/log` records
+  every change with the file's whole chunk list, and weed never prunes it; a
+  database's redo log on SeaweedFS (Kimai's MariaDB) wrote ~10 GiB/day and
+  took all 100 volume slots on 2026-10-18. `seaweedfs-metalog-prune` keeps
+  `metaLogPrune.retentionDays` and fails, emailing, above `maxGiB`. Databases
+  go on `hcloud-volumes` (CNPG, the shared MariaDB), not SeaweedFS.
 - Restic locks left by killed movers: `mise run //services/<svc>:backup:locks`
   and `...:backup:<repo>:unlock [--all]`.
 

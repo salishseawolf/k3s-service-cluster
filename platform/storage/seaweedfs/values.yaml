@@ -11,3 +11,15 @@ traefikSources:
   - 10.42.0.0/31   # k3s-converged-node-01 (podCIDR 10.42.0.0/24)
   - 10.42.3.0/31   # k3s-converged-node-02 (podCIDR 10.42.3.0/24)
   - 10.42.1.0/31   # k3s-converged-node-03 (podCIDR 10.42.1.0/24)
+
+# Nightly prune of the filer's metadata log (/topics/.system/log): weed keeps
+# every change event forever (no retention flag in 4.32), and on 2026-10-18 it
+# filled all 100 volume slots (~10 GiB/day from Kimai's MariaDB). Normal rate
+# after the move: ~100 MiB/day. Mount clients only replay events since they
+# disconnected, so days of margin are plenty.
+metaLogPrune:
+  schedule: "30 3 * * *"
+  retentionDays: 7
+  # The Job fails (and emails, via the PrometheusRule) when the log is still
+  # bigger than this after pruning: ~100x the normal daily rate.
+  maxGiB: 10

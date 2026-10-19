@@ -141,3 +141,41 @@ spec:
               At this size the node can be OOM-starved within the hour (node-02,
               2026-10-13). Stop the app whose mount is growing now.
 
+    # The nightly metadata-log prune (17-cronjob-metalog-prune.yaml). A failed
+    # run means either the prune broke or the log is over metaLogPrune.maxGiB
+    # (the Job log says which); both lead back to the 2026-10-18 slot outage.
+    - name: seaweedfs-metalog
+      rules:
+        - alert: SeaweedFSMetaLogPruneFailed
+          expr: |
+            max by (namespace) (
+              kube_job_status_start_time{namespace="seaweedfs", job_name=~"seaweedfs-metalog-prune-.*"}
+              * on (namespace, job_name) group_left ()
+              (kube_job_failed{namespace="seaweedfs", job_name=~"seaweedfs-metalog-prune-.*", condition="true"} == 1)
+            )
+            > on (namespace)
+            max by (namespace) (kube_cronjob_status_last_successful_time{namespace="seaweedfs", cronjob="seaweedfs-metalog-prune"})
+          for: 1m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: SeaweedFS metadata-log prune failed (or the log is too big)
+            description: >-
+              The nightly seaweedfs-metalog-prune Job failed: either pruning
+              broke or /topics is still over {{ .Values.metaLogPrune.maxGiB }} GiB
+              after it, meaning some app rewrites large files nonstop.
+              Check: kubectl -n seaweedfs logs job/<name>
+        - alert: SeaweedFSMetaLogPruneStale
+          expr: |
+            time() - max by (namespace) (kube_cronjob_status_last_successful_time{namespace="seaweedfs", cronjob="seaweedfs-metalog-prune"}) > 50 * 3600
+          for: 10m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: No successful SeaweedFS metadata-log prune in 2 days
+            description: >-
+              seaweedfs-metalog-prune runs nightly but has not succeeded for
+              over 50 hours (suspended, PSA-rejected, or failing).
+              Check: kubectl -n seaweedfs get cronjob seaweedfs-metalog-prune; kubectl -n seaweedfs get events

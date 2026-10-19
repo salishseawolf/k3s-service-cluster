@@ -1,0 +1,92 @@
+# Deletes metadata-log days older than metaLogPrune.retentionDays, compacts
+# the freed volumes (otherwise only the master's 15-min vacuum would), and
+# fails if the log is still over metaLogPrune.maxGiB: some app is rewriting
+# large files nonstop (each rewrite logs the file's whole chunk list; the
+# 2026-10-18 incident). Alerts: SeaweedFSMetaLog* in the PrometheusRule.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: seaweedfs-metalog-prune
+  namespace: seaweedfs
+  labels:
+    app.kubernetes.io/name: seaweedfs-metalog-prune
+spec:
+  schedule: {{ .Values.metaLogPrune.schedule | quote }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: seaweedfs-metalog-prune
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 65534
+            runAsGroup: 65534
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: prune
+              # Same image as the weed server (11-deployment-seaweedfs.yaml), so
+              # weed shell matches the server's version.
+              image: 'chrislusf/seaweedfs:4.32_full'
+              imagePullPolicy: IfNotPresent
+              command:
+                - sh
+                - -ec
+                - |
+                  # The address the server advertises; weed shell derives the
+                  # gRPC ports (+10000) from these.
+                  host=seaweedfs-headless.seaweedfs.svc.cluster.local
+                  ws() { weed shell -master=$host:9333 -filer=$host:8888; }
+                  log=/topics/.system/log
+                  cutoff=$(date -u -d "@$(( $(date +%s) - {{ .Values.metaLogPrune.retentionDays }} * 86400 ))" +%Y%m%d)
+                  days=$(wget -qO- --header="Accept: application/json" \
+                    "http://$host:8888$log/?limit=1000" \
+                    | grep -oE "\"FullPath\":\"$log/[0-9]{4}-[0-9]{2}-[0-9]{2}\"" \
+                    | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | sort -u)
+                  old=""
+                  for d in $days; do
+                    if [ "$(echo "$d" | tr -d -)" -lt "$cutoff" ]; then old="$old $d"; fi
+                  done
+                  echo "days: $(echo $days | wc -w), deleting (before $cutoff):${old:- none}"
+                  for d in $old; do echo "fs.rm -r $log/$d"; done | ws
+                  printf 'lock\nvolume.vacuum -garbageThreshold 0.3\nunlock\n' | ws
+                  bytes=$(echo "fs.du /topics" | ws | grep -oE 'logical size: *[0-9]+' | grep -oE '[0-9]+$')
+                  echo "metadata log after prune: $bytes bytes"
+                  [ -n "$bytes" ] || { echo "fs.du gave no size"; exit 1; }
+                  if [ "$bytes" -gt $(( {{ .Values.metaLogPrune.maxGiB }} * 1073741824 )) ]; then
+                    echo "over {{ .Values.metaLogPrune.maxGiB }} GiB: find the writer (fs.meta.tail, or sample a log file)"
+                    exit 1
+                  fi
+              env:
+                # weed shell keeps state under $HOME; the root fs is read-only.
+                - name: HOME
+                  value: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
