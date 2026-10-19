@@ -43,6 +43,13 @@ kimai:
       cpu: "1"
       memory: 1Gi
 
+# The shared MariaDB in the database namespace (services/mariadb/app). Its
+# image tag lives there, so serverVersion is pinned here: Doctrine only uses
+# it to pick the SQL platform; bump it with a major MariaDB upgrade.
+database:
+  host: mariadb.database.svc.cluster.local
+  serverVersion: "13.0.2"
+
 mariadb:
   # Official image: Renovate tracks it, and DATABASE_URL's serverVersion is
   # derived from this tag, so a bump needs no other edit.

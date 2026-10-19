@@ -80,7 +80,7 @@ spec:
                   name: {{ .Values.secrets.name }}
                   key: mariadb-password
             - name: DATABASE_URL
-              value: "mysql://{{ .Values.mariadb.user }}:$(DB_PASSWORD)@kimai-mariadb:3306/{{ .Values.mariadb.database }}?charset=utf8mb4&serverVersion={{ regexFind "^[0-9]+\\.[0-9]+\\.[0-9]+" .Values.mariadb.image.tag }}-MariaDB"
+              value: "mysql://{{ .Values.mariadb.user }}:$(DB_PASSWORD)@{{ .Values.database.host }}:3306/{{ .Values.mariadb.database }}?charset=utf8mb4&serverVersion={{ .Values.database.serverVersion }}-MariaDB"
             - name: TRUSTED_HOSTS
               value: "localhost|kimai.{{ .Values.domain }}"
             - name: TRUSTED_PROXIES
