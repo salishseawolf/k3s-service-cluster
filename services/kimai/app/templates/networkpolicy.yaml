@@ -29,8 +29,8 @@ metadata:
   name: allow-ingress-traefik
   namespace: kimai
 spec:
-  # Kimai only: MariaDB is reachable from inside this namespace and nowhere
-  # else (these ipBlocks cover node IPs and the whole pod CIDR).
+  # Kimai's pod (these ipBlocks cover node IPs and the whole pod CIDR). Its
+  # database is the shared MariaDB in the database namespace.
   podSelector:
     matchLabels:
       app.kubernetes.io/name: kimai

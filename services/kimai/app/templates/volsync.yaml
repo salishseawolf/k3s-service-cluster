@@ -8,14 +8,12 @@
 # be shared between ReplicationSources.
 #
 #   kimai-data     app files, written by Kimai as www-data (33)
-#   kimai-db-dump  latest logical DB dump, written by the dump CronJob as
-#                  mysql (999) at :15, uploaded here at :45
 #
-# kimai-mariadb-data itself is deliberately NOT backed up: a live copy of
-# InnoDB files is only crash-consistent; the dump is the DB backup.
+# The database lives in the shared MariaDB (services/mariadb/app), whose
+# per-tenant dump is backed up there. The old kimai-db-dump repository keeps
+# its history in B2 (backup:db-dump:* tasks in services/kimai/mise.toml).
 {{- range $pvc, $cfg := dict
-  "kimai-data"    (dict "minute" "25" "uid" 33)
-  "kimai-db-dump" (dict "minute" "45" "uid" 999) }}
+  "kimai-data"    (dict "minute" "25" "uid" 33) }}
 ---
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem

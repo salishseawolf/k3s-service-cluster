@@ -1,18 +1,19 @@
-[env]
-MARIADB_ROOT_PASSWORD = "op://K3s Service Cluster/Kimai Secrets/mariadb-root-password"
-
+# Ad-hoc dump of Kimai's database from the shared MariaDB. Uses the pod's own
+# MARIADB_ROOT_PASSWORD, so no op run (which would mask secret values, such
+# as the domain, inside the dump).
 [tasks.dump]
 run = [
 '''
 umask 077
-# --no-masking: op run would replace secret values (the domain) in the dump.
-op run --no-masking -- kubectl -n kimai exec kimai-mariadb-0 -- sh -c '\
-  mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" \
-    --single-transaction kimai' > ../../tmp/kimai-db-cluster.dump.sql
+kubectl -n database exec mariadb-0 -- sh -c \
+  'MYSQL_PWD=$MARIADB_ROOT_PASSWORD mariadb-dump -uroot \
+    --single-transaction --hex-blob kimai' > ../../tmp/kimai-db-cluster.dump.sql
 ''',
 ]
 
-# Inspect this service's VolSync backups in B2. Each task names its
+# Inspect this service's VolSync backups in B2. kimai-db-dump is the old
+# per-app dump repository (history up to 2026-10-19); new dumps are in
+# "VolSync B2 mariadb-dump". Each task names its
 # "VolSync B2 <repo>" 1Password item; ../../scripts/volsync-restic.sh
 # resolves the credentials via op run. `mount` needs FUSE.
 

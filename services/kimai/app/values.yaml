@@ -6,8 +6,9 @@ domain: ""
 secrets:
   # One 1P item, projected by templates/onepassworditems.yaml. Keys:
   # app-secret, admin-password, mailer-url, mariadb-password,
-  # mariadb-root-password. mariadb-password must be alphanumeric: it is
-  # spliced into DATABASE_URL unescaped.
+  # mariadb-root-password (unused since the move to the shared MariaDB).
+  # mariadb-password must be alphanumeric: it is spliced into DATABASE_URL
+  # unescaped, and the shared MariaDB's provisioning Job rejects anything else.
   name: kimai-secrets
   itemPath: "vaults/K3s Service Cluster/items/Kimai Secrets"
   # Same 1P item services/identity uses to build Authentik's signing key
@@ -50,33 +51,8 @@ database:
   host: mariadb.database.svc.cluster.local
   serverVersion: "13.0.2"
 
+# Database and user Kimai owns in the shared MariaDB (a tenant in
+# services/mariadb/app/values.yaml, which creates both).
 mariadb:
-  # Official image: Renovate tracks it, and DATABASE_URL's serverVersion is
-  # derived from this tag, so a bump needs no other edit.
-  image:
-    repository: docker.io/library/mariadb
-    tag: "13.0.2"
   database: kimai
   user: kimai
-  storage:
-    size: 4Gi
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: "1"
-      memory: 1Gi
-  # Hourly logical dump into the kimai-db-dump PVC (VolSync uploads it at
-  # :45). Same image as the server, so client and server versions match.
-  dump:
-    schedule: "15 * * * *"
-    storage:
-      size: 1Gi
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 500m
-        memory: 256Mi
