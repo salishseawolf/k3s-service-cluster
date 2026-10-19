@@ -1,0 +1,37 @@
+# Standalone PVCs (not volumeClaimTemplates): Argo tracks them like every
+# other PVC in the repo, and they stay editable.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-data
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mariadb
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.mariadb.storage.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.mariadb.storage.size }}
+---
+# Latest dump per tenant only (dump-cronjob.yaml); history lives in restic
+# via VolSync (volsync.yaml), so this PVC itself is disposable.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-dump
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mariadb-dump
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: seaweedfs-storage
+  resources:
+    requests:
+      storage: {{ .Values.mariadb.dump.storage.size }}

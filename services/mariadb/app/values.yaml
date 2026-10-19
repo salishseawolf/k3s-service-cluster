@@ -1,0 +1,58 @@
+---
+# Injected by the root ApplicationSet from platform/argocd/root/cluster-values.yaml
+domain: ""
+
+# Everything renders into the database namespace (the ApplicationSet's
+# destination, `mariadb`, does not exist; every manifest sets its namespace).
+namespace: database
+
+secrets:
+  # Keys: root_password, dump_password (both alphanumeric).
+  name: mariadb-secrets
+  itemPath: "vaults/K3s Service Cluster/items/MariaDB Secrets"
+
+mariadb:
+  # Official image: Renovate tracks it. Tenants pin their client's
+  # serverVersion separately (services/kimai/app/values.yaml).
+  image:
+    repository: docker.io/library/mariadb
+    tag: "13.0.2"
+  # The only hcloud volume: InnoDB rewrites its redo log in place, and on
+  # SeaweedFS every flush logged the file's whole chunk list in the filer's
+  # metadata log (~10 GiB/day; it filled SeaweedFS on 2026-10-18).
+  # 10Gi is Hetzner's minimum.
+  storage:
+    size: 10Gi
+    storageClass: hcloud-volumes
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  # Hourly logical dump of every tenant database into the mariadb-dump PVC
+  # (seaweedfs: one whole-file write an hour, no chunk-list churn); VolSync
+  # uploads it at :30.
+  dump:
+    schedule: "15 * * * *"
+    backupMinute: "30"
+    storage:
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+# One entry per app. Each gets a database and user of the same name with ALL
+# on that database only; its password stays in the app's own 1P item and is
+# projected here. `namespace` is admitted to 3306 by the NetworkPolicy.
+tenants:
+  - name: kimai
+    namespace: kimai
+    secret: kimai-db-password
+    itemPath: "vaults/K3s Service Cluster/items/Kimai Secrets"
+    key: mariadb-password

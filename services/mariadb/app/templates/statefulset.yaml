@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mariadb
+  annotations:
+    ignore-check.kube-linter.io/no-read-only-root-fs: >-
+      TODO(lint): mariadbd writes temp files under /tmp; map it to an emptyDir
+      after a podman --read-only test.
+spec:
+  serviceName: mariadb
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mariadb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mariadb
+    spec:
+      automountServiceAccountToken: false
+      # Official image, run directly as its mysql user (999) instead of
+      # starting as root and dropping via gosu; the entrypoint skips the
+      # chown/gosu steps when it is already non-root.
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mariadb
+          image: "{{ .Values.mariadb.image.repository }}:{{ .Values.mariadb.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: mysql
+              containerPort: 3306
+          # Read only on first start (empty data dir). Tenant databases and
+          # users come from the provisioning Job, not MARIADB_DATABASE/USER.
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: root_password
+            # Run mariadb-upgrade at startup after a major version bump (the
+            # image backs up the system tables first).
+            - name: MARIADB_AUTO_UPGRADE
+              value: "1"
+          # healthcheck.sh logs in as the image's healthcheck user
+          # (/var/lib/mysql/.my-healthcheck.cnf, created on first start).
+          readinessProbe:
+            exec:
+              command: ["healthcheck.sh", "--connect", "--innodb_initialized"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["healthcheck.sh", "--connect"]
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.mariadb.resources | nindent 12 }}
+          volumeMounts:
+            # The ext4 root holds lost+found; MariaDB lists it as an odd
+            # database name but ignores it otherwise (dumps are per tenant).
+            - name: data
+              mountPath: /var/lib/mysql
+            # socket + pid file; writable for uid 999 regardless of image perms
+            - name: run
+              mountPath: /run/mysqld
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mariadb-data
+        - name: run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mariadb
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mariadb
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

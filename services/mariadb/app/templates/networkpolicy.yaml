@@ -1,0 +1,27 @@
+# The database chart already denies all ingress in this namespace and allows
+# it from inside (the dump and provisioning Jobs, VolSync). This admits each
+# tenant's namespace, and Gatus' TCP check, to MariaDB on 3306 only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mariadb-consumers
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mariadb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- range .Values.tenants }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace }}
+        {{- end }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gatus
+      ports:
+        - protocol: TCP
+          port: 3306

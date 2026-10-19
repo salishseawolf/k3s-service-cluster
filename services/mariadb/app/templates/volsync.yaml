@@ -1,0 +1,46 @@
+# VolSync restic backup of mariadb-dump (the per-tenant dumps written at :15).
+# Its own 1P item, repository and scoped B2 key (AGENT.md "VolSync B2
+# credentials"); never share another PVC's. mariadb-data itself is
+# deliberately NOT backed up: a live copy of InnoDB files is only
+# crash-consistent; the dump is the database backup.
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: volsync-b2-mariadb-dump
+  namespace: {{ .Values.namespace }}
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 mariadb-dump"
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: mariadb-dump
+  namespace: {{ .Values.namespace }}
+spec:
+  sourcePVC: mariadb-dump
+  trigger:
+    schedule: "{{ .Values.mariadb.dump.backupMinute }} * * * *"
+  restic:
+    repository: volsync-b2-mariadb-dump
+    # Direct: neither hcloud-csi nor seaweedfs-csi supports snapshots or
+    # clones here (see services/kimai/app/templates/volsync.yaml).
+    copyMethod: Direct
+    pruneIntervalDays: 7
+    retain:
+      hourly: 12
+      daily: 5
+      weekly: 4
+      monthly: 2
+      yearly: 1
+    cacheCapacity: 2Gi
+    # SeaweedFS follows the pod (local-path pinned the cache to one node and
+    # deadlocked a rescheduled app's backup).
+    cacheStorageClassName: seaweedfs-storage
+    # The database namespace enforces PSA restricted; uid 999 owns the dumps.
+    moverSecurityContext:
+      runAsUser: 999
+      runAsGroup: 999
+      fsGroup: 999
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault

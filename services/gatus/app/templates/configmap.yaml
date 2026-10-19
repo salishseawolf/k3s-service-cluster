@@ -84,6 +84,15 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+      # Shared MariaDB (services/mariadb/app); admits Gatus on 3306.
+      - name: MariaDB
+        group: database
+        url: "tcp://mariadb.database.svc.cluster.local:3306"
+        interval: 60s
+        conditions:
+          - "[CONNECTED] == true"
+        failures: 3
+        success: 2
       - name: Redis
         group: database
         url: "tcp://redis.redis.svc.cluster.local:6379"

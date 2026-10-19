@@ -1,0 +1,78 @@
+# MariaDB availability and dump alerts, emailed via Alertmanager.
+# `release: monitoring` is what Prometheus' ruleSelector matches (any
+# namespace); `notify: email` routes an alert to the email receiver in
+# services/monitoring. The upload to B2 is covered for every
+# ReplicationSource by VolSyncBackupStuck / VolSyncBackupOutOfSync
+# (platform/volsync).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mariadb
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mariadb
+    release: monitoring
+spec:
+  groups:
+    - name: mariadb
+      rules:
+        - alert: MariaDBDown
+          expr: |
+            kube_statefulset_status_replicas_ready{namespace="{{ .Values.namespace }}", statefulset="mariadb"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: Shared MariaDB is down
+            description: >-
+              No ready mariadb pod for 5 minutes; every tenant
+              ({{ range $i, $t := .Values.tenants }}{{ if $i }}, {{ end }}{{ $t.name }}{{ end }}) is down.
+              Check: kubectl -n {{ .Values.namespace }} get pods; kubectl -n {{ .Values.namespace }} logs mariadb-0
+        # A dump Job failed after the last success. Resolves on the next
+        # successful run, although the failed Job stays in the CronJob history.
+        - alert: MariaDBDumpFailed
+          expr: |
+            max by (namespace) (
+              kube_job_status_start_time{namespace="{{ .Values.namespace }}", job_name=~"mariadb-dump-.*"}
+              * on (namespace, job_name) group_left ()
+              (kube_job_failed{namespace="{{ .Values.namespace }}", job_name=~"mariadb-dump-.*", condition="true"} == 1)
+            )
+            > on (namespace)
+            max by (namespace) (kube_cronjob_status_last_successful_time{namespace="{{ .Values.namespace }}", cronjob="mariadb-dump"})
+          for: 1m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: MariaDB dump failed
+            description: >-
+              The hourly mariadb-dump Job failed. The previous dumps are kept.
+              Check: kubectl -n {{ .Values.namespace }} get jobs; kubectl -n {{ .Values.namespace }} logs job/<name>
+        # Catches what a failure alert cannot: suspended CronJob, PSA-rejected
+        # pods, a broken schedule, or no jobs running at all.
+        - alert: MariaDBDumpStale
+          expr: |
+            time() - max by (namespace) (kube_cronjob_status_last_successful_time{namespace="{{ .Values.namespace }}", cronjob="mariadb-dump"}) > 3 * 3600
+          for: 10m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: No successful MariaDB dump in 3 hours
+            description: >-
+              mariadb-dump runs hourly but has not succeeded for over 3 hours.
+              Check: kubectl -n {{ .Values.namespace }} get cronjob mariadb-dump; kubectl -n {{ .Values.namespace }} get events
+        # Before the first success the rules above have nothing to compare to.
+        - alert: MariaDBDumpNeverSucceeded
+          expr: |
+            absent(kube_cronjob_status_last_successful_time{namespace="{{ .Values.namespace }}", cronjob="mariadb-dump"})
+          for: 2h
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: MariaDB dump has never succeeded
+            description: >-
+              No successful mariadb-dump run has been recorded for 2 hours (or
+              kube-state-metrics is not reporting it).

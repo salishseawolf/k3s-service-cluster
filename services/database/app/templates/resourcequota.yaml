@@ -1,6 +1,7 @@
 ---
 # ResourceQuota for database namespace (CNPG PostgreSQL)
-# Includes storage quota for CNPG volumes (3x 20Gi + overhead)
+# Includes storage quota for CNPG volumes (3x 20Gi + overhead) and the shared
+# MariaDB (services/mariadb/app: 10Gi data, 1Gi dump, 2Gi VolSync cache)
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -13,10 +14,10 @@ spec:
   hard:
     requests.cpu: "3000m"
     requests.memory: "6Gi"
-    limits.cpu: "6000m"
-    limits.memory: "12Gi"
-    persistentvolumeclaims: "5"
+    limits.cpu: "8000m"
+    limits.memory: "14Gi"
+    persistentvolumeclaims: "8"
     requests.storage: "100Gi"
     configmaps: "20"
-    secrets: "20"
+    secrets: "30"
     services: "10"
