@@ -74,7 +74,8 @@ services/*/app/             Argo CD: application Helm charts
   copyparty/                 File sharing
   homarr/                    Dashboard (edge-gated forward-auth)
   paperless/                 Document management (OIDC)
-  kimai/                     Time tracking with its own MariaDB (SAML)
+  kimai/                     Time tracking (SAML); a tenant of the shared MariaDB
+  mariadb/                   Shared MariaDB in the database namespace (hcloud volume)
   outline/                   Wiki for people and AI agents (OIDC; /mcp for agents)
   gatus/                     Health monitoring (edge-gated)
   umami/                     Privacy-first web analytics
@@ -245,7 +246,7 @@ oidc_key/secret, actions_token, admin_user/password), `Homarr Secrets`,
 `Paperless Secrets`, `VolSync B2 <pvc>` (one item per backed-up PVC, restic
 env fields), `Authentik Deployment Secrets`, `Cloudflare DNS Challenge`,
 `Redis Password`, `StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`,
-`Umami Secrets`, `Kimai Secrets`, `Kimai SAML Signing`.
+`Umami Secrets`, `Kimai Secrets`, `Kimai SAML Signing`, `MariaDB Secrets`.
 
 ### VolSync B2 credentials (one scoped key per PVC)
 
@@ -454,4 +455,4 @@ on pod restart, by choice). Until 2026-10 every
 - Alert email is opt-in: Alertmanager mails only alerts labelled
   `notify: email` (to admin@salishseawolf.com, via Resend); everything else
   goes to the null receiver. A service opts in with a PrometheusRule carrying
-  `release: monitoring` (see services/kimai/app/templates/prometheusrule.yaml)
+  `release: monitoring` (see services/mariadb/app/templates/prometheusrule.yaml)

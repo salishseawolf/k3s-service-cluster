@@ -12,7 +12,7 @@ restoring persistent data from Backblaze B2 backups.
 | CNPG PostgreSQL (8 databases) | `s3://k3s-service-cluster/cnpg/` | barman-cloud (daily + WAL) | ~1h |
 | SeaweedFS filer metadata | CNPG `seaweedfs_filer` DB | CNPG barman-cloud | ~1h |
 | All PVCs (Gitea, Paperless, Kimai, Outline attachments, etc.) | B2 volsync/ prefix (one restic repo per PVC) | VolSync restic (hourly; retain 12h/5d/4w/2m/1y) | ~1h |
-| Kimai MariaDB (`kimai-mariadb-data`) | B2 `volsync/kimai/kimai-db-dump` | Hourly `mariadb-dump --single-transaction` (:15) into the `kimai-db-dump` PVC, uploaded by VolSync (:45). The data dir itself is not copied (only crash-consistent). Failures email admin@ via Alertmanager | ~1h |
+| Shared MariaDB (`mariadb-data`, `database` ns, `hcloud-volumes`; tenant: Kimai) | B2 `volsync/database/mariadb-dump` (history before 2026-10-19: `volsync/kimai/kimai-db-dump`) | Hourly `mariadb-dump --single-transaction` per tenant (:15) into the `mariadb-dump` PVC as `<db>.sql`, uploaded by VolSync (:30). The data dir itself is not copied (only crash-consistent). Failures email admin@ via Alertmanager | ~1h |
 | step-ca database (`database-step-ca-0`, 10Gi, `hcloud-volumes`) | **Not backed up (accepted)** | Survives node loss (Hetzner network volume). On total loss: CA keys come back from 1P, cert-manager re-registers its ACME account, issued certs keep working; only the issued/revoked-cert records are gone | — |
 | SeaweedFS blob store (`seaweedfs-data`) | Not backed up directly | Reconstructed by per-PVC VolSync restores into a fresh SeaweedFS | — |
 | Secrets | 1Password vault | Operator re-creates from vault | N/A (git) |
@@ -139,7 +139,7 @@ it empty) so SeaweedFS starts fresh; VolSync then repopulates every
 seaweedfs-backed PVC at the file level.
 
 For each backed-up PVC (gitea-data, paperless-data, paperless-media,
-copyparty-data, kimai-data, kimai-db-dump, outline-data), scale the consuming
+copyparty-data, kimai-data, outline-data, and `mariadb-dump` in `database`), scale the consuming
 workload to 0, then restore into the (empty, Argo-recreated) PVC with a
 ReplicationDestination using the same `volsync-b2-<pvc>` secret:
 
@@ -160,14 +160,14 @@ spec:
     cacheStorageClassName: local-path   # one-off; keeps restores independent of SeaweedFS
 ```
 
-**kimai-data / kimai-db-dump:** the `kimai` namespace enforces PSA
-`restricted`, so the restore mover is rejected unless the
+**kimai-data / mariadb-dump:** the `kimai` and `database` namespaces
+enforce PSA `restricted`, so the restore mover is rejected unless the
 ReplicationDestination carries the same security context as its
 ReplicationSource. Add under `spec.restic`, with uid **33** for kimai-data
-and **999** for kimai-db-dump:
+and **999** for mariadb-dump:
 ```yaml
     moverSecurityContext:
-      runAsUser: 33          # 999 for kimai-db-dump
+      runAsUser: 33          # 999 for mariadb-dump
       runAsGroup: 33
       fsGroup: 33
       runAsNonRoot: true
@@ -175,25 +175,40 @@ and **999** for kimai-db-dump:
         type: RuntimeDefault
 ```
 
-**Kimai database:** restoring `kimai-db-dump` only brings back the dump
-file (`kimai.sql`); load it into MariaDB afterwards. Kimai must not be in use
-meanwhile; its restart runs any pending migrations.
+**MariaDB tenants (Kimai):** the backup is a dump per tenant database
+(`<db>.sql`), not the data dir, so after Argo has recreated the shared
+MariaDB (`services/mariadb/app`; its provisioning Job creates each tenant's
+empty database, user and grants), load each dump. Stop the tenant app first
+(Kimai: `kubectl -n kimai scale deploy/kimai --replicas=0`, or let it
+crash-loop; it is useless without its data). No PVC restore is needed: pull
+the dump straight from restic.
+
 ```bash
-# empty the database (the kimai user keeps its grants; they are by name)
-kubectl -n kimai exec kimai-mariadb-0 -- sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e \
-  "DROP DATABASE kimai; CREATE DATABASE kimai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
-# load the restored dump straight from the dump PVC, via a one-off pod that mounts it
-kubectl -n kimai run kimai-db-restore --rm -i --restart=Never \
-  --image=docker.io/library/mariadb:<tag from services/kimai/app/values.yaml> \
-  --overrides='{"spec":{"securityContext":{"runAsUser":999,"runAsGroup":999,"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},
-    "containers":[{"name":"r","image":"docker.io/library/mariadb:<tag>","stdin":true,
-      "command":["sh","-c","mariadb -h kimai-mariadb -ukimai -p\"$P\" kimai < /dumps/kimai.sql"],
-      "env":[{"name":"P","valueFrom":{"secretKeyRef":{"name":"kimai-secrets","key":"mariadb-password"}}}],
-      "securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}},
-      "volumeMounts":[{"name":"d","mountPath":"/dumps"}]}],
-    "volumes":[{"name":"d","persistentVolumeClaim":{"claimName":"kimai-db-dump"}}]}}'
-kubectl -n kimai delete pod -l app.kubernetes.io/name=kimai   # restart: migrations + cache
+umask 077; mkdir -p tmp
+VOLSYNC_ITEM="VolSync B2 mariadb-dump" bash scripts/volsync-restic.sh \
+  dump latest /kimai.sql > tmp/kimai.sql
+grep -c 'concealed by 1Password' tmp/kimai.sql   # must print 0
+tail -n1 tmp/kimai.sql                           # must be "-- Dump completed"
+kubectl -n database exec -i mariadb-0 -- sh -c \
+  'MYSQL_PWD=$MARIADB_ROOT_PASSWORD mariadb -uroot kimai' < tmp/kimai.sql
+shred -u tmp/kimai.sql
 ```
+
+- **Never pipe a dump through a plain `op run`.** It masks every secret value
+  it sees in stdout, and the mise environment loads the domain from
+  1Password, so every `<domain>` in the dump became `<concealed by
+  1Password>` (2026-10-19: the SAML user no longer matched and Kimai created
+  a new, empty one). `volsync-restic.sh` runs `dump`/`cat` with
+  `--no-masking`; the `grep` above is the check.
+- The dump drops and recreates each table it contains, so loading it again
+  over a partial load is safe. Tables that exist only in the live database
+  survive; for an exact copy, `DROP DATABASE` and `CREATE DATABASE <db>
+  CHARACTER SET utf8mb4` first (the tenant's grant is by name and survives).
+- `restoreAsOf`-style point in time: `volsync-restic.sh snapshots`, then
+  `dump <snapshot-id> /<db>.sql`. Snapshots before 2026-10-19 live in
+  `VolSync B2 kimai-db-dump` (path `/kimai.sql`).
+- Then start the app again (`--replicas=1`); Kimai runs pending migrations
+  at startup.
 
 Watch completion, then scale the workload back up and delete the
 ReplicationDestination:
@@ -236,7 +251,9 @@ kubectl -n argocd get applications -w
 7. Outline at `https://wiki.<domain>/`: documents (CNPG `outline`) and their
    attachments (`outline-data`) both present; restore both to matching points
    in time. Its Redis is disposable
-8. Gatus reports all-green for all endpoints
+8. Kimai at `https://kimai.<domain>/`: SAML login lands on your existing
+   user (not the first-login wizard) and recent timesheets are there
+9. Gatus reports all-green for all endpoints
 
 ## Appendix: Restore testing drill
 **Never trust a backup that hasn't been restored.** Perform a drill at least

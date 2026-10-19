@@ -4,6 +4,6 @@ name: mariadb
 description: >-
   Shared MariaDB for apps that need MySQL (Kimai), deployed into the database
   namespace next to CNPG. Its own wave-40 app so the dump PVC and VolSync can
-  use seaweedfs-storage; plan and rationale in docs/MARIADB-SHARED.md.
+  use seaweedfs-storage. Rationale: AGENT.md (Storage); restore: docs/RECOVERY-RUNBOOK.md.
 type: application
 version: 0.1.0

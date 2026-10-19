@@ -5,10 +5,10 @@
 - [ ] Database syncs cleanly with managed roles + quota
 
 ## Backups
-- [x] kimai MariaDB: hourly `mariadb-dump` CronJob into the `kimai-db-dump` PVC, uploaded by VolSync; failure email via Alertmanager
+- [x] kimai MariaDB: hourly `mariadb-dump` CronJob into the `kimai-db-dump` PVC, uploaded by VolSync; failure email via Alertmanager (superseded 2026-10-19: per-tenant dumps of the shared MariaDB into `mariadb-dump` in `database`, VolSync at :30)
 - [x] kimai backups: dump works (needed a connect-wait loop: K3s admits a new pod to the NetworkPolicy allow-sets a few seconds after start), kimai-data upload Successful under PSA `restricted`, `amtool` test email received
-- [ ] kimai backups: confirm a `kimai-db-dump` snapshot exists (`mise run //services/kimai:backup:db-dump:snapshots`); the 21:45 run on 2026-10-08 skipped an empty volume, so the first real upload came later
-- [ ] kimai backups: restore drill: restore `kimai-db-dump`, import `kimai.sql` into a scratch database, compare row counts (`kimai2_timesheet`, `kimai2_users`) with the live DB; this also tests the runbook's restore commands, which have never been run
+- [x] kimai backups: `kimai-db-dump` snapshots exist (the 2026-10-19 cutover restored from one); the repo is history only now
+- [ ] MariaDB restore drill: load the latest `mariadb-dump` `kimai.sql` into a scratch database on the shared MariaDB, compare row counts (`kimai2_timesheet`, `kimai2_users`) with `kimai`. The runbook's commands (docs/RECOVERY-RUNBOOK.md, Phase 3) ran for real in the 2026-10-19 cutover, but only into the live database
 - [x] kimai: deleted the failed pre-fix Job `kimai-mariadb-dump-29858295` (2026-10-09)
 - [x] VolSync cache: ReplicationSource caches moved from `local-path` to `seaweedfs-storage` (2026-10-09). With `copyMethod: Direct` the mover runs on the app pod's node, and a `local-path` cache stayed on the node of its first run, so a rescheduled app deadlocked its backup (homarr ~45h on 2026-10-06..08, loki-data on 2026-10-09). Restores (docs/RECOVERY-RUNBOOK.md) keep `local-path`
 - [ ] storage: two StorageClasses are marked default (`hcloud-volumes` and K3s' `local-path`), so a PVC without a class lands on either. `local-path` must stay (VolSync restore caches use it), and K3s re-applies its manifest on start, so the fix is a bootstrap change (K3s `.skip` + own local-storage manifest with the annotation `"false"`)
@@ -26,17 +26,30 @@ Every app PVC was node-local disk until 2026-10-10 (`WEED_MASTER` disabled volum
 - [x] deleted the rescue copies: `/root/swfs-rescue-20261010/` on all three nodes and `/root/kimai-old-db/` on node-03 (a Kimai dump with password hashes), node-01 on 2026-10-13, the rest 2026-10-14 after confirming Kimai's hourly dump and VolSync uploads succeed
 
 ### Follow-ups from 2026-10-13 (node-02 OOM, `docs/RCA-2026-10-SEAWEEDFS.md`)
-- [ ] alert on FUSE client memory: `container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"}` above ~1.5 GiB per node, email. Baseline 2026-10-13 21:29: 167-541 MiB per node; largest client Kimai MariaDB at 281 MiB (node-01), so watch whether it grows
+- [ ] alert on FUSE client memory: `container_memory_working_set_bytes{namespace="seaweedfs-csi", container="seaweedfs-mount"}` above ~1.5 GiB per node, email. Baseline 2026-10-13 21:29: 167-541 MiB per node; largest client Kimai MariaDB at 281 MiB (node-01), so watch whether it grows (MariaDB moved to an hcloud volume 2026-10-19)
 - [ ] memory limits: `seaweedfs-mount` has none (a limit that trips kills every mount on the node, so size it with the alert data first), and VolSync movers have `resources: {}`
 - [x] Kimai: `MARIADB_AUTO_UPGRADE=1` on the MariaDB StatefulSet; the 11.8 to 13 system-table upgrade ran 2026-10-13 (system tables backed up first, user tables untouched, data verified: 2 users, 73 timesheets)
 - [x] Kimai MariaDB probes (2026-10-13): switch to the image's `healthcheck.sh --connect --innodb_initialized` (uses `/var/lib/mysql/.my-healthcheck.cnf`, created by the upgrade). Today's probe connects without a password, logging `Access denied for user 'mysql'@'127.0.0.1'` every 10 s, and the TCP probe logs `Aborted connection`
 - [ ] Gatus: external check on Prometheus `/-/ready`, since an `emptyDir` eviction restarts it with no one to alert
 - [ ] Renovate: stop majors landing together (six merged at once on 2026-10-13; Redis 8 broke five apps). E.g. `major: {dependencyDashboardApproval: true}` plus one major at a time with app checks between
 
+## SeaweedFS volume slots (2026-10-18/19)
+The filer's metadata log (`/topics/.system/log`, every change with the file's whole chunk list, never pruned) grew ~10 GiB/day from Kimai's InnoDB redo log until it took all 100 volume slots (2026-10-18 20:30): writes failed, Kimai's MariaDB corrupted a table, and every new VolSync mount timed out.
+- [x] cleanup: log days 2026-10-10..17 deleted (89 GB to 6.8 GB), vacuumed (disk 86% to 7%); the cleared volumes kept one tiny log chunk each, so `deleteEmpty` freed nothing and `-volume.max` went 100 to 150
+- [x] Kimai's database moved to a shared MariaDB in `database` on an hcloud volume (`services/mariadb/app`), restored from the 2026-10-18 20:15 dump; the old StatefulSet, dump CronJob and PVCs removed
+- [x] nightly `seaweedfs-metalog-prune` (keep 7 days, fail and email above 10 GiB)
+- [x] `op run` masked the domain inside a restored dump; `scripts/volsync-restic.sh` streams `dump`/`cat` with `--no-masking`, the kimai `dump` task no longer uses `op run`
+- [ ] 2026-10-26: confirm the prune deletes 2026-10-18 (the last 6.8 GB of Kimai churn) and the master's vacuum gives the space back
+- [ ] after a week of data, revisit `metaLogPrune.retentionDays` and `maxGiB` (rate after the move: ~100 MiB/day, from a 25-minute sample on 2026-10-19)
+- [ ] old `volsync/kimai/kimai-db-dump` restic repo, its B2 key and `VolSync B2 kimai-db-dump`: delete once its retention has passed (2 monthly, 1 yearly snapshots); destructive, confirm first
+- [ ] node-03 kubelet tunnel: `exec`/`logs` to node-03 through node-01's and node-02's API servers returned `502 Bad Gateway` (seen all of 2026-10-19; node-03's own API server worked). Fixed by `systemctl restart k3s` on node-03 (`KillMode=process`, no container restarted). Cause unknown; if it recurs, save `journalctl -u k3s` from all three servers before restarting
+
 ## Monitoring & alerting
 All default kube-prometheus-stack alerts go to the `null` receiver; only `notify: email` alerts are mailed (see `amtool alert query` for what's firing).
 - [x] volsync-metrics `TargetDown` (2026-08-07 to 2026-10-13): the VolSync chart always creates its own ServiceMonitor without a bearer token (401) next to the repo's working one. Fixed with `metrics.disableAuth: true` and the duplicate removed; `VolSyncBackupStuck` / `VolSyncBackupOutOfSync` now email for every ReplicationSource (`platform/volsync/templates/prometheusrule-volsync.yaml`)
 - [ ] CNPG `TargetDown` for `database/main-db` (since 2026-08-07): likely the `database` NetworkPolicy doesn't admit Prometheus
+- [ ] `KubeJobFailed` for old failed `renovate` Jobs (since 2026-10-15): clear them, or lower the CronJob's `failedJobsHistoryLimit`, so the alert means a new failure
+- [ ] `CPUThrottlingHigh` on the Authentik worker: no explicit resources, so the namespace LimitRange's 500m limit applies, and it is throttled 25-35% of periods (measured 2026-10-16); give it its own request/limit
 - [ ] decide which default alerts deserve `notify: email`: `KubeJobNotCompleted` (would have caught homarr's stuck backup), `KubeJobFailed`, `TargetDown` all flagged real problems while unrouted
 - [x] `PrometheusOutOfOrderTimestamps` (~2.7 dropped samples/s): every kubelet was scraped four times. The `monitoring-crd` app rendered kube-prometheus-stack's ServiceMonitors (kubelet, apiserver, coredns) besides the CRDs, and Prometheus selects every ServiceMonitor; and an orphan `kube-system/monitoring-crd-kube-promet-kubelet` Service (from when that app ran its own operator, 2026-07-17) doubled the kubelet targets again. cAdvisor sets its own timestamps, so the interleaved copies collided. Fixed 2026-10-15: `monitoring-crd` renders CRDs only (`kubernetesServiceMonitors.enabled: false`, `defaultRules.create: false`), the orphan Service deleted; 0 out-of-order samples since
 - [ ] capacity: `KubeCPUOvercommit` / `KubeMemoryOvercommit`: the cluster can't fit all pod requests after losing a node (short ~0.89 CPU, ~779 MB since 2026-10-07). (`KubeCPUQuotaOvercommit` / `KubeMemoryQuotaOvercommit` disabled 2026-10-09: per-namespace quotas are deliberate ceilings)
@@ -62,7 +75,7 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 - [x] argocd: `cannot reference a different revision of the same repository` (stuck syncs on 2026-10-10 and 2026-10-13, the second left Loki down). Fixed 2026-10-13: every app uses one source and loads `cluster-values.yaml` by relative path (`monitoring-crd` keeps two sources: different repos)
 
 ## Outline wiki (`docs/OUTLINE-WIKI.md`)
-- [ ] phase 1: deploy per the plan (`/mcp` limited to the workstation and Hermes `46.62.156.134`, API keys only, `OAUTH_DISABLE_DCR=true`)
+- [x] phase 1: deployed 2026-10-15 per the plan (`/mcp` and, since 2026-10-16, `/api/` limited to the workstation and Hermes `46.62.156.134`, API keys only, `OAUTH_DISABLE_DCR=true`)
 - [ ] phase 2: cloud MCP connectors (Claude.ai, Gemini, etc.) over OAuth. Needs a perimeter decision (ground rule 2): expose `/mcp`, `/.well-known/oauth-authorization-server*`, `/.well-known/oauth-protected-resource*`, `/oauth/token`, `/oauth/register`, `/oauth/revoke` without forward-auth and drop the `/mcp` `ClientIP` allowlist; `/oauth/authorize` stays behind forward-auth. Before deciding: re-check https://github.com/outline/outline/security/advisories (four 2026 advisories hit OAuth scopes and MCP), add a Traefik `rateLimit` on the public paths, and alert on `OAuth client registered` log lines. OAuth clients choose their own scope (`read write`), so read-only cloud agents must consent signed in as a read-only agent user (private window), never as yourself
 
 ## Suggestions
@@ -88,4 +101,5 @@ dind, volsync probe ports, monitoring dangling-service) are not listed here.
 - [ ] monitoring grafana: read-only root (the chart supports it; writes `/var/lib/grafana` and `/tmp`)
 - [ ] monitoring alloy: read-only root with an emptyDir for `/tmp/alloy`
 - [ ] homarr: `init-nginx` read-only root (low risk, writes only to emptyDirs); main container read-only root and non-root after podman tests (exceptions predate the `TODO(lint)` marker)
-- [ ] kimai: read-only root for kimai (apache, writes `var/cache` and `var/log`) and kimai-mariadb (writes `/tmp`); map the paths to emptyDirs, then drop their `TODO(lint)` annotations; test each with `podman run --read-only --tmpfs /tmp`
+- [ ] kimai: read-only root for kimai (apache, writes `var/cache` and `var/log`); map the paths to emptyDirs, then drop its `TODO(lint)` annotation; test with `podman run --read-only --tmpfs /tmp`
+- [ ] mariadb (`services/mariadb/app`, shared): read-only root with an emptyDir at `/tmp` (mariadbd's temp files), then drop its `TODO(lint)` annotation; same podman test
