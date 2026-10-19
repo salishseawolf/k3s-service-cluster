@@ -5,7 +5,8 @@ MARIADB_ROOT_PASSWORD = "op://K3s Service Cluster/Kimai Secrets/mariadb-root-pas
 run = [
 '''
 umask 077
-op run -- kubectl -n kimai exec kimai-mariadb-0 -- sh -c '\
+# --no-masking: op run would replace secret values (the domain) in the dump.
+op run --no-masking -- kubectl -n kimai exec kimai-mariadb-0 -- sh -c '\
   mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" \
     --single-transaction kimai' > ../../tmp/kimai-db-cluster.dump.sql
 ''',

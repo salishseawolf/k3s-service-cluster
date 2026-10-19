@@ -21,4 +21,11 @@ export AWS_ACCESS_KEY_ID="${item}/AWS_ACCESS_KEY_ID"
 export AWS_SECRET_ACCESS_KEY="${item}/AWS_SECRET_ACCESS_KEY"
 
 echo "== ${VOLSYNC_ITEM}" >&2
-exec op run -- restic --no-lock "$@"
+# op run masks every secret value it sees in stdout. For commands that stream
+# file contents (dump, cat) that silently rewrites the data: the 2026-10-19
+# Kimai restore replaced the domain (TF_VAR_domain comes from 1Password) with
+# "<concealed by 1Password>" in every row. Stream those unmasked.
+case "$1" in
+  dump|cat) exec op run --no-masking -- restic --no-lock "$@" ;;
+  *)        exec op run -- restic --no-lock "$@" ;;
+esac
