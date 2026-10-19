@@ -1,0 +1,15 @@
+# Home dashboard: bookmarks to the dashboards and Alerting pages used day to
+# day. Grafana has no persistent storage, so the home dashboard is set in
+# grafana.ini (dashboards.default_home_dashboard_path in values.yaml), not in
+# the UI. No grafana_folder annotation: the sidecar writes it to the root of
+# /tmp/dashboards, the path that setting points at.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-home
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  home.json: |
+    {{- .Files.Get "dashboards/home.json" | nindent 4 }}

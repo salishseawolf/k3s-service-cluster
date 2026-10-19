@@ -189,6 +189,10 @@ kps:
       server:
         root_url: https://monitor.salishseawolf.com
         serve_from_sub_path: false
+      # Bookmarks (templates/dashboard-home.yaml). The UI can't keep a home
+      # dashboard: Grafana's database is lost on every restart.
+      dashboards:
+        default_home_dashboard_path: /tmp/dashboards/home.json
       auth:
         disable_login_form: false
         oauth_auto_login: true

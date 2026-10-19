@@ -1,0 +1,20 @@
+{
+  "uid": "home",
+  "title": "Home",
+  "tags": ["home"],
+  "editable": false,
+  "schemaVersion": 39,
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Bookmarks",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 9},
+      "options": {
+        "mode": "markdown",
+        "content": "- [**Active notifications**](/alerting/groups?alertmanager=Alertmanager): what is firing now, from Alertmanager. Group by `notify` to see what emails.\n- [**Logs: Errors & Warnings**](/d/logs-errors-warnings): error and warning lines across namespaces (Loki).\n- [**Kubernetes / Compute Resources / Cluster**](/d/efa86fd1d0c121a26444b636a3f509a8): CPU and memory use against requests and limits.\n- [**VolSync Dashboard**](/d/cdp5agkgn4yrkc): backup status per ReplicationSource.\n\nEdits here are lost on restart: this dashboard is `services/monitoring/app/dashboards/home.json`."
+      }
+    }
+  ]
+}
