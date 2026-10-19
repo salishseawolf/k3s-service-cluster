@@ -77,13 +77,14 @@ spec:
                 capabilities:
                   drop:
                     - ALL
+              # The namespace LimitRange's minimum is 100m / 256Mi per container.
               resources:
                 requests:
-                  cpu: 50m
-                  memory: 64Mi
+                  cpu: 100m
+                  memory: 256Mi
                 limits:
                   cpu: 500m
-                  memory: 256Mi
+                  memory: 512Mi
               volumeMounts:
                 - name: tmp
                   mountPath: /tmp
