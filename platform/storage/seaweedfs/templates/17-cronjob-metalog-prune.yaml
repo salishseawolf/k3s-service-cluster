@@ -1,8 +1,9 @@
-# Deletes metadata-log days older than metaLogPrune.retentionDays, compacts
-# the freed volumes (otherwise only the master's 15-min vacuum would), and
-# fails if the log is still over metaLogPrune.maxGiB: some app is rewriting
+# Deletes metadata-log days older than metaLogPrune.retentionDays and fails if
+# the log is still over metaLogPrune.maxGiB: some app is rewriting
 # large files nonstop (each rewrite logs the file's whole chunk list; the
 # 2026-10-18 incident). Alerts: SeaweedFSMetaLog* in the PrometheusRule.
+# No vacuum here: the master compacts volumes over 30% garbage every 15 min on
+# its own, and a shell `lock` + `volume.vacuum` hung behind that (2026-10-19).
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -46,7 +47,8 @@ spec:
                   # The address the server advertises; weed shell derives the
                   # gRPC ports (+10000) from these.
                   host=seaweedfs-headless.seaweedfs.svc.cluster.local
-                  ws() { weed shell -master=$host:9333 -filer=$host:8888; }
+                  # fs.rm and fs.du need no admin lock; the timeout caps a stall.
+                  ws() { timeout 600 weed shell -master=$host:9333 -filer=$host:8888; }
                   log=/topics/.system/log
                   cutoff=$(date -u -d "@$(( $(date +%s) - {{ .Values.metaLogPrune.retentionDays }} * 86400 ))" +%Y%m%d)
                   days=$(wget -qO- --header="Accept: application/json" \
@@ -58,8 +60,9 @@ spec:
                     if [ "$(echo "$d" | tr -d -)" -lt "$cutoff" ]; then old="$old $d"; fi
                   done
                   echo "days: $(echo $days | wc -w), deleting (before $cutoff):${old:- none}"
-                  for d in $old; do echo "fs.rm -r $log/$d"; done | ws
-                  printf 'lock\nvolume.vacuum -garbageThreshold 0.3\nunlock\n' | ws
+                  if [ -n "$old" ]; then
+                    for d in $old; do echo "fs.rm -r $log/$d"; done | ws
+                  fi
                   bytes=$(echo "fs.du /topics" | ws | grep -oE 'logical size: *[0-9]+' | grep -oE '[0-9]+$')
                   echo "metadata log after prune: $bytes bytes"
                   [ -n "$bytes" ] || { echo "fs.du gave no size"; exit 1; }
