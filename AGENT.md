@@ -377,8 +377,9 @@ Web routes, by design:
   and Traefik trusts it on that entrypoint; an LB service without
   `proxyprotocol = true` makes every client look like the LB's private IP
   (`192.168.1.10`), which `adminSourceRanges` admits. The LB's own TCP
-  health checks carry no PROXY header, so they look like `192.168.1.10` too;
-  on 2222 they can reach Gitea's SSH server (seen once, 2026-10-15, harmless).
+  health checks look like `192.168.1.10` too (since 2026-10-15 via a PROXY
+  header naming the LB itself), so the 2222 service health-checks Traefik's
+  8443 instead of 2222; otherwise every check reaches Gitea's SSH server.
 - **Outpost exceptions:** on `files.` and `filer-s3.`, the prefix
   `/outpost.goauthentik.io/` goes straight to that app's Authentik outpost
   (`ak-outpost-*-direct` IngressRoutes), without forward-auth: these are the

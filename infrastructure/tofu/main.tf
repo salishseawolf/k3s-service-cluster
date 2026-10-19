@@ -109,9 +109,13 @@ resource "hcloud_load_balancer_service" "gitea_ssh" {
   # trusts PROXY protocol on 2222 (bootstrap traefik-config.yaml.j2).
   proxyprotocol = true
 
+  # Checks Traefik's HTTPS entrypoint, not 2222: Hetzner can't disable a
+  # service's health check, and on 2222 its PROXY header names the LB
+  # (192.168.1.10), which adminSourceRanges admits, so every check reached
+  # Gitea's SSH server (~78k warn/error lines a day). Same Traefik process.
   health_check {
     protocol = "tcp"
-    port     = 2222
+    port     = 8443
     interval = 10
     timeout  = 5
     retries  = 3
