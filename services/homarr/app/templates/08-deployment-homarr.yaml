@@ -64,7 +64,7 @@ spec:
           mountPath: /nginx-run
       containers:
       - name: homarr
-        image: 'ghcr.io/homarr-labs/homarr:v2.5.2'
+        image: 'ghcr.io/homarr-labs/homarr:v2.8.0'
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
