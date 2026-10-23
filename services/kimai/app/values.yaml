@@ -3,6 +3,19 @@
 # truth for the cluster domain lives in platform/argocd).
 domain: ""
 
+# Where Traefik's requests come from (hostNetwork, so node addresses): the
+# private network, plus each node's flannel addresses (.0 for cross-node,
+# .1 for same-node traffic, which is also where kubelet probes come from).
+# Only these and gatus may reach Kimai, so no pod can skip forward-auth.
+# Same list as services/copyparty, services/outline and
+# platform/storage/seaweedfs; update all four when a node's podCIDR changes
+# (kubectl get nodes -o custom-columns=NAME:.metadata.name,CIDR:.spec.podCIDR).
+traefikSources:
+  - 192.168.0.0/16
+  - 10.42.0.0/31   # k3s-converged-node-01 (podCIDR 10.42.0.0/24)
+  - 10.42.3.0/31   # k3s-converged-node-02 (podCIDR 10.42.3.0/24)
+  - 10.42.1.0/31   # k3s-converged-node-03 (podCIDR 10.42.1.0/24)
+
 secrets:
   # One 1P item, projected by templates/onepassworditems.yaml. Keys:
   # app-secret, admin-password, mailer-url, mariadb-password,
@@ -20,7 +33,7 @@ secrets:
 kimai:
   image:
     repository: docker.io/kimai/kimai2
-    tag: "2.70.0"
+    tag: "2.70.2"
   port: 8001
   # Superadmin login; created on first start (password: admin-password).
   adminEmail: admin@salishseawolf.com

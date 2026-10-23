@@ -12,8 +12,13 @@ data:
   # The entrypoint's own `sed -i` on php.ini cannot work non-root (sed needs
   # a temp file in the root-owned directory), leaving PHP at 128M, too
   # little for Kimai's cache warmup. Keep in step with the container limit.
+  #
+  # session.upload_progress is unused by Kimai and is one path of
+  # CVE-2026-109619 ("PHP2Shell", fixed in PHP 8.3.36); PHP's advisory
+  # suggests keeping it off even after patching.
   zz-kimai.ini: |
     memory_limit = {{ .Values.kimai.phpMemoryLimit }}
+    session.upload_progress.enabled = 0
 
   # Mounted as /opt/kimai/config/packages/local.yaml. Templated here (not in
   # values) so domain-dependent settings can use .Values.domain.

@@ -19,8 +19,9 @@ mcpSourceRanges:
 
 # Traefik is a hostNetwork DaemonSet: it reaches pods from node addresses
 # (private net, or each node's flannel .0/.1 for pods on another node).
-# Pods can't use these addresses. Same list as services/copyparty and
-# platform/storage/seaweedfs; update all three when a node's podCIDR changes
+# Pods can't use these addresses. Same list as services/copyparty,
+# services/kimai and platform/storage/seaweedfs; update all four when a node's
+# podCIDR changes
 # (kubectl get nodes -o custom-columns=NAME:.metadata.name,CIDR:.spec.podCIDR).
 traefikSources:
   - 192.168.0.0/16

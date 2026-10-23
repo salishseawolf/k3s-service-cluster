@@ -29,8 +29,10 @@ metadata:
   name: allow-ingress-traefik
   namespace: kimai
 spec:
-  # Kimai's pod (these ipBlocks cover node IPs and the whole pod CIDR). Its
-  # database is the shared MariaDB in the database namespace.
+  # Kimai's pod, from Traefik's node addresses only (values.traefikSources,
+  # not the whole pod CIDR, so no pod can skip forward-auth) and gatus, which
+  # checks the Service directly. Its database is the shared MariaDB in the
+  # database namespace.
   podSelector:
     matchLabels:
       app.kubernetes.io/name: kimai
@@ -38,7 +40,13 @@ spec:
     - Ingress
   ingress:
     - from:
+        {{- range .Values.traefikSources }}
         - ipBlock:
-            cidr: 10.42.0.0/16
-        - ipBlock:
-            cidr: 192.168.0.0/16
+            cidr: {{ . }}
+        {{- end }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gatus
+      ports:
+        - protocol: TCP
+          port: {{ .Values.kimai.port }}

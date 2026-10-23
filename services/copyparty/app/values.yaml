@@ -6,8 +6,9 @@ domain: ""
 # private network, plus each node's flannel addresses (.0 for cross-node,
 # .1 for same-node traffic). Only these may reach copyparty and the outpost,
 # and only these are trusted to send the X-Authentik-* identity headers.
-# Pods can't use these addresses. Same list as platform/storage/seaweedfs;
-# update both when a node's podCIDR changes (kubectl get nodes -o
+# Pods can't use these addresses. Same list as services/kimai,
+# services/outline and platform/storage/seaweedfs; update all four when a
+# node's podCIDR changes (kubectl get nodes -o
 # custom-columns=NAME:.metadata.name,CIDR:.spec.podCIDR).
 traefikSources:
   - 192.168.0.0/16
