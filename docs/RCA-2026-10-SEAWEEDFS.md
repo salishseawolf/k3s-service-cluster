@@ -204,6 +204,76 @@ intact after their major upgrades.
 - Do not pin Jobs to a node for locality; use the Service.
 - After a node is OOM-starved, restart K3s on it even if it reports `Ready`.
 
+## Follow-up incident: a dangling chunk after a rolling update (2026-10-22)
+
+### What happened
+
+`paperless-data` backups failed every hour for about 20 hours. The user found
+the Job retrying in the `paperless` namespace; `VolSyncBackupOutOfSync` was
+firing. Each mover still saved a snapshot of everything else, but restic exited
+3 on one unreadable file, so VolSync counted every run as failed:
+
+```
+error: failed to save celerybeat-schedule.db: read celerybeat-schedule.db: input/output error
+```
+
+| Time (UTC) | Event |
+|---|---|
+| 10-22 17:53 | Renovate's Paperless 3.3.1 to 3.3.3 bump syncs. The Deployment uses the default RollingUpdate: the new pod starts on node-03 while the old one still runs on node-02 |
+| 17:54:00 | both pods' celery beat write `celerybeat-schedule.db` through their own node's mount client; the new pod writes chunk `13,04e95056b5917d` (offset 45056), which the other client's writes leave marked deleted while the filer entry still lists it |
+| ~17:56 | old pod gone |
+| 19:09 | the master vacuums volume 13 and removes the deleted needle for good |
+| 19:40 | last good backup (restic skips the file: unchanged since the parent snapshot) |
+| 20:40 onwards | beat has rewritten the file; restic reads it, the volume server answers `404` even with `readDeleted=true`, every mover exits 3 |
+| 10-23 16:14 | `Recreate` committed for paperless and copyparty (`6943094`); the sync fails (see below) |
+| 16:19 | live Deployments patched to match git; both apps sync |
+| ~16:21 | file removed and Paperless restarted (beat recreates it); manual backup succeeds at 16:22 |
+
+### Root cause
+
+The PVCs are `ReadWriteOnce`, but the SeaweedFS CSI driver does not enforce
+single-node attachment, and a RollingUpdate starts the new pod before the old
+one stops. Two `weed mount` clients on two nodes then wrote the same file, each
+from its own cached chunk list. The filer kept a reference to a chunk one
+client had already deleted, and vacuum later removed it. Celery beat's
+`shelve` file, rewritten in 4 KiB pages every few minutes, was the file being
+written during the two-minute overlap.
+
+### Contributing factors
+
+- **Default Deployment strategy** on SeaweedFS-backed apps. Kimai, Outline,
+  Homarr and the Gitea runner already used `Recreate`; Paperless and Copyparty
+  did not. Copyparty rolled across nodes in the same minute, without damage.
+- **Restic only re-reads changed files**, so the 19:40 backup succeeded and a
+  dangling chunk in a file that never changes would go unnoticed until a
+  restore.
+- **Argo's server-side apply cannot switch a live Deployment to `Recreate`:**
+  nobody owns the API-defaulted `spec.strategy.rollingUpdate`, so the merged
+  object fails validation (`rollingUpdate: Forbidden`). `rollingUpdate: null`
+  in the manifest does not help. A one-off JSON patch removing it, or the
+  per-resource `Replace=true` sync option, does.
+
+### Changes made (2026-10-23)
+
+| Commit | Change |
+|---|---|
+| `6943094` | paperless and copyparty Deployments use `strategy: Recreate` |
+| (no commit) | `kubectl patch --type=json` on both Deployments: remove `/spec/strategy/rollingUpdate`, set type `Recreate` |
+| (no commit) | `celerybeat-schedule.db` removed, Paperless restarted, one manual VolSync trigger (then removed) |
+
+Data: every chunk of every file on `paperless-data` (28 files, 3,197 chunks)
+and `copyparty-data` (4 files, 31 chunks) checked against the volume server
+afterwards: all present. The lost file was a regenerable schedule cache.
+
+### Lessons
+
+- A SeaweedFS volume must never be mounted on two nodes at once. Deployments
+  on `seaweedfs-storage` use `strategy: Recreate`; StatefulSets already stop
+  the old pod first.
+- To check a SeaweedFS volume's integrity, `HEAD` every chunk from the filer's
+  metadata (`?metadata=true`) on the volume server; a successful backup only
+  proves the files restic re-read.
+
 ## Timeline (2026-07-08 to 2026-10-10)
 
 | When | Event |

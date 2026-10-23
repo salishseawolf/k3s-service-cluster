@@ -429,6 +429,12 @@ on pod restart, by choice). Until 2026-10 every
   buffers writes in RAM. Prometheus's grew to 4.2 GB and OOM-starved node-02
   (2026-10-13). Don't put heavy writers (TSDBs, busy databases) on SeaweedFS
   without capping the mount side.
+- **One node per volume: Deployments use `strategy: Recreate`.** The CSI
+  driver doesn't enforce `ReadWriteOnce`, so a RollingUpdate mounts the volume
+  on two nodes at once; two mount clients writing one file left a chunk the
+  filer references but vacuum removed (Paperless, 2026-10-22). Argo's
+  server-side apply can't switch a live Deployment to `Recreate` on its own:
+  also patch out the defaulted `/spec/strategy/rollingUpdate`.
 - **Stopping an app to work on its volume:** render the chart first (some, like
   Loki, ignore `replicas: 0`), and remember VolSync movers also hold the
   volume. A stale mount client only goes away once no pod on that node uses
