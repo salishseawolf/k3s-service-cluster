@@ -14,6 +14,10 @@ metadata:
       that is already 0777; verify for medium Memory, then remove it.
 spec:
   replicas: 1
+  # SeaweedFS volumes: never run two pods at once. Two nodes' mount clients
+  # writing one file left a dangling chunk on 2026-10-22.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: paperless
