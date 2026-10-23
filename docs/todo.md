@@ -61,6 +61,23 @@ All default kube-prometheus-stack alerts go to the `null` receiver; only `notify
 - [x] gatus: the "Traefik Dashboard" check (never passed: dashboard not exposed, and the bare domain is the personal site, so nginx logged a 404 every minute) replaced by a TCP check on `traefik.kube-system.svc.cluster.local:443` (2026-10-13)
 - [x] node-exporter: `kernel_hung` collector fails every scrape (`/host/proc/sys/kernel/hung_task_detect_count` missing on this kernel); disable it (`--no-collector.kernel_hung`) (done 2026-10-14: `extraArgs: [--no-collector.kernel_hung]`)
 
+## Vulnerability scanning (planned 2026-10-23, after PHP2Shell)
+Renovate can't see image CVEs: its managers here are all image tags and Helm charts, which neither GitHub advisories nor OSV cover.
+- [ ] Trivy Operator (chart 0.37.0 / app v0.35.0) as `platform/trivy-operator` (umbrella, vendored subchart like volsync; ClusterRoles + 12 CRDs, so the platform tier), wave 50 so a broken scanner can't block services. Settings, against the chart defaults:
+  - `builtInTrivyServer: true` (one DB copy, not one per scan Job), DB on `emptyDir` (`trivy.storageClassEnabled: false`)
+  - `severity: HIGH,CRITICAL`, `ignoreUnfixed: true`: unfiltered, `kimai2:2.70.0` alone has 3,929 OS vulns (16 MB JSON, over etcd's ~1.5 MB object limit); filtered, 59
+  - off: SBOM reports (etcd size); infra assessment / node-collector (kubeadm hostPaths, no K3s CIS spec in trivy-checks, breaks PSA); exposed-secret scanning until its reports are reviewed (ground rule 1); `accessGlobalSecretsAndServiceAccount` (no workload uses imagePullSecrets; drops cluster-wide Secret `get`)
+  - compliance: `k8s-nsa-1.0`, `k8s-pss-baseline-0.1`, `k8s-pss-restricted-0.1`
+  - skip VolSync movers (`skipResourceByLabels: volsync.backube/cleanup`; recreated hourly in 8 namespaces)
+  - 1 concurrent scan Job, 10m timeout; scan Job 100m/256Mi, limit 1Gi; server 200m/512Mi, limit 1Gi (measure, nodes are at 58-74% memory)
+  - `trivy-system` at PSA restricted: `runAsNonRoot`, uid 65534, `seccompProfile: RuntimeDefault` on operator, server and `scanJobPodTemplatePodSecurityContext`
+  - ServiceMonitor plus `metricsVulnIdEnabled: true` (only `trivy_vulnerability_id` carries `fixed_version`); NetworkPolicy: monitoring to metrics, scan Jobs to server `:4954`
+  - PrometheusRule (`release: monitoring`): `TrivyCriticalFixable` with `notify: email`, `TrivyHighFixable` unrouted, `TrivyScanFailing`. Check the real `severity` label values before trusting the rule
+  - Renovate `includePaths` += `platform/trivy-operator/**` (platform charts get no updates today except monitoring-crd)
+- [ ] rollout risk: Trivy pulls ~25 docker.io images itself, anonymously from the node IPs; on 429s try `trivy.registry.mirror` docker.io to `mirror.gcr.io`, or a Docker Hub token. Spot-check Kimai against a local `podman run aquasec/trivy:0.75.0 image` (2.70.2: 2 HIGH)
+- [ ] blind spot, by test: Trivy 0.75.0 found no PHP2Shell CVE in `kimai2:2.70.0`. The official PHP images compile PHP into `/usr/local/bin`, so no dpkg or Composer record exists. Runtimes built from source still need advisories plus a quick manual bump
+- [ ] Renovate, cheap extras: `osvVulnerabilityAlerts: true` and `vulnerabilityAlerts` (GitHub App needs "Dependabot alerts: Read"); only help if a package-manager ecosystem is ever added. `pinDigests: true` catches upstream security rebuilds of moving tags (`gotenberg:8.38`, `busybox:1.38`, `redis:8.10.2-alpine`, `postgres:18-alpine`)
+
 ## Minor
 - [ ] m1: Inconsistent namespace name quoting
 - [x] m6: Poorly named paperless deployment files (renamed by workload: paperless, tika, gotenberg; 1P items by secret name)
