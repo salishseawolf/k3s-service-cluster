@@ -21,7 +21,7 @@ umami:
     # -- Umami container image
     repository: ghcr.io/umami-software/umami
     # -- Image tag
-    tag: "3.4.0"
+    tag: "3.4.1"
     pullPolicy: IfNotPresent
 
   imagePullSecrets: []
