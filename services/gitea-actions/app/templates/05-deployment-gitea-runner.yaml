@@ -37,7 +37,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: runner
-        image: 'gitea/runner:5.1.1-dind'
+        image: 'gitea/runner:5.2.0-dind'
         imagePullPolicy: Always
         securityContext:
           privileged: true
