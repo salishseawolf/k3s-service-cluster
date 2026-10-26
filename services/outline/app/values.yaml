@@ -32,7 +32,7 @@ traefikSources:
 outline:
   image:
     repository: docker.io/outlinewiki/outline
-    tag: "1.11.0"
+    tag: "1.12.0"
   port: 3000
   # The image's nodejs user; owns /var/lib/outline/data.
   uid: 1001
