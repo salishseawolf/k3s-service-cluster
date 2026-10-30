@@ -435,6 +435,12 @@ alloy:
           stage.regex {
             expression = `^\d{4}-\d{2}-\d{2}T[0-9:.]+Z\t(?P<level>DEBUG|INFO|WARN|ERROR|PANIC|FATAL)\t`
           }
+          // Monolog (Kimai): [2026-10-23T16:32:41.237914+00:00] deprecation.INFO: ...
+          // Without it the keyword fallback calls INFO deprecations that
+          // carry an {"exception":...} context errors.
+          stage.regex {
+            expression = `^\[\d{4}-\d{2}-\d{2}T[0-9:.+-]+\] [\w.-]+\.(?P<level>DEBUG|INFO|NOTICE|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY): `
+          }
           // 1Password Connect: JSON with a numeric level Loki can't map, and
           // the real one as a "(I) " prefix on log_message.
           stage.regex {
@@ -552,7 +558,7 @@ alloy:
           // (not a label: no new streams); Loki uses it as detected_level.
           stage.template {
             source   = "level"
-            template = {{`"{{ $l := ToLower (print .Value) }}{{ if or (eq $l \"t\") (eq $l \"trace\") }}trace{{ else if or (eq $l \"d\") (eq $l \"debug\") }}debug{{ else if or (eq $l \"i\") (eq $l \"info\") (eq $l \"note\") }}info{{ else if or (eq $l \"w\") (eq $l \"warn\") (eq $l \"warning\") }}warn{{ else if or (eq $l \"e\") (eq $l \"error\") (eq $l \"failed\") (eq $l \"exception\") }}error{{ else if or (eq $l \"f\") (eq $l \"c\") (eq $l \"fatal\") (eq $l \"panic\") (eq $l \"critical\") }}critical{{ end }}"`}}
+            template = {{`"{{ $l := ToLower (print .Value) }}{{ if or (eq $l \"t\") (eq $l \"trace\") }}trace{{ else if or (eq $l \"d\") (eq $l \"debug\") }}debug{{ else if or (eq $l \"i\") (eq $l \"info\") (eq $l \"note\") (eq $l \"notice\") }}info{{ else if or (eq $l \"w\") (eq $l \"warn\") (eq $l \"warning\") }}warn{{ else if or (eq $l \"e\") (eq $l \"error\") (eq $l \"failed\") (eq $l \"exception\") }}error{{ else if or (eq $l \"f\") (eq $l \"c\") (eq $l \"fatal\") (eq $l \"panic\") (eq $l \"critical\") (eq $l \"alert\") (eq $l \"emergency\") }}critical{{ end }}"`}}
           }
           stage.structured_metadata {
             values = {
