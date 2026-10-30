@@ -53,7 +53,7 @@ outline:
 redis:
   image:
     repository: docker.io/library/redis
-    tag: "8.10.2-alpine"
+    tag: "8.10.3-alpine"
   maxmemory: 48mb
   resources:
     requests:
