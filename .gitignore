@@ -54,6 +54,8 @@ kubeconfig
 
 # Database dumps (password hashes, API tokens)
 tmp/
+dumps/
+*.dump
 *.dump.sql
 
 # Logs

@@ -7,10 +7,9 @@ domain: ""
 # release name is the Argo app's, so its resources are ferry-demo-*.
 ferry-demo:
   server:
-    # 0 for the first sync: lets the database come up (and a dev dump be
-    # restored into it, per the upstream chart's README) before anything
-    # records. Then 1. Never more: the chart fails above 1.
-    replicas: 0
+    # 1, or 0 to stop recording (a rebuild or a restore needs it: see the
+    # upstream chart's README). Never more: the chart fails above 1.
+    replicas: 1
 
   wsdot:
     # Field `access_code`, the WSDOT Traveler API access code.
