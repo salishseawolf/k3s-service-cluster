@@ -1,0 +1,63 @@
+# Continuous archiving of ferry-demo-db to B2 through the Barman Cloud plugin,
+# as main-db does (services/database/app): every WAL segment as it fills,
+# plus a nightly base backup, so a lost volume costs minutes of raw_polls, not
+# a day. The nightly pg_dump (and its VolSync copy) stays as a second,
+# portable copy that `dev:offline` can start from.
+#
+# Own B2 key, limited to the cnpg/ferry-demo/ prefix (item fields as
+# main-db's "BackBlaze CNPG B2 Bucket": s3_key_id, s3_application_key).
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: cnpg-b2-ferry-demo
+  namespace: ferry-demo
+  annotations:
+    # Secret exists before the ObjectStore and backups that read it.
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/CNPG B2 ferry-demo"
+---
+# The plugin writes under <destinationPath>/<cluster name>, so this is
+# cnpg/ferry-demo/ferry-demo-db/ in the bucket.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: ferry-demo-b2
+  namespace: ferry-demo
+  annotations:
+    # Before the Cluster (wave 0), whose plugin config names it.
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  configuration:
+    destinationPath: "s3://k3s-service-cluster/cnpg/ferry-demo/"
+    endpointURL: "https://s3.us-west-004.backblazeb2.com"
+    s3Credentials:
+      accessKeyId:
+        name: cnpg-b2-ferry-demo
+        key: s3_key_id
+      secretAccessKey:
+        name: cnpg-b2-ferry-demo
+        key: s3_application_key
+  retentionPolicy: "30d"
+---
+# WAL alone can't be restored without a base backup to replay it onto:
+# `immediate` takes the first one as soon as this is created. Nightly after
+# that, an hour after main-db's (00:00 UTC) so the two don't overlap.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: ferry-demo-db-daily
+  namespace: ferry-demo
+  annotations:
+    # After the Cluster is healthy again with the plugin, so the immediate
+    # first backup doesn't race the instance's restart.
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  schedule: "0 0 1 * * *"
+  backupOwnerReference: self
+  immediate: true
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  cluster:
+    name: ferry-demo-db

@@ -36,6 +36,7 @@ Rebrand or domain cutover = a one-file PR.
 | VolSync B2 &lt;pvc&gt; (×9: gitea-data, paperless-data, paperless-media, copyparty-data, kimai-data, outline-data, mariadb-dump, ferry-demo-backups; kimai-db-dump is history only, pre-2026-10-19) | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | restic env verbatim, one item **per PVC** (repos must not be shared).<br>`RESTIC_REPOSITORY` = `s3:https://s3.us-west-004.backblazeb2.com/k3s-service-cluster/volsync/<ns>/<pvc>` |
 | Authentik Deployment Secrets | `secret_key`, `db_password`, `bootstrap_email`, `bootstrap_password` | verify |
 | SeaweedFS Secrets | `db_password`, `backup_access_key`, `backup_secret_key` | verify |
+| CNPG B2 ferry-demo | `s3_key_id`, `s3_application_key` | B2 key limited to `cnpg/ferry-demo/`: ferry-demo-db's WAL archive and base backups (Barman Cloud plugin, `services/ferry-demo/app/templates/barman.yaml`) |
 | WSDOT Traveler API | `access_code` | WSDOT Traveler API access code; ferry-demo's server polls WSF with it (`ferry-demo-wsdot` Secret) |
 | Gatus Secrets | `password` | doubles as its db password |
 | Umami Secrets | `db_password`, `app_secret` | `app_secret` is Umami's `APP_SECRET` hashing key; `db_password` is also consumed by bootstrap secret_zero for `umami-db-user-auth` |

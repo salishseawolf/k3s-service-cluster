@@ -248,7 +248,7 @@ oidc_key/secret, actions_token, admin_user/password), `Homarr Secrets`,
 env fields), `Authentik Deployment Secrets`, `Cloudflare DNS Challenge`,
 `Redis Password`, `StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`,
 `Umami Secrets`, `Kimai Secrets`, `Kimai SAML Signing`, `MariaDB Secrets`,
-`WSDOT Traveler API`.
+`WSDOT Traveler API`, `CNPG B2 ferry-demo`.
 
 ### VolSync B2 credentials (one scoped key per PVC)
 

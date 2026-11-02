@@ -24,6 +24,13 @@ ferry-demo:
     # (minutes without it) instead of hanging.
     storage:
       storageClass: hcloud-volumes
+    # WAL archiving to B2 (templates/barman.yaml defines the ObjectStore).
+    plugins:
+      - name: barman-cloud.cloudnative-pg.io
+        enabled: true
+        isWALArchiver: true
+        parameters:
+          barmanObjectName: ferry-demo-b2
 
   backup:
     # Nightly pg_dump; VolSync copies the volume to B2 (templates/volsync.yaml),
