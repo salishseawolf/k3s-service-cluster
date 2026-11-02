@@ -1,0 +1,128 @@
+# ferry-demo availability and job alerts, emailed via Alertmanager.
+# `release: monitoring` is what Prometheus' ruleSelector matches (any
+# namespace); `notify: email` routes an alert to the email receiver in
+# services/monitoring. The upload of the dumps to B2 is covered for every
+# ReplicationSource by VolSyncBackupStuck / VolSyncBackupOutOfSync
+# (platform/volsync).
+#
+# Not covered here: WSF answering but the server recording nothing (a stalled
+# poller still passes /readyz). That needs a freshness signal from the app.
+#
+# Prometheus keeps its data in an emptyDir, so a restart resets the `for`
+# timers of the long-window rules below; they fire late, not falsely.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ferry-demo
+  namespace: ferry-demo
+  labels:
+    app.kubernetes.io/name: ferry-demo
+    release: monitoring
+spec:
+  groups:
+    - name: ferry-demo
+      rules:
+        # Only while it's meant to run: server.replicas is 0 for rebuilds and
+        # restores. Nothing is recorded while this fires, and raw_polls can't
+        # be backfilled.
+        - alert: FerryServerDown
+          expr: |
+            kube_deployment_spec_replicas{namespace="ferry-demo", deployment="ferry-demo-server"} > 0
+            and
+            kube_deployment_status_replicas_available{namespace="ferry-demo", deployment="ferry-demo-server"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: ferry-demo server is down; nothing is being recorded
+            description: >-
+              No available ferry-demo-server pod for 5 minutes. WSF answers
+              missed now are lost for good.
+              Check: kubectl -n ferry-demo get pods; kubectl -n ferry-demo logs deploy/ferry-demo-server
+        - alert: FerryWebDown
+          expr: |
+            kube_deployment_spec_replicas{namespace="ferry-demo", deployment="ferry-demo-web"} > 0
+            and
+            kube_deployment_status_replicas_available{namespace="ferry-demo", deployment="ferry-demo-web"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: ferry-demo web front end is down
+            description: >-
+              No available ferry-demo-web pod for 5 minutes;
+              ferries.{{ .Values.domain }} is down (recording continues).
+              Check: kubectl -n ferry-demo get pods; kubectl -n ferry-demo logs deploy/ferry-demo-web
+        # `or vector(0)`: also fires when the instance pod is gone entirely.
+        - alert: FerryDatabaseDown
+          expr: |
+            (max(kube_pod_status_ready{namespace="ferry-demo", pod=~"ferry-demo-db-[0-9]+", condition="true"}) or vector(0)) == 0
+          for: 5m
+          labels:
+            severity: critical
+            notify: email
+          annotations:
+            summary: ferry-demo database is down
+            description: >-
+              No ready ferry-demo-db instance for 5 minutes; the server can't
+              record.
+              Check: kubectl -n ferry-demo get cluster,pods; kubectl -n ferry-demo logs ferry-demo-db-1
+        # A Job of the CronJob failed after its last success (or before any:
+        # the 0 fallback). Resolves on the next successful run, although the
+        # failed Job stays in the history.
+{{- range $cron, $cfg := dict
+  "ferry-demo-backup" (dict "name" "FerryBackup" "what" "nightly pg_dump" "consequence" "The previous dumps are kept, and VolSync uploads whatever is on the volume.")
+  "ferry-demo-advice" (dict "name" "FerryAdvice" "what" "daily arrival-advice job" "consequence" "The server keeps using the last stored record, a day staler.") }}
+        - alert: {{ $cfg.name }}Failed
+          expr: |
+            max by (namespace) (
+              kube_job_status_start_time{namespace="ferry-demo", job_name=~"{{ $cron }}-.*"}
+              * on (namespace, job_name) group_left ()
+              (kube_job_failed{namespace="ferry-demo", job_name=~"{{ $cron }}-.*", condition="true"} == 1)
+            )
+            > on (namespace)
+            (
+              max by (namespace) (kube_cronjob_status_last_successful_time{namespace="ferry-demo", cronjob="{{ $cron }}"})
+              or label_replace(vector(0), "namespace", "ferry-demo", "", "")
+            )
+          for: 1m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: ferry-demo {{ $cfg.what }} failed
+            description: >-
+              A {{ $cron }} Job failed. {{ $cfg.consequence }}
+              Check: kubectl -n ferry-demo get jobs; kubectl -n ferry-demo logs job/<name>
+        # Daily job: catches what a failure alert cannot (suspended CronJob,
+        # PSA-rejected pods, no runs at all).
+        - alert: {{ $cfg.name }}Stale
+          expr: |
+            time() - max by (namespace) (kube_cronjob_status_last_successful_time{namespace="ferry-demo", cronjob="{{ $cron }}"}) > 30 * 3600
+          for: 30m
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: No successful ferry-demo {{ $cfg.what }} in 30 hours
+            description: >-
+              {{ $cron }} runs daily but hasn't succeeded for over 30 hours.
+              {{ $cfg.consequence }}
+              Check: kubectl -n ferry-demo get cronjob {{ $cron }}; kubectl -n ferry-demo get events
+        # Before the first success the Stale rule has nothing to compare to.
+        - alert: {{ $cfg.name }}NeverSucceeded
+          expr: |
+            absent(kube_cronjob_status_last_successful_time{namespace="ferry-demo", cronjob="{{ $cron }}"})
+          for: 30h
+          labels:
+            severity: warning
+            notify: email
+          annotations:
+            summary: ferry-demo {{ $cfg.what }} has never succeeded
+            description: >-
+              No successful {{ $cron }} run recorded for 30 hours (or
+              kube-state-metrics isn't reporting it). {{ $cfg.consequence }}
+              Check: kubectl -n ferry-demo get cronjob {{ $cron }}; kubectl -n ferry-demo get events
+{{- end }}

@@ -1,5 +1,10 @@
-# Same model as the bootstrap-tier policies: default-deny
-# ingress; Traefik arrives with a node IP (hostNetwork), matched via ipBlock.
+# Default-deny ingress, then explicit allows per component (labels from the
+# upstream chart). Traefik (hostNetwork) can arrive from a node's private or
+# pod-network address, so only the web pods take the ipBlock rule; the server
+# and the database aren't reachable from outside the namespace except as
+# listed. Kubelet probes are host-local and allowed by K3s regardless (the
+# database namespace works the same way). Egress is open: the server polls
+# WSDOT's APIs.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -10,6 +15,7 @@ spec:
   policyTypes:
     - Ingress
 ---
+# web -> server, server/jobs -> database, VolSync movers.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -29,7 +35,10 @@ metadata:
   name: allow-ingress-traefik
   namespace: ferry-demo
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ferry-demo
+      app.kubernetes.io/component: web
   policyTypes:
     - Ingress
   ingress:
@@ -38,7 +47,47 @@ spec:
             cidr: 10.42.0.0/16
         - ipBlock:
             cidr: 192.168.0.0/16
-# The 10.42.0.0/16 block above already admits every pod, the CNPG operator's
-# included; Traefik (hostNetwork) can arrive from a node's pod-network
-# address, so it can't be narrowed. Egress is open: the server polls WSDOT's
-# APIs and the backup job reaches the database.
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# Gatus checks the server's /readyz on its Service.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gatus-server
+  namespace: ferry-demo
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ferry-demo
+      app.kubernetes.io/component: server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gatus
+      ports:
+        - protocol: TCP
+          port: 8090
+---
+# The CNPG operator manages the instance (status on 8000, Postgres on 5432),
+# as in the database namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cnpg-operator
+  namespace: ferry-demo
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: ferry-demo-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system

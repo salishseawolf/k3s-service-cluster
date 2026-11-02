@@ -11,3 +11,18 @@ spec:
   rateLimit:
     average: 60
     burst: 600
+---
+# /api/v1/stats/ only (ingressroute-stats.yaml): database queries the server
+# doesn't cache (~0.1 s each with days of history, growing with it). Far more
+# than the app asks for: it fetches each route's stats once when picked and
+# keeps them 5 minutes.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: ferry-demo-stats-rate-limit
+  namespace: ferry-demo
+spec:
+  rateLimit:
+    average: 30
+    period: 1m
+    burst: 30

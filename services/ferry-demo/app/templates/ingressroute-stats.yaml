@@ -1,0 +1,24 @@
+# The upstream chart's IngressRoute sends all of ferries.<domain> to the web
+# pods with ferry-demo-rate-limit. This narrower route (longer rule, so it
+# outranks that one) gives the stats API a stricter limit of its own; a
+# request matches one router, so only this middleware applies to it.
+{{- $host := required "ferry-demo.host comes from cluster-values.yaml" (index .Values "ferry-demo" "host") }}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ferry-demo-stats
+  namespace: ferry-demo
+  labels:
+    app.kubernetes.io/name: ferry-demo
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`{{ $host }}`) && PathPrefix(`/api/v1/stats/`)
+      middlewares:
+        - name: ferry-demo-stats-rate-limit
+          namespace: ferry-demo
+      services:
+        - name: ferry-demo-web
+          port: 8080
