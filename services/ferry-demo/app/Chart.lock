@@ -1,6 +1,6 @@
 dependencies:
 - name: ferry-demo
   repository: oci://ghcr.io/salishseawolf/charts
-  version: 0.1.21
-digest: sha256:38a411cf452bcdda2c403f331ca399a31b91049aabd7714d782a652c7fbb898c
-generated: "2026-11-02T11:22:22.659251393-08:00"
+  version: 0.1.23
+digest: sha256:43ef3623cf1c49b5a5c079315cc753e2d3affd299547fc3c41e37524758d5382
+generated: "2026-11-02T12:08:00.905296553-08:00"

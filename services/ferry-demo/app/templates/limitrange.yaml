@@ -1,7 +1,7 @@
-# Defaults only fill in what the upstream chart leaves out (it sets memory
-# limits but no CPU limits). The default CPU limit must not be below any CPU
-# request in the chart (the rebuild job asks for 500m), or the pod is
-# rejected at admission.
+# The upstream chart sets every container's limits itself (since 0.1.23), so
+# these defaults reach only pods others make here: CNPG's initdb/join jobs and
+# VolSync movers. A default CPU limit below a pod's own CPU request would
+# reject it at admission, hence 1 CPU rather than personal-site's 200m.
 apiVersion: v1
 kind: LimitRange
 metadata:

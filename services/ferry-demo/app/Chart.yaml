@@ -10,5 +10,5 @@ type: application
 version: 0.1.0
 dependencies:
   - name: ferry-demo
-    version: "0.1.21"
+    version: "0.1.23"
     repository: oci://ghcr.io/salishseawolf/charts
