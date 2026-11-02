@@ -273,6 +273,23 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+      # 503 once boat positions were last recorded 2+ minutes ago (WSF outage,
+      # revoked key, empty answers, or writes failing), while /readyz stays
+      # green. raw_polls can't be backfilled, so this one alerts. Via Slack:
+      # Gatus' results aren't scraped into Prometheus. Red while
+      # server.replicas is 0, as above.
+      - name: Ferries Recording
+        group: services
+        url: "http://ferry-demo-server.ferry-demo.svc.cluster.local:8090/recording"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: slack
+            failure-threshold: 5
+            success-threshold: 2
+            send-on-resolved: true
+            description: "ferry-demo isn't recording boat positions: WSF answers missed now are lost"
       # The login page renders only if PHP, the cache and the MariaDB
       # connection all work (same path as the pod's own probes); "/" just
       # redirects to it.

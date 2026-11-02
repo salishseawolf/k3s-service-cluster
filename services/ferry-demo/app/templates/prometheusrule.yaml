@@ -5,8 +5,9 @@
 # ReplicationSource by VolSyncBackupStuck / VolSyncBackupOutOfSync
 # (platform/volsync).
 #
-# Not covered here: WSF answering but the server recording nothing (a stalled
-# poller still passes /readyz). That needs a freshness signal from the app.
+# Not covered here: the server up but recording nothing (WSF outage, revoked
+# key, failing writes). Gatus' "Ferries Recording" check of the server's
+# /recording alerts on that, via Slack.
 #
 # Prometheus keeps its data in an emptyDir, so a restart resets the `for`
 # timers of the long-window rules below; they fire late, not falsely.

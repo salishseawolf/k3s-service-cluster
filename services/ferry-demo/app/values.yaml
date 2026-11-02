@@ -19,6 +19,9 @@ ferry-demo:
     # Its own single-instance cluster, not the shared main-db: raw_polls grows
     # ~26 GB a year (main-db would store it three times), and the app needs
     # Postgres 18.6 with en_US.UTF-8 so dev dumps restore as they are.
+    # enablePDB stays unset: with one instance the chart drops CloudNativePG's
+    # PodDisruptionBudget, so a node drain restarts the database elsewhere
+    # (minutes without it) instead of hanging.
     storage:
       storageClass: hcloud-volumes
 
