@@ -1,0 +1,47 @@
+# VolSync restic backup of ferry-demo-backups, the upstream chart's nightly
+# pg_dump volume (CronJob ferry-demo-backup, 04:30 Pacific). Everything in the
+# app derives from raw_polls, which only these dumps can bring back.
+#
+# Daily, after the dump: VolSync schedules in UTC, and 13:30 UTC is 05:30 PST
+# / 06:30 PDT, past the dump job's one-hour deadline either way.
+#
+# The 1P item carries the restic env verbatim (AGENT.md "VolSync B2
+# credentials"): its own scoped B2 key, never shared with another PVC.
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: volsync-b2-ferry-demo-backups
+  namespace: ferry-demo
+spec:
+  itemPath: "vaults/K3s Service Cluster/items/VolSync B2 ferry-demo-backups"
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: ferry-demo-backups
+  namespace: ferry-demo
+spec:
+  sourcePVC: ferry-demo-backups
+  trigger:
+    schedule: "30 13 * * *"
+  restic:
+    repository: volsync-b2-ferry-demo-backups
+    # Direct: neither CSI driver here snapshots or clones (see kimai's).
+    copyMethod: Direct
+    pruneIntervalDays: 7
+    retain:
+      daily: 7
+      weekly: 4
+      monthly: 3
+    cacheCapacity: 2Gi
+    # SeaweedFS follows the pod; local-path would pin the mover to one node.
+    cacheStorageClassName: seaweedfs-storage
+    # PSA restricted: as the dump job's uid (the Postgres image's user, 26),
+    # which owns the dumps.
+    moverSecurityContext:
+      runAsUser: 26
+      runAsGroup: 26
+      fsGroup: 26
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault

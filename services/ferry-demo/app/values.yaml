@@ -1,0 +1,39 @@
+---
+# Injected by the root ApplicationSet (cluster-values.yaml). That file also
+# sets ferry-demo.host, since a values file can't build it from `domain`.
+domain: ""
+
+# The upstream chart's values: charts/ferry-demo-*.tgz, values.yaml. The
+# release name is the Argo app's, so its resources are ferry-demo-*.
+ferry-demo:
+  server:
+    # 0 for the first sync: lets the database come up (and a dev dump be
+    # restored into it, per the upstream chart's README) before anything
+    # records. Then 1. Never more: the chart fails above 1.
+    replicas: 0
+
+  wsdot:
+    # Field `access_code`, the WSDOT Traveler API access code.
+    itemPath: "vaults/K3s Service Cluster/items/WSDOT Traveler API"
+
+  postgres:
+    # Its own single-instance cluster, not the shared main-db: raw_polls grows
+    # ~26 GB a year (main-db would store it three times), and the app needs
+    # Postgres 18.6 with en_US.UTF-8 so dev dumps restore as they are.
+    storage:
+      storageClass: hcloud-volumes
+
+  backup:
+    # Nightly pg_dump; VolSync copies the volume to B2 (templates/volsync.yaml),
+    # which keeps the history, so few dumps need staying here.
+    keep: 3
+    storage:
+      storageClass: seaweedfs-storage
+
+  ingress:
+    # No tls block: websecure terminates TLS at the entrypoint
+    # (--entrypoints.websecure.http.tls=true) with the default store's
+    # wildcard certificate.
+    middlewares:
+      - name: ferry-demo-rate-limit
+        namespace: ferry-demo

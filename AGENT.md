@@ -81,6 +81,7 @@ services/*/app/             Argo CD: application Helm charts
   umami/                     Privacy-first web analytics
   monitoring/                Prometheus, Loki, Alloy, Grafana
   personal-site/             Static personal site
+  ferry-demo/                Live WSF ferry map (wraps its own OCI chart; own CNPG cluster)
   renovate/                  Renovate CronJob (dependency update PRs)
 scripts/                    check-rendered-charts.sh (used by mise check + CI)
 docs/                       Runbooks, plans, todo
@@ -246,7 +247,8 @@ oidc_key/secret, actions_token, admin_user/password), `Homarr Secrets`,
 `Paperless Secrets`, `VolSync B2 <pvc>` (one item per backed-up PVC, restic
 env fields), `Authentik Deployment Secrets`, `Cloudflare DNS Challenge`,
 `Redis Password`, `StepCA Secrets`, `SeaweedFS Secrets`, `Gatus Secrets`,
-`Umami Secrets`, `Kimai Secrets`, `Kimai SAML Signing`, `MariaDB Secrets`.
+`Umami Secrets`, `Kimai Secrets`, `Kimai SAML Signing`, `MariaDB Secrets`,
+`WSDOT Traveler API`.
 
 ### VolSync B2 credentials (one scoped key per PVC)
 
@@ -359,9 +361,10 @@ access control happens behind it:
 
 Web routes, by design:
 
-- **Public:** the personal site, Copyparty share links (`files.`, for
-  people outside the org), Umami's tracking paths, and Authentik itself
-  (`auth.`, the login page, rate-limited).
+- **Public:** the personal site, the ferry map (`ferries.`, rate-limited),
+  Copyparty share links (`files.`, for people outside the org), Umami's
+  tracking paths, and Authentik itself (`auth.`, the login page,
+  rate-limited).
 - **Everything else is behind forward-auth.** Apps with their own Authentik
   login (Gitea, Paperless, Outline OIDC; Kimai SAML) are gated too, so no request
   reaches their code without an Authentik session.
@@ -404,7 +407,8 @@ A records.
 ## Storage
 
 App data lives on `seaweedfs-storage`; databases and system storage (CNPG,
-the shared MariaDB, step-ca, SeaweedFS's own disk) on `hcloud-volumes`. **Exception:**
+including ferry-demo's own cluster, the shared MariaDB, step-ca, SeaweedFS's
+own disk) on `hcloud-volumes`. **Exception:**
 monitoring never depends on the storage it watches, so Loki uses a Hetzner
 volume and Prometheus and Alertmanager use capped `emptyDir`s (history resets
 on pod restart, by choice). Until 2026-10 every

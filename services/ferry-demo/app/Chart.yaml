@@ -1,0 +1,14 @@
+---
+apiVersion: v2
+name: ferry-demo
+description: >-
+  Live map of Washington State Ferries (salishseawolf/ferry-demo), public at
+  ferries.<domain>. The upstream chart brings the server, the nginx front end,
+  its own CNPG Postgres and the advice/backup/rebuild CronJobs; this wrapper
+  adds the namespace, policies, rate limit and the VolSync backup of its dumps.
+type: application
+version: 0.1.0
+dependencies:
+  - name: ferry-demo
+    version: "0.1.21"
+    repository: oci://ghcr.io/salishseawolf/charts

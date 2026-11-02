@@ -51,8 +51,9 @@
   // helm-values (values.yaml images) and helmv3 (Chart.yaml dependencies) use
   // their default file patterns.
   helmv3: {
-    // gitea, identity and umami vendor their subchart .tgz next to Chart.lock;
-    // without this a bump would update the lock but leave the old archive.
+    // gitea, identity, umami and ferry-demo vendor their subchart .tgz next to
+    // Chart.lock; without this a bump would update the lock but leave the old
+    // archive.
     postUpdateOptions: ["helmUpdateSubChartArchives"],
   },
   argocd: {
@@ -70,6 +71,12 @@
       // Tagged with a git SHA by its own build; nothing for Renovate to compare.
       matchPackageNames: ["ghcr.io/salishseawolf/personal-site"],
       enabled: false,
+    },
+    {
+      // ferry-demo's CI publishes a chart on every green push to main; take
+      // them once a week (merge a manual PR sooner for an urgent fix).
+      matchDepNames: ["ferry-demo"],
+      schedule: ["* 5 * * 1"],
     },
     {
       // Renovate releases almost daily; take its own updates once a week.

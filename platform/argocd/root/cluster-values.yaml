@@ -28,3 +28,9 @@ gitea:
         groupClaimName: groups
         adminGroup: infrastructure
         autoDiscoverUrl: "https://auth.salishseawolf.com/application/o/gitea/.well-known/openid-configuration"
+
+# ferry-demo's upstream chart takes its address as a value (`host`, required),
+# and values files can't template themselves, so like gitea's above it lives
+# here.
+ferry-demo:
+  host: "ferries.salishseawolf.com"

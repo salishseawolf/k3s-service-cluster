@@ -1,0 +1,44 @@
+# Same model as the bootstrap-tier policies: default-deny
+# ingress; Traefik arrives with a node IP (hostNetwork), matched via ipBlock.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: ferry-demo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: ferry-demo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-traefik
+  namespace: ferry-demo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.42.0.0/16
+        - ipBlock:
+            cidr: 192.168.0.0/16
+# The 10.42.0.0/16 block above already admits every pod, the CNPG operator's
+# included; Traefik (hostNetwork) can arrive from a node's pod-network
+# address, so it can't be narrowed. Egress is open: the server polls WSDOT's
+# APIs and the backup job reaches the database.

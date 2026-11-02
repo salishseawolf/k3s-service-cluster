@@ -1,0 +1,18 @@
+# Defaults only fill in what the upstream chart leaves out (it sets memory
+# limits but no CPU limits). The default CPU limit must not be below any CPU
+# request in the chart (the rebuild job asks for 500m), or the pod is
+# rejected at admission.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: pod-defaults
+  namespace: '{{ .Release.Namespace }}'
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "1"
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi

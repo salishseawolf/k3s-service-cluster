@@ -132,8 +132,12 @@ for c in "${charts[@]}"; do
   fi
   ok=1
   # --skip-tests: Argo CD never runs Helm test hooks, so don't lint them.
+  # cluster-values.yaml as the ApplicationSet passes it: some charts take
+  # domain-dependent values from it (gitea's oauth, ferry-demo's required host).
   if resolve_deps "$tmp" \
-     && helm template test "$tmp" --skip-tests --set domain=ci.example.com >"$rendered"; then
+     && helm template test "$tmp" --skip-tests \
+          -f "$ROOT/platform/argocd/root/cluster-values.yaml" \
+          --set domain=ci.example.com >"$rendered"; then
     # Run both validators even when the first fails, so one tool's findings
     # never hide the other's. 2>&1 keeps each tool's summary in order.
     kubeconform -kubernetes-version "$K8S_VERSION" -ignore-missing-schemas -strict -summary \

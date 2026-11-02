@@ -254,6 +254,25 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+      # Public, so checked end to end through Traefik like the personal site.
+      - name: Ferries
+        group: services
+        url: "https://ferries.{{ .Values.domain }}/"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        failures: 3
+        success: 2
+      # Ready once the database answers and the route network is loaded.
+      # Red while server.replicas is 0 (first deploy, rebuilds).
+      - name: Ferries Server
+        group: services
+        url: "http://ferry-demo-server.ferry-demo.svc.cluster.local:8090/readyz"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+        failures: 3
+        success: 2
       # The login page renders only if PHP, the cache and the MariaDB
       # connection all work (same path as the pod's own probes); "/" just
       # redirects to it.
