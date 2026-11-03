@@ -5,7 +5,10 @@ domain: ""
 
 image:
   repository: ghcr.io/salishseawolf/personal-site
-  tag: "7815512"
+  # `latest` by digest, which Renovate updates when a new build is published
+  # (the git-SHA tags don't sort). The digest is the image that runs; the tag
+  # is only a label for it.
+  tag: "latest@sha256:67e4430fc823da8b5b56bba8bb030e51473c0a69b45e3118228b95a6f1cd0b8c"
 
 port: 80
 

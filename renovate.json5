@@ -67,16 +67,21 @@
       matchUpdateTypes: ["major"],
       dependencyDashboardApproval: true,
     },
+    // Our own builds: propose each release on the next hourly run, without
+    // the window or the age delay (both are for third-party releases). Two
+    // rules, since match fields within one rule must all match.
     {
-      // Tagged with a git SHA by its own build; nothing for Renovate to compare.
+      // Its other tags are git SHAs, which don't sort, so values.yaml pins
+      // latest@sha256 and this gets digest updates when `latest` moves.
       matchPackageNames: ["ghcr.io/salishseawolf/personal-site"],
-      enabled: false,
+      schedule: ["at any time"],
+      minimumReleaseAge: "0 days",
     },
     {
-      // ferry-demo's CI publishes a chart on every green push to main; take
-      // them once a week (merge a manual PR sooner for an urgent fix).
+      // ferry-demo's CI publishes a chart on every green push to main.
       matchDepNames: ["ferry-demo"],
-      schedule: ["* 5 * * 1"],
+      schedule: ["at any time"],
+      minimumReleaseAge: "0 days",
     },
     {
       // Renovate releases almost daily; take its own updates once a week.
