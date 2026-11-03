@@ -8,7 +8,7 @@ image:
   # `latest` by digest, which Renovate updates when a new build is published
   # (the git-SHA tags don't sort). The digest is the image that runs; the tag
   # is only a label for it.
-  tag: "latest@sha256:67e4430fc823da8b5b56bba8bb030e51473c0a69b45e3118228b95a6f1cd0b8c"
+  tag: "latest@sha256:75b14c655c97eea653504fc86ec35232b00b0cd0c2d63e68cedf88ab8f5b953b"
 
 port: 80
 
