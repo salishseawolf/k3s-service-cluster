@@ -33,6 +33,31 @@ spec:
             fsGroup: 12021
             seccompProfile:
               type: RuntimeDefault
+          # The image installs tools on demand (helm, for Chart.lock and the
+          # vendored .tgz) into /opt/containerbase, which also holds the
+          # image's own install state, so an empty mount there won't do.
+          # Copy it into a writable volume each run (42 MB), which keeps the
+          # root read-only and follows image upgrades.
+          initContainers:
+            - name: seed-containerbase
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["cp", "-a", "/opt/containerbase/.", "/containerbase/"]
+              volumeMounts:
+                - name: containerbase
+                  mountPath: /containerbase
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
           containers:
             - name: renovate
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -81,12 +106,15 @@ spec:
                 - name: github-app
                   mountPath: /secrets/github-app
                   readOnly: true
-                # Writable scratch on a read-only root: clones, cache and
-                # any tools containerbase installs live under /tmp/renovate.
+                # Writable scratch on a read-only root: clones and caches
+                # (downloads included) under /tmp/renovate.
                 - name: tmp
                   mountPath: /tmp
                 - name: home
                   mountPath: /home/ubuntu
+                # The tools installed on demand (seed-containerbase above).
+                - name: containerbase
+                  mountPath: /opt/containerbase
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
@@ -112,3 +140,6 @@ spec:
             - name: home
               emptyDir:
                 sizeLimit: 256Mi
+            - name: containerbase
+              emptyDir:
+                sizeLimit: 1Gi

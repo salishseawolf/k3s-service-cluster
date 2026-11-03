@@ -6,10 +6,12 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["config:recommended"],
   timezone: "America/Los_Angeles",
-  // New updates start only in 05:00-05:59 Pacific (Renovate checks the hour;
-  // minutes must be "*"). The CronJob runs hourly, so between windows it still
-  // opens PRs once CI passes, rebases, and acts on dashboard clicks.
-  schedule: ["* 5 * * *"],
+  // Updates only in 05:00-07:59 Pacific (Renovate checks the hour; minutes
+  // must be "*"). The schedule gates PR creation too, not just new branches:
+  // the 05:15 run pushes branches, and the 06:15 and 07:15 runs open PRs for
+  // those whose CI has passed by then (prCreation below). Outside the window
+  // the hourly runs still act on dependency dashboard clicks.
+  schedule: ["* 5-7 * * *"],
 
   // Merged == deployed: let a release age 3 days before proposing it, so
   // broken or compromised releases are usually pulled or patched first.
@@ -68,25 +70,33 @@
       dependencyDashboardApproval: true,
     },
     // Our own builds: propose each release on the next hourly run, without
-    // the window or the age delay (both are for third-party releases). Two
-    // rules, since match fields within one rule must all match.
+    // the window or the age delay (both are for third-party releases), and
+    // never held back by the branch and PR limits when third-party updates
+    // are waiting (Renovate takes the lowest limit among a branch's updates,
+    // and 0 is none). Two rules, since match fields within one rule must all
+    // match.
     {
       // Its other tags are git SHAs, which don't sort, so values.yaml pins
       // latest@sha256 and this gets digest updates when `latest` moves.
       matchPackageNames: ["ghcr.io/salishseawolf/personal-site"],
       schedule: ["at any time"],
       minimumReleaseAge: "0 days",
+      branchConcurrentLimit: 0,
+      prConcurrentLimit: 0,
     },
     {
       // ferry-demo's CI publishes a chart on every green push to main.
       matchDepNames: ["ferry-demo"],
       schedule: ["at any time"],
       minimumReleaseAge: "0 days",
+      branchConcurrentLimit: 0,
+      prConcurrentLimit: 0,
     },
     {
-      // Renovate releases almost daily; take its own updates once a week.
+      // Renovate releases almost daily; take its own updates once a week
+      // (Monday's window, as wide as the global one so PRs still open).
       matchPackageNames: ["ghcr.io/renovatebot/renovate"],
-      schedule: ["* 5 * * 1"],
+      schedule: ["* 5-7 * * 1"],
     },
     {
       // CRDs (platform/monitoring-crd, wave 0) and workloads

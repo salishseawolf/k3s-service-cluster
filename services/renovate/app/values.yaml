@@ -7,10 +7,10 @@ image:
   repository: ghcr.io/renovatebot/renovate
   tag: "44.149.0"
 
-# Hourly: Renovate's working cadence (open PRs once CI passes, act on
-# Dependency Dashboard clicks, rebase, clean up merged branches). *New*
-# updates still only start inside the schedule window in /renovate.json5
-# (05:00-05:59 Pacific), which the 05:15 run falls into.
+# Hourly: Renovate's working cadence (act on Dependency Dashboard clicks,
+# clean up merged branches). Updates and their PRs happen only inside the
+# schedule window in /renovate.json5 (05:00-07:59 Pacific): the 05:15 run
+# pushes branches, and the 06:15 and 07:15 runs open PRs once CI passes.
 schedule: "15 * * * *"
 timeZone: America/Los_Angeles
 
