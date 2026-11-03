@@ -37,11 +37,13 @@ spec:
           # vendored .tgz) into /opt/containerbase, which also holds the
           # image's own install state, so an empty mount there won't do.
           # Copy it into a writable volume each run (42 MB), which keeps the
-          # root read-only and follows image upgrades.
+          # root read-only and follows image upgrades. Its entries, not the
+          # directory itself (`/.`): cp -a would set the source's times on the
+          # volume's root-owned mount point, which this user may not.
           initContainers:
             - name: seed-containerbase
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["cp", "-a", "/opt/containerbase/.", "/containerbase/"]
+              command: ["sh", "-c", "cp -a /opt/containerbase/* /containerbase/"]
               volumeMounts:
                 - name: containerbase
                   mountPath: /containerbase
