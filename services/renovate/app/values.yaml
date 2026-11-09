@@ -5,7 +5,7 @@ domain: ""
 
 image:
   repository: ghcr.io/renovatebot/renovate
-  tag: "44.210.0"
+  tag: "44.224.2"
 
 # Hourly: Renovate's working cadence (act on Dependency Dashboard clicks,
 # clean up merged branches). Updates and their PRs happen only inside the
