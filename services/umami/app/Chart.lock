@@ -1,6 +1,6 @@
 dependencies:
 - name: umami
   repository: https://repo.helmforge.dev
-  version: 2.3.3
-digest: sha256:75eb1955e3f25f9f504fb599c797397a29fed187651387031cc8b0a94afa64f0
-generated: "2026-09-16T17:00:23.918135279-07:00"
+  version: 2.4.7
+digest: sha256:e34700ef0fecce2cf8aa70663fde3f0bd57edbb8226ebd6aec54a20e27047fed
+generated: "2026-11-22T13:23:05.935530903Z"
