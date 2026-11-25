@@ -21,6 +21,13 @@ data:
     alerting:
       slack:
         webhook-url: "${GATUS_SLACK_WEBHOOK}"
+        # Applies to every endpoint below listing `- type: slack` without
+        # its own thresholds: 3 failed checks in a row to alert, 2 good ones
+        # to resolve. Gatus (self) has none, since it cannot report itself.
+        default-alert:
+          failure-threshold: 3
+          success-threshold: 2
+          send-on-resolved: true
 
     # App-level OIDC removed: this route sits behind authentik-forward-auth,
     # so authentication happens before traffic reaches the pod.
@@ -33,6 +40,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Copyparty
         group: services
         url: "tcp://copyparty.copyparty.svc.cluster.local:3923"
@@ -41,6 +50,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: K3s API
         group: platform
         url: "tcp://kubernetes.default.svc.cluster.local:443"
@@ -49,6 +60,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Traefik's dashboard is not exposed (404 even locally), and the bare
       # domain routes to the personal site, so the old /dashboard/ check could
       # never pass and logged an nginx 404 every minute. Check that Traefik
@@ -62,12 +75,16 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Wildcard TLS Certificate Expiry
         group: platform
         url: "https://auth.{{ .Values.domain }}/"
         interval: 120s
         conditions:
           - "[CERTIFICATE_EXPIRATION] > 168h"
+        alerts:
+          - type: slack
       - name: Step-CA Health
         group: platform
         url: "tcp://step-ca.step-ca.svc.cluster.local:443"
@@ -76,6 +93,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: CloudNativePG (Postgres)
         group: database
         url: "tcp://main-db-rw.database.svc.cluster.local:5432"
@@ -84,6 +103,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Shared MariaDB (services/mariadb/app); admits Gatus on 3306.
       - name: MariaDB
         group: database
@@ -93,6 +114,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Redis
         group: database
         url: "tcp://redis.redis.svc.cluster.local:6379"
@@ -101,6 +124,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: SeaweedFS S3 API
         group: storage
         url: "tcp://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
@@ -109,6 +134,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: SeaweedFS Master
         group: storage
         url: "tcp://seaweedfs-internal.seaweedfs.svc.cluster.local:9333"
@@ -117,6 +144,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: SeaweedFS Filer
         group: storage
         url: "tcp://seaweedfs-internal.seaweedfs.svc.cluster.local:8888"
@@ -125,6 +154,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: SeaweedFS Volume
         group: storage
         url: "tcp://seaweedfs-internal.seaweedfs.svc.cluster.local:8080"
@@ -133,6 +164,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: SeaweedFS CSI Controller
         group: storage
         url: "tcp://seaweedfs-csi-controller.seaweedfs-csi.svc.cluster.local:9808"
@@ -141,6 +174,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: VolSync Operator
         group: backups
         url: "tcp://volsync-metrics.volsync-system.svc.cluster.local:8443"
@@ -149,6 +184,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: CNPG Backup
         group: backups
         url: "tcp://main-db-rw.database.svc.cluster.local:5432"
@@ -157,6 +194,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Independent of Prometheus/Alertmanager: every email alert goes through
       # them, so these two alert via Gatus' own Slack notifier. Prometheus runs
       # on a capped emptyDir and restarts empty if it fills (2026-10-13).
@@ -194,6 +233,8 @@ data:
           - "[RESPONSE_TIME] < 2000"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Paperless, Gitea and Kimai sit behind Authentik forward-auth, which
       # would answer a check with a login redirect. So these call the Services
       # directly (allowed by each namespace's 10.42.0.0/16 ingress rule), with
@@ -210,6 +251,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Outline admits Gatus' namespace explicitly (not the pod CIDR).
       - name: Outline
         group: services
@@ -222,6 +265,8 @@ data:
           - "[BODY] == OK"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Outline Redis
         group: database
         url: "tcp://outline-redis.outline.svc.cluster.local:6379"
@@ -230,6 +275,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Homarr
         group: services
         url: "tcp://homarr.homarr.svc.cluster.local:7575"
@@ -238,6 +285,8 @@ data:
           - "[CONNECTED] == true"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Gitea
         group: services
         url: "http://gitea-http.gitea.svc.cluster.local:3000/api/healthz"
@@ -246,6 +295,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Personal Site
         group: services
         url: "https://{{ .Values.domain }}"
@@ -254,6 +305,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Public, so checked end to end through Traefik like the personal site.
       - name: Ferries
         group: services
@@ -263,6 +316,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # Ready once the database answers and the route network is loaded.
       # Red while server.replicas is 0 (first deploy, rebuilds).
       - name: Ferries Server
@@ -273,6 +328,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       # 503 once boat positions were last recorded 2+ minutes ago (WSF outage,
       # revoked key, empty answers, or writes failing), while /readyz stays
       # green. raw_polls can't be backfilled, so this one alerts. Via Slack:
@@ -303,6 +360,8 @@ data:
           - "[STATUS] == 200"
         failures: 3
         success: 2
+        alerts:
+          - type: slack
       - name: Gatus (self)
         group: internal
         url: "http://gatus.gatus.svc.cluster.local:{{ .Values.port }}/health"

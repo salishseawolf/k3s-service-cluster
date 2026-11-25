@@ -46,10 +46,11 @@ kps:
     enabled: true
     ingress:
       enabled: false
-    # Chart default config plus one opt-in email route: only alerts labelled
-    # notify="email" (e.g. services/kimai/app/templates/prometheusrule.yaml)
-    # are mailed; everything else still goes to the null receiver. Lists in
-    # Helm values replace rather than merge, so the defaults are restated.
+    # Chart default config plus opt-in email routes: alerts labelled
+    # notify="email" (e.g. services/outline/app/templates/prometheusrule.yaml)
+    # and the chart's workload-down rules are mailed; everything else still
+    # goes to the null receiver. Lists in Helm values replace rather than
+    # merge, so the defaults are restated.
     config:
       global:
         resolve_timeout: 5m
@@ -75,6 +76,13 @@ kps:
             matchers: ['alertname = "Watchdog"']
           - receiver: email
             matchers: ['notify = "email"']
+            group_by: ['alertname', 'namespace']
+          # The chart's own workload rules (15 minutes before firing), for
+          # every namespace: the catch-all for apps without rules of their
+          # own. Paperless went unnoticed for a day without it (2026-11-24).
+          - receiver: email
+            matchers:
+              - 'alertname =~ "KubeDeploymentReplicasMismatch|KubeStatefulSetReplicasMismatch|KubePodCrashLooping"'
             group_by: ['alertname', 'namespace']
       receivers:
         - name: 'null'
